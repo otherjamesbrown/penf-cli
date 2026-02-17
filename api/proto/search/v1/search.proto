@@ -1,0 +1,374 @@
+// Search Service Protobuf Definitions
+// Defines the gRPC service for hybrid search (full-text + vector) over Penfold content
+
+syntax = "proto3";
+
+package penfold.search.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/search/v1;searchv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// SearchService provides gRPC endpoints for searching indexed content.
+// Supports hybrid search combining full-text and vector similarity approaches,
+// as well as individual search modes for specific use cases.
+service SearchService {
+  // Search performs a hybrid search combining full-text and vector similarity.
+  // This is the recommended search method for most use cases, providing the
+  // best balance of keyword matching and semantic understanding.
+  rpc Search(SearchRequest) returns (SearchResponse);
+
+  // SemanticSearch performs vector-only similarity search.
+  // Best for finding conceptually related content regardless of exact keywords.
+  rpc SemanticSearch(SemanticSearchRequest) returns (SearchResponse);
+
+  // KeywordSearch performs full-text only search.
+  // Best for exact phrase matching or when semantic similarity is not needed.
+  rpc KeywordSearch(KeywordSearchRequest) returns (SearchResponse);
+
+  // IndexDocument adds or updates a document in the search index.
+  // Documents are automatically indexed for both full-text and vector search.
+  rpc IndexDocument(IndexDocumentRequest) returns (IndexDocumentResponse);
+
+  // DeleteDocument removes a document from the search index.
+  rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
+
+  // GetSearchStats returns statistics about the search index.
+  rpc GetSearchStats(GetSearchStatsRequest) returns (GetSearchStatsResponse);
+}
+
+// =============================================================================
+// Search Request/Response Messages
+// =============================================================================
+
+// SearchRequest is the input for hybrid search combining full-text and vector.
+message SearchRequest {
+  // The search query string. Used for both keyword matching and semantic embedding.
+  string query = 1;
+
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 2;
+
+  // Optional filters to narrow search results
+  FilterOptions filters = 3;
+
+  // Maximum number of results to return (default: 10, max: 100)
+  int32 limit = 4;
+
+  // Offset for pagination (default: 0)
+  int32 offset = 5;
+
+  // Weight for full-text search results (0.0 to 1.0, default: 0.5)
+  // Higher values prioritize keyword matches over semantic similarity.
+  optional float text_weight = 6;
+
+  // Weight for vector similarity results (0.0 to 1.0, default: 0.5)
+  // Higher values prioritize semantic similarity over keyword matches.
+  optional float vector_weight = 7;
+
+  // Minimum score threshold for results (0.0 to 1.0, default: 0.0)
+  // Results below this threshold are excluded.
+  optional float min_score = 8;
+
+  // Whether to include highlighted snippets in results (default: true)
+  optional bool include_highlights = 9;
+}
+
+// SemanticSearchRequest is the input for vector-only similarity search.
+message SemanticSearchRequest {
+  // The search query string. Converted to embedding for similarity search.
+  string query = 1;
+
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 2;
+
+  // Optional filters to narrow search results
+  FilterOptions filters = 3;
+
+  // Maximum number of results to return (default: 10, max: 100)
+  int32 limit = 4;
+
+  // Offset for pagination (default: 0)
+  int32 offset = 5;
+
+  // Minimum cosine similarity threshold (0.0 to 1.0, default: 0.0)
+  optional float min_similarity = 6;
+}
+
+// KeywordSearchRequest is the input for full-text only search.
+message KeywordSearchRequest {
+  // The search query string. Supports boolean operators (AND, OR, NOT).
+  string query = 1;
+
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 2;
+
+  // Optional filters to narrow search results
+  FilterOptions filters = 3;
+
+  // Maximum number of results to return (default: 10, max: 100)
+  int32 limit = 4;
+
+  // Offset for pagination (default: 0)
+  int32 offset = 5;
+
+  // Whether to include highlighted snippets in results (default: true)
+  optional bool include_highlights = 6;
+
+  // Whether to use fuzzy matching for typo tolerance (default: false)
+  optional bool fuzzy_matching = 7;
+}
+
+// SearchResponse is the output for all search operations.
+message SearchResponse {
+  // List of search results, ordered by relevance score
+  repeated SearchResult results = 1;
+
+  // Total number of matching documents (may be approximate for large result sets)
+  int64 total_count = 2;
+
+  // Time taken to execute the search in milliseconds
+  double query_time_ms = 3;
+
+  // Token for fetching the next page of results
+  string next_page_token = 4;
+}
+
+// SearchResult represents a single search result with relevance information.
+message SearchResult {
+  // Unique identifier of the matched document
+  string document_id = 1;
+
+  // Type of content: "email", "meeting", "document", "assertion"
+  string content_type = 2;
+
+  // Source identifier linking to the original content
+  string source_id = 3;
+
+  // Title or subject of the content (if available)
+  optional string title = 4;
+
+  // Text snippet with matched content
+  string snippet = 5;
+
+  // Highlighted portions of the content showing query matches
+  // Contains HTML-style <em> tags around matched terms
+  repeated string highlights = 6;
+
+  // Overall relevance score (0.0 to 1.0)
+  float score = 7;
+
+  // Full-text search score component (0.0 to 1.0)
+  optional float text_score = 8;
+
+  // Vector similarity score component (0.0 to 1.0)
+  optional float vector_score = 9;
+
+  // Timestamp when the content was created
+  google.protobuf.Timestamp created_at = 10;
+
+  // Timestamp when the content was last updated
+  google.protobuf.Timestamp updated_at = 11;
+
+  // Additional metadata about the result
+  map<string, string> metadata = 12;
+}
+
+// =============================================================================
+// Filter Options
+// =============================================================================
+
+// FilterOptions provides criteria for narrowing search results.
+message FilterOptions {
+  // Filter by content types (e.g., "email", "meeting", "document")
+  // Empty list means all types are included.
+  repeated string content_types = 1;
+
+  // Filter by source identifiers
+  repeated string source_ids = 2;
+
+  // Filter by date range - start date (inclusive)
+  optional google.protobuf.Timestamp date_from = 3;
+
+  // Filter by date range - end date (inclusive)
+  optional google.protobuf.Timestamp date_to = 4;
+
+  // Filter by specific tags
+  repeated string tags = 5;
+
+  // Filter by entity references (people, organizations, etc.)
+  repeated string entity_ids = 6;
+
+  // Filter by source system (e.g., "gmail", "slack", "notion")
+  repeated string sources = 7;
+
+  // Exclude documents by ID
+  repeated string exclude_ids = 8;
+}
+
+// =============================================================================
+// Document Indexing Messages
+// =============================================================================
+
+// IndexDocumentRequest adds or updates a document in the search index.
+message IndexDocumentRequest {
+  // Unique identifier for the document
+  string document_id = 1;
+
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 2;
+
+  // Type of content: "email", "meeting", "document", "assertion"
+  string content_type = 3;
+
+  // Source identifier linking to the original content
+  string source_id = 4;
+
+  // Title or subject of the content (optional)
+  optional string title = 5;
+
+  // Full text content to index
+  string content = 6;
+
+  // Pre-computed embedding vector (optional)
+  // If not provided, the service will generate an embedding from the content.
+  repeated float embedding = 7;
+
+  // Content creation timestamp
+  google.protobuf.Timestamp created_at = 8;
+
+  // Content update timestamp
+  google.protobuf.Timestamp updated_at = 9;
+
+  // Additional metadata to store with the document
+  map<string, string> metadata = 10;
+
+  // Tags for filtering
+  repeated string tags = 11;
+
+  // Associated entity IDs for filtering
+  repeated string entity_ids = 12;
+}
+
+// IndexDocumentResponse confirms document indexing.
+message IndexDocumentResponse {
+  // Unique identifier of the indexed document
+  string document_id = 1;
+
+  // Whether this was a new document or an update
+  bool created = 2;
+
+  // Timestamp when the document was indexed
+  google.protobuf.Timestamp indexed_at = 3;
+}
+
+// DeleteDocumentRequest removes a document from the search index.
+message DeleteDocumentRequest {
+  // Unique identifier of the document to delete
+  string document_id = 1;
+
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 2;
+}
+
+// DeleteDocumentResponse confirms document deletion.
+message DeleteDocumentResponse {
+  // Whether the document was found and deleted
+  bool deleted = 1;
+}
+
+// =============================================================================
+// Statistics Messages
+// =============================================================================
+
+// GetSearchStatsRequest retrieves search index statistics.
+message GetSearchStatsRequest {
+  // Tenant identifier for multi-tenancy support (optional, omit for global stats)
+  optional string tenant_id = 1;
+}
+
+// GetSearchStatsResponse contains search index statistics.
+message GetSearchStatsResponse {
+  // Total number of indexed documents
+  int64 total_documents = 1;
+
+  // Breakdown of documents by content type
+  map<string, int64> documents_by_type = 2;
+
+  // Breakdown of documents by source
+  map<string, int64> documents_by_source = 3;
+
+  // Total size of the full-text index in bytes
+  int64 text_index_size_bytes = 4;
+
+  // Total size of the vector index in bytes
+  int64 vector_index_size_bytes = 5;
+
+  // Embedding dimensions used in the vector index
+  int32 embedding_dimensions = 6;
+
+  // Timestamp of the oldest indexed document
+  google.protobuf.Timestamp oldest_document = 7;
+
+  // Timestamp of the newest indexed document
+  google.protobuf.Timestamp newest_document = 8;
+
+  // Timestamp when the index was last updated
+  google.protobuf.Timestamp last_indexed_at = 9;
+
+  // Average search latency in milliseconds (last 24 hours)
+  double avg_search_latency_ms = 10;
+
+  // P95 search latency in milliseconds (last 24 hours)
+  double p95_search_latency_ms = 11;
+
+  // Number of searches performed (last 24 hours)
+  int64 searches_24h = 12;
+}
+
+// =============================================================================
+// Content Type Enum
+// =============================================================================
+
+// ContentType enumerates the searchable content types.
+enum ContentType {
+  // Unspecified content type
+  CONTENT_TYPE_UNSPECIFIED = 0;
+
+  // Email message content
+  CONTENT_TYPE_EMAIL = 1;
+
+  // Meeting notes or transcripts
+  CONTENT_TYPE_MEETING = 2;
+
+  // Document content (PDF, Word, etc.)
+  CONTENT_TYPE_DOCUMENT = 3;
+
+  // Extracted assertion or fact
+  CONTENT_TYPE_ASSERTION = 4;
+
+  // Chat or messaging content
+  CONTENT_TYPE_CHAT = 5;
+
+  // Note or memo content
+  CONTENT_TYPE_NOTE = 6;
+}
+
+// SortOrder specifies the ordering of search results.
+enum SortOrder {
+  // Unspecified, defaults to relevance
+  SORT_ORDER_UNSPECIFIED = 0;
+
+  // Sort by relevance score (default)
+  SORT_ORDER_RELEVANCE = 1;
+
+  // Sort by creation date, newest first
+  SORT_ORDER_DATE_DESC = 2;
+
+  // Sort by creation date, oldest first
+  SORT_ORDER_DATE_ASC = 3;
+}

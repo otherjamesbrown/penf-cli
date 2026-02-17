@@ -1,0 +1,407 @@
+// API Gateway Service Protobuf Definitions
+// Defines the gRPC service for the unified API Gateway that routes requests
+// to internal services and provides external-facing endpoints.
+
+syntax = "proto3";
+
+package penfold.core.gateway.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/core/v1/gatewaypb;gatewaypb";
+
+import "google/protobuf/timestamp.proto";
+import "core/v1/commonpb/common.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// GatewayService provides the external-facing API for Penfold.
+// It acts as a unified entry point that routes requests to appropriate
+// internal services (orchestrator, search, daily review, etc.).
+service GatewayService {
+  // ProcessEmail ingests and processes an email through the AI pipeline.
+  // This triggers the email processing workflow via the orchestrator.
+  rpc ProcessEmail(ProcessEmailRequest) returns (ProcessEmailResponse);
+
+  // Search provides unified search across all indexed content.
+  // Supports semantic search, keyword search, and hybrid approaches.
+  rpc Search(SearchRequest) returns (SearchResponse);
+
+  // GetDailyReview retrieves the daily digest/review for a user.
+  // Aggregates recent activity, highlights, and actionable items.
+  rpc GetDailyReview(GetDailyReviewRequest) returns (GetDailyReviewResponse);
+
+  // HealthCheck returns the health status of the gateway and its dependencies.
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// =============================================================================
+// Email Processing Messages
+// =============================================================================
+
+// ProcessEmailRequest initiates processing of an email through the AI pipeline.
+message ProcessEmailRequest {
+  // Tenant identifier for multi-tenancy support.
+  string tenant_id = 1;
+
+  // Unique email message identifier (e.g., Message-ID header).
+  string message_id = 2;
+
+  // Email thread identifier for conversation threading.
+  string thread_id = 3;
+
+  // Sender email address.
+  string from_email = 4;
+
+  // Sender display name (optional).
+  optional string from_name = 5;
+
+  // Email subject line (optional).
+  optional string subject = 6;
+
+  // Email body content (plain text or HTML).
+  string body = 7;
+
+  // List of recipient email addresses.
+  repeated string to_emails = 8;
+
+  // List of CC recipient email addresses.
+  repeated string cc_emails = 9;
+
+  // Email date/time.
+  google.protobuf.Timestamp email_date = 10;
+
+  // List of attachment metadata (optional).
+  repeated EmailAttachment attachments = 11;
+
+  // Additional metadata key-value pairs.
+  map<string, string> metadata = 12;
+}
+
+// EmailAttachment contains metadata about an email attachment.
+message EmailAttachment {
+  // Filename of the attachment.
+  string filename = 1;
+
+  // MIME type of the attachment.
+  string content_type = 2;
+
+  // Size of the attachment in bytes.
+  int64 size_bytes = 3;
+
+  // Content hash for deduplication.
+  string content_hash = 4;
+}
+
+// ProcessEmailResponse contains the result of email ingestion.
+message ProcessEmailResponse {
+  // Unique identifier for the processing job.
+  string job_id = 1;
+
+  // Workflow execution ID for tracking.
+  string workflow_id = 2;
+
+  // Database source record ID.
+  int64 source_id = 3;
+
+  // Processing status.
+  penfold.core.common.v1.Status status = 4;
+
+  // Human-readable status message.
+  string message = 5;
+}
+
+// =============================================================================
+// Search Messages
+// =============================================================================
+
+// SearchRequest performs a search across indexed content.
+message SearchRequest {
+  // Tenant identifier for multi-tenancy support.
+  string tenant_id = 1;
+
+  // Search query string.
+  string query = 2;
+
+  // Search mode: semantic, keyword, or hybrid.
+  SearchMode mode = 3;
+
+  // Filter by source types (optional).
+  repeated SourceType source_types = 4;
+
+  // Filter by date range (optional).
+  optional google.protobuf.Timestamp from_date = 5;
+  optional google.protobuf.Timestamp to_date = 6;
+
+  // Filter by entity IDs (optional).
+  repeated string entity_ids = 7;
+
+  // Pagination parameters.
+  penfold.core.common.v1.Pagination pagination = 8;
+
+  // Minimum relevance score threshold (0.0 to 1.0).
+  optional float min_score = 9;
+
+  // Include full content in results (default: false, returns snippets only).
+  bool include_content = 10;
+}
+
+// SearchMode specifies the search algorithm to use.
+enum SearchMode {
+  // Default unspecified mode - server will choose appropriate mode.
+  SEARCH_MODE_UNSPECIFIED = 0;
+
+  // Semantic search using embeddings and vector similarity.
+  SEARCH_MODE_SEMANTIC = 1;
+
+  // Traditional keyword/full-text search.
+  SEARCH_MODE_KEYWORD = 2;
+
+  // Hybrid search combining semantic and keyword approaches.
+  SEARCH_MODE_HYBRID = 3;
+}
+
+// SourceType specifies the type of content source.
+enum SourceType {
+  // Unspecified source type.
+  SOURCE_TYPE_UNSPECIFIED = 0;
+
+  // Email content.
+  SOURCE_TYPE_EMAIL = 1;
+
+  // Meeting notes or transcripts.
+  SOURCE_TYPE_MEETING = 2;
+
+  // Document (PDF, Word, etc.).
+  SOURCE_TYPE_DOCUMENT = 3;
+
+  // Chat/messaging content (Slack, Teams, etc.).
+  SOURCE_TYPE_CHAT = 4;
+
+  // Calendar events.
+  SOURCE_TYPE_CALENDAR = 5;
+}
+
+// SearchResponse contains the search results.
+message SearchResponse {
+  // List of matching search results.
+  repeated SearchResult results = 1;
+
+  // Pagination metadata.
+  penfold.core.common.v1.PaginatedResponse pagination = 2;
+
+  // Query processing time in milliseconds.
+  int64 query_time_ms = 3;
+
+  // Total number of matches (may be estimated for large result sets).
+  int64 total_matches = 4;
+}
+
+// SearchResult represents a single search result.
+message SearchResult {
+  // Unique identifier of the source record.
+  string source_id = 1;
+
+  // Type of content source.
+  SourceType source_type = 2;
+
+  // Title or subject of the content.
+  string title = 3;
+
+  // Snippet or excerpt with highlighted matches.
+  string snippet = 4;
+
+  // Full content (only if include_content was true in request).
+  optional string content = 5;
+
+  // Relevance score (0.0 to 1.0).
+  float score = 6;
+
+  // Date of the source content.
+  google.protobuf.Timestamp source_date = 7;
+
+  // Associated entities (people, organizations, etc.).
+  repeated EntityReference entities = 8;
+
+  // Additional metadata.
+  map<string, string> metadata = 9;
+}
+
+// EntityReference contains a reference to an extracted entity.
+message EntityReference {
+  // Entity unique identifier.
+  string entity_id = 1;
+
+  // Entity type: "person", "organization", "location", etc.
+  string entity_type = 2;
+
+  // Entity name/label.
+  string name = 3;
+}
+
+// =============================================================================
+// Daily Review Messages
+// =============================================================================
+
+// GetDailyReviewRequest retrieves the daily review/digest.
+message GetDailyReviewRequest {
+  // Tenant identifier for multi-tenancy support.
+  string tenant_id = 1;
+
+  // Date for the daily review (defaults to today if not specified).
+  optional google.protobuf.Timestamp date = 2;
+
+  // User identifier for personalization.
+  optional string user_id = 3;
+
+  // Include detailed summaries (default: false).
+  bool include_details = 4;
+}
+
+// GetDailyReviewResponse contains the daily review content.
+message GetDailyReviewResponse {
+  // Date of the review.
+  google.protobuf.Timestamp date = 1;
+
+  // Summary of the day's activity.
+  string summary = 2;
+
+  // List of highlights or key items.
+  repeated ReviewHighlight highlights = 3;
+
+  // Action items extracted from the day's content.
+  repeated ActionItem action_items = 4;
+
+  // Statistics about content processed.
+  ReviewStats stats = 5;
+
+  // Top entities active on this day.
+  repeated EntityActivity top_entities = 6;
+
+  // When the review was generated.
+  google.protobuf.Timestamp generated_at = 7;
+}
+
+// ReviewHighlight represents a notable item from the day.
+message ReviewHighlight {
+  // Type of highlight: "email", "meeting", "decision", "deadline", etc.
+  string highlight_type = 1;
+
+  // Title or subject.
+  string title = 2;
+
+  // Brief summary.
+  string summary = 3;
+
+  // Source reference.
+  penfold.core.common.v1.ResourceReference source = 4;
+
+  // Importance score (0.0 to 1.0).
+  float importance = 5;
+}
+
+// ActionItem represents a task or follow-up extracted from content.
+message ActionItem {
+  // Description of the action item.
+  string description = 1;
+
+  // Due date if specified.
+  optional google.protobuf.Timestamp due_date = 2;
+
+  // Priority: "high", "medium", "low".
+  string priority = 3;
+
+  // Source where this was extracted from.
+  penfold.core.common.v1.ResourceReference source = 4;
+
+  // People involved or assigned.
+  repeated string assignees = 5;
+
+  // Status of the action item.
+  penfold.core.common.v1.Status status = 6;
+}
+
+// ReviewStats provides statistics about content processed for the review period.
+message ReviewStats {
+  // Number of emails processed.
+  int32 emails_processed = 1;
+
+  // Number of meetings processed.
+  int32 meetings_processed = 2;
+
+  // Number of documents processed.
+  int32 documents_processed = 3;
+
+  // Number of assertions extracted.
+  int32 assertions_extracted = 4;
+
+  // Number of relationships discovered.
+  int32 relationships_discovered = 5;
+
+  // Number of entities mentioned.
+  int32 entities_mentioned = 6;
+}
+
+// EntityActivity represents an entity's activity level for the day.
+message EntityActivity {
+  // Entity unique identifier.
+  string entity_id = 1;
+
+  // Entity type: "person", "organization", "project", etc.
+  string entity_type = 2;
+
+  // Entity name.
+  string name = 3;
+
+  // Number of mentions or interactions.
+  int32 mention_count = 4;
+
+  // Notable activity summary.
+  string activity_summary = 5;
+}
+
+// =============================================================================
+// Health Check Messages
+// =============================================================================
+
+// HealthCheckRequest checks the health of the gateway service.
+message HealthCheckRequest {
+  // If true, performs deep health checks on all dependencies.
+  bool include_dependencies = 1;
+}
+
+// HealthCheckResponse indicates the health status of the gateway.
+message HealthCheckResponse {
+  // Overall health status.
+  bool healthy = 1;
+
+  // Human-readable status message.
+  string message = 2;
+
+  // Individual dependency health statuses.
+  repeated DependencyHealth dependencies = 3;
+
+  // Service version.
+  string version = 4;
+
+  // Service uptime in seconds.
+  int64 uptime_seconds = 5;
+
+  // Current timestamp.
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+// DependencyHealth represents the health status of a dependent service.
+message DependencyHealth {
+  // Name of the dependency: "orchestrator", "database", "redis", "search", etc.
+  string name = 1;
+
+  // Whether the dependency is healthy.
+  bool healthy = 2;
+
+  // Status message or error details.
+  string message = 3;
+
+  // Response latency in milliseconds.
+  optional double latency_ms = 4;
+}

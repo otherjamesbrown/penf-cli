@@ -1,0 +1,625 @@
+// CLI Service Protobuf Definitions
+// Defines the gRPC service interface for the Penfold command-line interface.
+// Provides a unified API for all CLI operations including search, ingestion,
+// review sessions, configuration management, and system status.
+
+syntax = "proto3";
+
+package penfold.core.cli.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/core/v1/clipb;clipb";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// CLIService provides gRPC endpoints for CLI operations.
+// This service acts as the primary interface between the CLI client and
+// the Penfold backend services, providing a unified API for all operations.
+service CLIService {
+  // ExecuteCommand executes a generic CLI command.
+  // Used for commands that don't have a dedicated RPC method.
+  rpc ExecuteCommand(ExecuteCommandRequest) returns (ExecuteCommandResponse);
+
+  // Search performs a search query against the Penfold knowledge base.
+  // Supports semantic search, keyword search, and hybrid search modes.
+  rpc Search(SearchRequest) returns (SearchResponse);
+
+  // Ingest manually ingests content into the Penfold system.
+  // Supports various content types including text, files, and URLs.
+  rpc Ingest(IngestRequest) returns (IngestResponse);
+
+  // Review starts an interactive review session for daily briefings.
+  // Returns content items for user review and action.
+  rpc Review(ReviewRequest) returns (ReviewResponse);
+
+  // GetStatus retrieves the current system status.
+  // Includes health checks for all services and infrastructure components.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+
+  // GetConfig retrieves the current CLI configuration.
+  // Returns all configuration values or a specific key if requested.
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+
+  // SetConfig updates CLI configuration values.
+  // Persists changes to the configuration store.
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
+}
+
+// =============================================================================
+// Command Execution Messages
+// =============================================================================
+
+// ExecuteCommandRequest represents a generic command to execute.
+message ExecuteCommandRequest {
+  // Command to execute.
+  Command command = 1;
+}
+
+// ExecuteCommandResponse contains the result of command execution.
+message ExecuteCommandResponse {
+  // Result of the command execution.
+  CommandResult result = 1;
+}
+
+// Command represents a CLI command with its arguments and flags.
+message Command {
+  // Name of the command to execute (e.g., "search", "ingest", "review").
+  string name = 1;
+
+  // Positional arguments for the command.
+  repeated string args = 2;
+
+  // Flag arguments as key-value pairs.
+  // Boolean flags use "true" or "false" as values.
+  map<string, string> flags = 3;
+}
+
+// CommandResult contains the output of an executed command.
+message CommandResult {
+  // Standard output from the command.
+  string output = 1;
+
+  // Error messages, if any.
+  repeated string errors = 2;
+
+  // Exit code of the command.
+  // 0 indicates success, non-zero indicates an error.
+  int32 exit_code = 3;
+
+  // Execution duration in milliseconds.
+  int64 duration_ms = 4;
+}
+
+// =============================================================================
+// Search Messages
+// =============================================================================
+
+// SearchRequest represents a search query.
+message SearchRequest {
+  // The search query string.
+  string query = 1;
+
+  // Maximum number of results to return (default: 10, max: 100).
+  int32 limit = 2;
+
+  // Offset for pagination (default: 0).
+  int32 offset = 3;
+
+  // Search mode to use.
+  SearchMode mode = 4;
+
+  // Filter results by source type.
+  repeated SourceType source_types = 5;
+
+  // Filter results by date range.
+  optional google.protobuf.Timestamp from_date = 6;
+  optional google.protobuf.Timestamp to_date = 7;
+
+  // Filter by specific entity IDs (people, organizations, etc.).
+  repeated string entity_ids = 8;
+
+  // Include content snippets in results.
+  bool include_snippets = 9;
+
+  // Snippet length in characters (default: 200).
+  int32 snippet_length = 10;
+}
+
+// SearchMode defines the type of search to perform.
+enum SearchMode {
+  // Default: server chooses the best mode.
+  SEARCH_MODE_UNSPECIFIED = 0;
+
+  // Semantic search using vector embeddings.
+  SEARCH_MODE_SEMANTIC = 1;
+
+  // Keyword-based full-text search.
+  SEARCH_MODE_KEYWORD = 2;
+
+  // Hybrid search combining semantic and keyword approaches.
+  SEARCH_MODE_HYBRID = 3;
+}
+
+// SourceType defines the types of content sources.
+enum SourceType {
+  // Unspecified source type.
+  SOURCE_TYPE_UNSPECIFIED = 0;
+
+  // Email message.
+  SOURCE_TYPE_EMAIL = 1;
+
+  // Document (PDF, Word, etc.).
+  SOURCE_TYPE_DOCUMENT = 2;
+
+  // Slack message.
+  SOURCE_TYPE_SLACK = 3;
+
+  // Meeting notes or transcript.
+  SOURCE_TYPE_MEETING = 4;
+
+  // Calendar event.
+  SOURCE_TYPE_CALENDAR = 5;
+}
+
+// SearchResponse contains search results.
+message SearchResponse {
+  // List of search results.
+  repeated SearchResult results = 1;
+
+  // Total number of matching results (for pagination).
+  int64 total_count = 2;
+
+  // Time taken to execute the search in milliseconds.
+  int64 query_time_ms = 3;
+
+  // Search mode that was used.
+  SearchMode mode_used = 4;
+}
+
+// SearchResult represents a single search result.
+message SearchResult {
+  // Unique identifier of the content item.
+  string id = 1;
+
+  // Title or subject of the content.
+  string title = 2;
+
+  // Content snippet with search term highlighting.
+  string snippet = 3;
+
+  // Source type.
+  SourceType source_type = 4;
+
+  // Source identifier (e.g., email message ID, document path).
+  string source_id = 5;
+
+  // Relevance score (0.0 to 1.0).
+  float score = 6;
+
+  // Timestamp of the original content.
+  google.protobuf.Timestamp timestamp = 7;
+
+  // Associated entities (people, organizations, etc.).
+  repeated string entity_ids = 8;
+
+  // Additional metadata as key-value pairs.
+  map<string, string> metadata = 9;
+}
+
+// =============================================================================
+// Ingest Messages
+// =============================================================================
+
+// IngestRequest represents a manual content ingestion request.
+message IngestRequest {
+  // Type of content being ingested.
+  ContentType content_type = 1;
+
+  // The content to ingest (for text/note types).
+  string content = 2;
+
+  // File path for file-based ingestion (local files).
+  string file_path = 3;
+
+  // URL for URL-based ingestion.
+  string url = 4;
+
+  // Title or subject for the ingested content.
+  string title = 5;
+
+  // Optional tags for categorization.
+  repeated string tags = 6;
+
+  // Optional metadata as key-value pairs.
+  map<string, string> metadata = 7;
+
+  // Source attribution (e.g., "manual", "clipboard", "import").
+  string source = 8;
+
+  // Whether to process the content asynchronously.
+  bool async = 9;
+}
+
+// ContentType defines the type of content being ingested.
+enum ContentType {
+  // Default: server auto-detects the content type.
+  CONTENT_TYPE_UNSPECIFIED = 0;
+
+  // Plain text content.
+  CONTENT_TYPE_TEXT = 1;
+
+  // Markdown formatted content.
+  CONTENT_TYPE_MARKDOWN = 2;
+
+  // HTML content.
+  CONTENT_TYPE_HTML = 3;
+
+  // PDF document.
+  CONTENT_TYPE_PDF = 4;
+
+  // General document (Word, etc.).
+  CONTENT_TYPE_DOCUMENT = 5;
+
+  // Image file with OCR processing.
+  CONTENT_TYPE_IMAGE = 6;
+
+  // URL to fetch and process.
+  CONTENT_TYPE_URL = 7;
+
+  // Personal note or memo.
+  CONTENT_TYPE_NOTE = 8;
+}
+
+// IngestResponse contains the result of content ingestion.
+message IngestResponse {
+  // Unique identifier assigned to the ingested content.
+  string content_id = 1;
+
+  // Whether ingestion was successful.
+  bool success = 2;
+
+  // Status message.
+  string message = 3;
+
+  // Workflow ID if processed asynchronously.
+  string workflow_id = 4;
+
+  // Extracted entities from the content.
+  repeated ExtractedEntity entities = 5;
+
+  // Processing duration in milliseconds (for sync processing).
+  int64 processing_time_ms = 6;
+}
+
+// ExtractedEntity represents an entity extracted during ingestion.
+message ExtractedEntity {
+  // Entity type (e.g., "person", "organization", "location").
+  string type = 1;
+
+  // Entity name or value.
+  string name = 2;
+
+  // Confidence score (0.0 to 1.0).
+  float confidence = 3;
+
+  // Entity ID if matched to existing entity.
+  string entity_id = 4;
+}
+
+// =============================================================================
+// Review Messages
+// =============================================================================
+
+// ReviewRequest starts an interactive review session.
+message ReviewRequest {
+  // Type of review session.
+  ReviewType review_type = 1;
+
+  // Date for the review (default: today).
+  optional google.protobuf.Timestamp date = 2;
+
+  // Maximum number of items to include.
+  int32 max_items = 3;
+
+  // Filter by priority threshold (1-5, 1 is highest).
+  int32 priority_threshold = 4;
+
+  // Include specific categories only.
+  repeated string categories = 5;
+}
+
+// ReviewType defines the type of review session.
+enum ReviewType {
+  // Default: daily review.
+  REVIEW_TYPE_UNSPECIFIED = 0;
+
+  // Daily briefing and review.
+  REVIEW_TYPE_DAILY = 1;
+
+  // Weekly summary review.
+  REVIEW_TYPE_WEEKLY = 2;
+
+  // Review of pending action items.
+  REVIEW_TYPE_ACTION_ITEMS = 3;
+
+  // Review of follow-ups and reminders.
+  REVIEW_TYPE_FOLLOW_UPS = 4;
+}
+
+// ReviewResponse contains review session content.
+message ReviewResponse {
+  // Session identifier for tracking.
+  string session_id = 1;
+
+  // Summary of the review period.
+  string summary = 2;
+
+  // Items requiring attention or action.
+  repeated ReviewItem items = 3;
+
+  // Statistics for the review period.
+  ReviewStats stats = 4;
+
+  // AI-generated insights and recommendations.
+  repeated string insights = 5;
+}
+
+// ReviewItem represents a single item in the review.
+message ReviewItem {
+  // Unique identifier.
+  string id = 1;
+
+  // Item type (e.g., "email", "task", "meeting", "follow_up").
+  string type = 2;
+
+  // Title or subject.
+  string title = 3;
+
+  // Brief description or preview.
+  string description = 4;
+
+  // Priority level (1-5, 1 is highest).
+  int32 priority = 5;
+
+  // Source of the item.
+  string source = 6;
+
+  // Related entities.
+  repeated string entity_ids = 7;
+
+  // Timestamp of the original item.
+  google.protobuf.Timestamp timestamp = 8;
+
+  // Suggested actions for this item.
+  repeated string suggested_actions = 9;
+
+  // Whether user has reviewed this item.
+  bool reviewed = 10;
+}
+
+// ReviewStats provides statistics for the review period.
+message ReviewStats {
+  // Total items processed.
+  int32 total_items = 1;
+
+  // Items by category.
+  map<string, int32> items_by_category = 2;
+
+  // Items by priority.
+  map<int32, int32> items_by_priority = 3;
+
+  // Number of action items identified.
+  int32 action_items = 4;
+
+  // Number of follow-ups pending.
+  int32 follow_ups = 5;
+}
+
+// =============================================================================
+// Status Messages
+// =============================================================================
+
+// GetStatusRequest retrieves system status.
+message GetStatusRequest {
+  // Include detailed component information.
+  bool verbose = 1;
+
+  // Check specific components only.
+  repeated string components = 2;
+}
+
+// GetStatusResponse contains the system status.
+message GetStatusResponse {
+  // Overall system health.
+  SystemStatus status = 1;
+}
+
+// SystemStatus represents the overall system health and status.
+message SystemStatus {
+  // Overall health: true if all critical components are healthy.
+  bool healthy = 1;
+
+  // Human-readable status summary.
+  string message = 2;
+
+  // Service health statuses.
+  repeated ServiceHealth services = 3;
+
+  // Database status information.
+  DatabaseStatus database = 4;
+
+  // Queue depths and processing status.
+  QueueStatus queues = 5;
+
+  // System version information.
+  VersionInfo version = 6;
+
+  // Timestamp when status was collected.
+  google.protobuf.Timestamp timestamp = 7;
+}
+
+// ServiceHealth represents the health status of a single service.
+message ServiceHealth {
+  // Service name (e.g., "gateway", "orchestrator", "ai_service").
+  string name = 1;
+
+  // Whether the service is healthy.
+  bool healthy = 2;
+
+  // Service status: "running", "degraded", "down", "unknown".
+  string status = 3;
+
+  // Status message or error details.
+  string message = 4;
+
+  // Response latency in milliseconds.
+  optional double latency_ms = 5;
+
+  // Service version.
+  string version = 6;
+
+  // Service uptime in seconds.
+  int64 uptime_seconds = 7;
+}
+
+// DatabaseStatus represents the database health and statistics.
+message DatabaseStatus {
+  // Whether the database is healthy and accessible.
+  bool healthy = 1;
+
+  // Database type (e.g., "postgresql").
+  string type = 2;
+
+  // Connection status: "connected", "disconnected", "degraded".
+  string connection_status = 3;
+
+  // Current active connections.
+  int32 active_connections = 4;
+
+  // Maximum allowed connections.
+  int32 max_connections = 5;
+
+  // Vector extension status (pgvector).
+  bool vector_extension_enabled = 6;
+
+  // Total content items stored.
+  int64 content_count = 7;
+
+  // Total entities stored.
+  int64 entity_count = 8;
+
+  // Database latency in milliseconds.
+  double latency_ms = 9;
+}
+
+// QueueStatus represents message queue health and depths.
+message QueueStatus {
+  // Whether queues are healthy.
+  bool healthy = 1;
+
+  // Queue backend type (e.g., "redis", "temporal").
+  string type = 2;
+
+  // Individual queue depths.
+  map<string, int64> queue_depths = 3;
+
+  // Total pending items across all queues.
+  int64 total_pending = 4;
+
+  // Processing rate (items per minute).
+  double processing_rate = 5;
+
+  // Number of failed items in dead letter queues.
+  int64 dead_letter_count = 6;
+}
+
+// VersionInfo contains system version information.
+message VersionInfo {
+  // Application version.
+  string version = 1;
+
+  // Git commit hash.
+  string commit = 2;
+
+  // Build timestamp.
+  string build_time = 3;
+
+  // Go version used to build.
+  string go_version = 4;
+}
+
+// =============================================================================
+// Configuration Messages
+// =============================================================================
+
+// GetConfigRequest retrieves configuration values.
+message GetConfigRequest {
+  // Specific configuration key to retrieve (empty for all).
+  string key = 1;
+
+  // Include sensitive values (requires authentication).
+  bool include_sensitive = 2;
+}
+
+// GetConfigResponse contains configuration values.
+message GetConfigResponse {
+  // Configuration values as key-value pairs.
+  map<string, string> config = 1;
+
+  // Configuration metadata (descriptions, defaults, etc.).
+  repeated ConfigField fields = 2;
+}
+
+// ConfigField describes a configuration field.
+message ConfigField {
+  // Configuration key.
+  string key = 1;
+
+  // Current value (may be redacted for sensitive fields).
+  string value = 2;
+
+  // Default value.
+  string default_value = 3;
+
+  // Human-readable description.
+  string description = 4;
+
+  // Whether this is a sensitive field (passwords, tokens, etc.).
+  bool sensitive = 5;
+
+  // Whether this field is required.
+  bool required = 6;
+
+  // Data type: "string", "int", "bool", "duration", "url".
+  string type = 7;
+}
+
+// SetConfigRequest updates configuration values.
+message SetConfigRequest {
+  // Configuration values to set.
+  map<string, string> config = 1;
+
+  // Whether to persist changes across restarts.
+  bool persist = 2;
+}
+
+// SetConfigResponse contains the result of configuration update.
+message SetConfigResponse {
+  // Whether the update was successful.
+  bool success = 1;
+
+  // Status message.
+  string message = 2;
+
+  // Fields that were updated.
+  repeated string updated_fields = 3;
+
+  // Errors for specific fields, if any.
+  map<string, string> errors = 4;
+
+  // Whether a restart is required for changes to take effect.
+  bool restart_required = 5;
+}

@@ -1,0 +1,352 @@
+// Questions Service Protobuf Definitions
+// Provides gRPC service for managing AI questions that need human review
+
+syntax = "proto3";
+
+package penfold.questions.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/questions/v1;questionsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// QuestionsService provides gRPC endpoints for managing AI questions.
+// During content processing, AI may detect ambiguities or unknown terms
+// that require human clarification. These are queued as questions.
+service QuestionsService {
+  // ListQuestions returns pending questions filtered by type and priority.
+  rpc ListQuestions(ListQuestionsRequest) returns (ListQuestionsResponse);
+
+  // GetQuestion retrieves a single question by ID.
+  rpc GetQuestion(GetQuestionRequest) returns (GetQuestionResponse);
+
+  // GetNextQuestion retrieves the next highest-priority question.
+  rpc GetNextQuestion(GetNextQuestionRequest) returns (GetNextQuestionResponse);
+
+  // ResolveQuestion marks a question as resolved with an answer.
+  // For acronym questions, the answer is automatically added to the glossary.
+  rpc ResolveQuestion(ResolveQuestionRequest) returns (ResolveQuestionResponse);
+
+  // DismissQuestion marks a question as dismissed (not needed).
+  rpc DismissQuestion(DismissQuestionRequest) returns (DismissQuestionResponse);
+
+  // DeferQuestion marks a question as deferred for later.
+  rpc DeferQuestion(DeferQuestionRequest) returns (DeferQuestionResponse);
+
+  // GetQueueStats retrieves statistics about the questions queue.
+  rpc GetQueueStats(GetQueueStatsRequest) returns (GetQueueStatsResponse);
+
+  // GetQuestionSource retrieves the source content for a question.
+  // This allows tracing back from a question to see more context.
+  rpc GetQuestionSource(GetQuestionSourceRequest) returns (GetQuestionSourceResponse);
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+// QuestionType indicates what kind of clarification is needed.
+enum QuestionType {
+  QUESTION_TYPE_UNSPECIFIED = 0;
+
+  // Unknown acronym needs definition.
+  QUESTION_TYPE_ACRONYM = 1;
+
+  // Ambiguous person reference needs disambiguation.
+  QUESTION_TYPE_PERSON = 2;
+
+  // Entity needs confirmation or correction.
+  QUESTION_TYPE_ENTITY = 3;
+
+  // Potential duplicate needs review.
+  QUESTION_TYPE_DUPLICATE = 4;
+
+  // General question.
+  QUESTION_TYPE_OTHER = 5;
+}
+
+// QuestionPriority indicates urgency.
+enum QuestionPriority {
+  QUESTION_PRIORITY_UNSPECIFIED = 0;
+
+  // Low priority - nice to have.
+  QUESTION_PRIORITY_LOW = 1;
+
+  // Medium priority - would improve search/correlation.
+  QUESTION_PRIORITY_MEDIUM = 2;
+
+  // High priority - blocks understanding or processing.
+  QUESTION_PRIORITY_HIGH = 3;
+}
+
+// QuestionStatus indicates the current state.
+enum QuestionStatus {
+  QUESTION_STATUS_UNSPECIFIED = 0;
+
+  // Awaiting review.
+  QUESTION_STATUS_PENDING = 1;
+
+  // User provided answer.
+  QUESTION_STATUS_RESOLVED = 2;
+
+  // User dismissed as not needed.
+  QUESTION_STATUS_DISMISSED = 3;
+
+  // User deferred for later.
+  QUESTION_STATUS_DEFERRED = 4;
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// Question represents a single AI question needing human review.
+message Question {
+  // Unique identifier.
+  int64 id = 1;
+
+  // Type of question.
+  QuestionType question_type = 2;
+
+  // Priority level.
+  QuestionPriority priority = 3;
+
+  // The question text.
+  string question = 4;
+
+  // Context (surrounding text or additional info).
+  string context = 5;
+
+  // Source type (e.g., "meeting", "email").
+  string source_type = 6;
+
+  // Source ID in the source table.
+  int64 source_id = 7;
+
+  // Human-readable source reference.
+  string source_reference = 8;
+
+  // For acronym questions: the term in question.
+  string suggested_term = 9;
+
+  // For acronym questions: AI's best guess.
+  string suggested_expansion = 10;
+
+  // For person questions: candidate person IDs.
+  repeated int64 candidate_person_ids = 11;
+
+  // For person questions: the matched text.
+  string matched_text = 12;
+
+  // Current status.
+  QuestionStatus status = 13;
+
+  // User's resolution/answer (if resolved).
+  string resolution = 14;
+
+  // When resolved.
+  google.protobuf.Timestamp resolved_at = 15;
+
+  // Who resolved it.
+  string resolved_by = 16;
+
+  // AI confidence that this needs human input (0.0-1.0).
+  double confidence = 17;
+
+  // When the question was created.
+  google.protobuf.Timestamp created_at = 18;
+}
+
+// QueueStats contains summary statistics.
+message QueueStats {
+  // Total pending questions.
+  int64 total_pending = 1;
+
+  // Breakdown by priority.
+  map<string, int64> by_priority = 2;
+
+  // Breakdown by type.
+  map<string, int64> by_type = 3;
+
+  // Questions resolved today.
+  int64 resolved_today = 4;
+
+  // When the oldest pending question was created.
+  google.protobuf.Timestamp oldest_pending = 5;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// ListQuestionsRequest retrieves pending questions.
+message ListQuestionsRequest {
+  // Filter by status (default: pending).
+  QuestionStatus status = 1;
+
+  // Filter by question type.
+  QuestionType question_type = 2;
+
+  // Filter by priority.
+  QuestionPriority priority = 3;
+
+  // Filter by source type.
+  string source_type = 4;
+
+  // Maximum results (default: 50).
+  int32 limit = 5;
+
+  // Pagination offset.
+  int32 offset = 6;
+
+  // Tenant ID for multi-tenant isolation.
+  optional string tenant_id = 7;
+}
+
+// ListQuestionsResponse contains the list of questions.
+message ListQuestionsResponse {
+  // The matching questions.
+  repeated Question questions = 1;
+
+  // Total count of matching questions.
+  int64 total_count = 2;
+}
+
+// GetQuestionRequest retrieves a single question.
+message GetQuestionRequest {
+  // ID of the question.
+  int64 id = 1;
+}
+
+// GetQuestionResponse contains the question.
+message GetQuestionResponse {
+  // The question.
+  Question question = 1;
+}
+
+// GetNextQuestionRequest gets the next question to review.
+message GetNextQuestionRequest {
+  // Optional filter by type.
+  QuestionType question_type = 1;
+
+  // Tenant ID for multi-tenant isolation.
+  optional string tenant_id = 2;
+}
+
+// GetNextQuestionResponse contains the next question.
+message GetNextQuestionResponse {
+  // The next question, or null if none pending.
+  Question question = 1;
+}
+
+// ResolveQuestionRequest resolves a question with an answer.
+message ResolveQuestionRequest {
+  // ID of the question.
+  int64 id = 1;
+
+  // The answer/resolution.
+  string answer = 2;
+}
+
+// ResolveQuestionResponse confirms resolution.
+message ResolveQuestionResponse {
+  // Whether the question was resolved.
+  bool resolved = 1;
+
+  // For acronym questions: whether it was added to glossary.
+  bool added_to_glossary = 2;
+
+  // The resolved question.
+  Question question = 3;
+}
+
+// DismissQuestionRequest dismisses a question.
+message DismissQuestionRequest {
+  // ID of the question.
+  int64 id = 1;
+
+  // Reason for dismissal.
+  string reason = 2;
+}
+
+// DismissQuestionResponse confirms dismissal.
+message DismissQuestionResponse {
+  // Whether the question was dismissed.
+  bool dismissed = 1;
+}
+
+// DeferQuestionRequest defers a question.
+message DeferQuestionRequest {
+  // ID of the question.
+  int64 id = 1;
+}
+
+// DeferQuestionResponse confirms deferral.
+message DeferQuestionResponse {
+  // Whether the question was deferred.
+  bool deferred = 1;
+}
+
+// GetQueueStatsRequest retrieves queue statistics.
+message GetQueueStatsRequest {
+  // Tenant ID for multi-tenant isolation.
+  optional string tenant_id = 1;
+}
+
+// GetQueueStatsResponse contains the statistics.
+message GetQueueStatsResponse {
+  // Queue statistics.
+  QueueStats stats = 1;
+}
+
+// GetQuestionSourceRequest retrieves the source content for a question.
+message GetQuestionSourceRequest {
+  // ID of the question.
+  int64 question_id = 1;
+
+  // How many characters of context to return around the matched snippet.
+  // Default: 500. Use 0 to get full content.
+  int32 context_chars = 2;
+}
+
+// SourceContent contains the content where a question originated.
+message SourceContent {
+  // Source ID in the sources table.
+  int64 source_id = 1;
+
+  // Type of source (meeting, email, document, etc.).
+  string source_type = 2;
+
+  // Human-readable title or reference.
+  string title = 3;
+
+  // The full or partial content (depending on context_chars).
+  string content = 4;
+
+  // The snippet that contains the term/entity in question.
+  string snippet = 5;
+
+  // Position of the snippet in the content (character offset).
+  int32 snippet_offset = 6;
+
+  // Total content length (if truncated).
+  int32 total_length = 7;
+
+  // Source timestamp (when the content was created).
+  google.protobuf.Timestamp source_timestamp = 8;
+
+  // Additional metadata (platform, participants, etc.).
+  map<string, string> metadata = 9;
+}
+
+// GetQuestionSourceResponse contains the source content.
+message GetQuestionSourceResponse {
+  // The source content.
+  SourceContent source = 1;
+
+  // The original question (for reference).
+  Question question = 2;
+}

@@ -1,0 +1,594 @@
+// Review Service Protobuf Definitions
+// Provides gRPC service for managing daily review items and user review actions
+
+syntax = "proto3";
+
+package penfold.review.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/review/v1;reviewv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// ReviewService provides gRPC endpoints for managing daily review items.
+// This service surfaces content that requires human review, approval, or action,
+// enabling users to efficiently process their daily review queue.
+service ReviewService {
+  // GetDailyReview retrieves today's review items grouped by category.
+  // Returns all pending items for the current day along with summary statistics.
+  rpc GetDailyReview(GetDailyReviewRequest) returns (GetDailyReviewResponse);
+
+  // GetReviewItem retrieves a single review item by its identifier.
+  rpc GetReviewItem(GetReviewItemRequest) returns (GetReviewItemResponse);
+
+  // ListReviewItems returns a filtered, paginated list of review items.
+  // Supports filtering by status, priority, content type, and date range.
+  rpc ListReviewItems(ListReviewItemsRequest) returns (ListReviewItemsResponse);
+
+  // ApproveItem marks a review item as reviewed and approved.
+  // The item is removed from the pending queue and recorded as processed.
+  rpc ApproveItem(ApproveItemRequest) returns (ApproveItemResponse);
+
+  // RejectItem marks a review item as rejected or dismissed.
+  // The item is removed from the pending queue with rejection reason recorded.
+  rpc RejectItem(RejectItemRequest) returns (RejectItemResponse);
+
+  // UndoAction reverses the last review action on an item.
+  // Returns the item to its previous state if undo is available.
+  rpc UndoAction(UndoActionRequest) returns (UndoActionResponse);
+
+  // GetReviewStats retrieves review statistics and metrics.
+  // Provides insights into review queue health and processing velocity.
+  rpc GetReviewStats(GetReviewStatsRequest) returns (GetReviewStatsResponse);
+
+  // ==========================================================================
+  // Session Management RPCs
+  // ==========================================================================
+
+  // StartSession starts a new review session.
+  // Only one active session is allowed per user at a time.
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+
+  // PauseSession pauses the current active session.
+  // Progress is saved and can be resumed later.
+  rpc PauseSession(PauseSessionRequest) returns (PauseSessionResponse);
+
+  // ResumeSession resumes a paused session.
+  rpc ResumeSession(ResumeSessionRequest) returns (ResumeSessionResponse);
+
+  // EndSession ends the current session and returns a summary.
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+
+  // GetCurrentSession retrieves the current active or paused session.
+  rpc GetCurrentSession(GetCurrentSessionRequest) returns (GetCurrentSessionResponse);
+
+  // GetSessionHistory retrieves past review sessions.
+  rpc GetSessionHistory(GetSessionHistoryRequest) returns (GetSessionHistoryResponse);
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+// ReviewStatus represents the current state of a review item.
+enum ReviewStatus {
+  // Default value. Should not be used explicitly.
+  REVIEW_STATUS_UNSPECIFIED = 0;
+
+  // Item is awaiting review by the user.
+  REVIEW_STATUS_PENDING = 1;
+
+  // Item has been reviewed and approved by the user.
+  REVIEW_STATUS_APPROVED = 2;
+
+  // Item has been reviewed and rejected/dismissed by the user.
+  REVIEW_STATUS_REJECTED = 3;
+
+  // Item has been deferred for later review.
+  REVIEW_STATUS_DEFERRED = 4;
+}
+
+// Priority indicates the urgency level of a review item.
+enum Priority {
+  // Default value. Should not be used explicitly.
+  PRIORITY_UNSPECIFIED = 0;
+
+  // Low priority item that can be addressed at leisure.
+  PRIORITY_LOW = 1;
+
+  // Medium priority item requiring attention in a reasonable timeframe.
+  PRIORITY_MEDIUM = 2;
+
+  // High priority item requiring prompt attention.
+  PRIORITY_HIGH = 3;
+
+  // Urgent item requiring immediate attention.
+  PRIORITY_URGENT = 4;
+}
+
+// ActionType represents the type of action taken on a review item.
+enum ActionType {
+  // Default value. Should not be used explicitly.
+  ACTION_TYPE_UNSPECIFIED = 0;
+
+  // Item was approved.
+  ACTION_TYPE_APPROVE = 1;
+
+  // Item was rejected.
+  ACTION_TYPE_REJECT = 2;
+
+  // Item was deferred.
+  ACTION_TYPE_DEFER = 3;
+
+  // Previous action was undone.
+  ACTION_TYPE_UNDO = 4;
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// ReviewItem represents a single item requiring user review.
+message ReviewItem {
+  // Unique identifier for the review item.
+  string id = 1;
+
+  // Type of content being reviewed (e.g., "email", "document", "relationship", "task").
+  string content_type = 2;
+
+  // Brief summary of the content for quick scanning.
+  string content_summary = 3;
+
+  // Source system or connector that generated this item (e.g., "gmail", "slack", "manual").
+  string source = 4;
+
+  // Priority level of the review item.
+  Priority priority = 5;
+
+  // Current review status.
+  ReviewStatus status = 6;
+
+  // When the review item was created.
+  google.protobuf.Timestamp created_at = 7;
+
+  // When the review item was last updated.
+  google.protobuf.Timestamp updated_at = 8;
+
+  // Reference to the underlying content entity.
+  string content_id = 9;
+
+  // Optional category for grouping items (e.g., "communications", "tasks", "insights").
+  string category = 10;
+
+  // Additional metadata as key-value pairs.
+  map<string, string> metadata = 11;
+}
+
+// ReviewAction records an action taken on a review item.
+// Used for the undo stack and audit trail.
+message ReviewAction {
+  // Unique identifier for the action.
+  string id = 1;
+
+  // Identifier of the review item this action was taken on.
+  string item_id = 2;
+
+  // Type of action taken.
+  ActionType action_type = 3;
+
+  // Previous status before the action was taken.
+  ReviewStatus previous_status = 4;
+
+  // New status after the action was taken.
+  ReviewStatus new_status = 5;
+
+  // When the action was performed.
+  google.protobuf.Timestamp performed_at = 6;
+
+  // Optional reason or note provided with the action.
+  string reason = 7;
+
+  // Whether this action can be undone.
+  bool undoable = 8;
+}
+
+// ReviewCategory groups review items by category for the daily review.
+message ReviewCategory {
+  // Category name (e.g., "communications", "tasks", "insights", "relationships").
+  string name = 1;
+
+  // Human-readable display name for the category.
+  string display_name = 2;
+
+  // Review items in this category.
+  repeated ReviewItem items = 3;
+
+  // Count of items in this category.
+  int32 item_count = 4;
+}
+
+// DailyReview represents the complete daily review for a user.
+message DailyReview {
+  // Date of the review in YYYY-MM-DD format.
+  string date = 1;
+
+  // Review items grouped by category.
+  repeated ReviewCategory categories = 2;
+
+  // Total number of pending items.
+  int32 total_pending = 3;
+
+  // Number of high priority and urgent items.
+  int32 high_priority_count = 4;
+
+  // Number of items already processed today.
+  int32 processed_today = 5;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// GetDailyReviewRequest retrieves today's review items.
+message GetDailyReviewRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+
+  // Optional date override (defaults to today). Format: YYYY-MM-DD.
+  optional string date = 2;
+
+  // Whether to include already processed items from today.
+  bool include_processed = 3;
+}
+
+// GetDailyReviewResponse contains the daily review.
+message GetDailyReviewResponse {
+  // The daily review with categorized items.
+  DailyReview review = 1;
+}
+
+// GetReviewItemRequest retrieves a single review item.
+message GetReviewItemRequest {
+  // Unique identifier of the review item.
+  string id = 1;
+
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 2;
+}
+
+// GetReviewItemResponse contains the requested review item.
+message GetReviewItemResponse {
+  // The requested review item.
+  ReviewItem item = 1;
+
+  // Recent actions taken on this item (most recent first).
+  repeated ReviewAction recent_actions = 2;
+}
+
+// ListReviewItemsRequest retrieves a filtered list of review items.
+message ListReviewItemsRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+
+  // Filter by review status.
+  repeated ReviewStatus statuses = 2;
+
+  // Filter by priority levels.
+  repeated Priority priorities = 3;
+
+  // Filter by content types.
+  repeated string content_types = 4;
+
+  // Filter by sources.
+  repeated string sources = 5;
+
+  // Filter by categories.
+  repeated string categories = 6;
+
+  // Filter by creation date range.
+  optional google.protobuf.Timestamp created_after = 7;
+  optional google.protobuf.Timestamp created_before = 8;
+
+  // Maximum number of results to return (default: 50, max: 500).
+  int32 page_size = 9;
+
+  // Pagination token from previous response.
+  string page_token = 10;
+
+  // Sort order: "created_at_asc", "created_at_desc", "priority_desc", "priority_asc".
+  string sort_order = 11;
+}
+
+// ListReviewItemsResponse contains a paginated list of review items.
+message ListReviewItemsResponse {
+  // List of review items matching the filters.
+  repeated ReviewItem items = 1;
+
+  // Token for fetching the next page (empty if no more results).
+  string next_page_token = 2;
+
+  // Total count of items matching the query.
+  optional int64 total_count = 3;
+}
+
+// ApproveItemRequest marks a review item as approved.
+message ApproveItemRequest {
+  // Unique identifier of the review item to approve.
+  string id = 1;
+
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 2;
+
+  // Optional note or comment about the approval.
+  string note = 3;
+}
+
+// ApproveItemResponse confirms the approval.
+message ApproveItemResponse {
+  // The updated review item.
+  ReviewItem item = 1;
+
+  // The action record for this approval.
+  ReviewAction action = 2;
+}
+
+// RejectItemRequest marks a review item as rejected.
+message RejectItemRequest {
+  // Unique identifier of the review item to reject.
+  string id = 1;
+
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 2;
+
+  // Reason for rejection.
+  string reason = 3;
+}
+
+// RejectItemResponse confirms the rejection.
+message RejectItemResponse {
+  // The updated review item.
+  ReviewItem item = 1;
+
+  // The action record for this rejection.
+  ReviewAction action = 2;
+}
+
+// UndoActionRequest reverses the last action on a review item.
+message UndoActionRequest {
+  // Unique identifier of the review item to undo.
+  string id = 1;
+
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 2;
+}
+
+// UndoActionResponse confirms the undo operation.
+message UndoActionResponse {
+  // The updated review item (restored to previous state).
+  ReviewItem item = 1;
+
+  // The action that was undone.
+  ReviewAction undone_action = 2;
+
+  // Whether there are more actions that can be undone.
+  bool can_undo_more = 3;
+}
+
+// GetReviewStatsRequest retrieves review statistics.
+message GetReviewStatsRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+
+  // Time range for statistics (defaults to last 30 days).
+  optional google.protobuf.Timestamp from_time = 2;
+  optional google.protobuf.Timestamp to_time = 3;
+}
+
+// GetReviewStatsResponse contains review statistics.
+message GetReviewStatsResponse {
+  // Number of items currently pending review.
+  int64 pending_count = 1;
+
+  // Number of items approved in the time range.
+  int64 approved_count = 2;
+
+  // Number of items rejected in the time range.
+  int64 rejected_count = 3;
+
+  // Number of items deferred in the time range.
+  int64 deferred_count = 4;
+
+  // Breakdown by priority.
+  map<string, int64> by_priority = 5;
+
+  // Breakdown by content type.
+  map<string, int64> by_content_type = 6;
+
+  // Breakdown by source.
+  map<string, int64> by_source = 7;
+
+  // Breakdown by category.
+  map<string, int64> by_category = 8;
+
+  // Average time from creation to review (in seconds).
+  double avg_review_time_seconds = 9;
+
+  // Daily review counts for the time range.
+  repeated DailyReviewCount daily_counts = 10;
+}
+
+// DailyReviewCount provides review counts for a single day.
+message DailyReviewCount {
+  // Date in YYYY-MM-DD format.
+  string date = 1;
+
+  // Number of items created on this day.
+  int64 created = 2;
+
+  // Number of items reviewed on this day.
+  int64 reviewed = 3;
+
+  // Number approved.
+  int64 approved = 4;
+
+  // Number rejected.
+  int64 rejected = 5;
+}
+
+// =============================================================================
+// Session Management Enums
+// =============================================================================
+
+// SessionStatus represents the state of a review session.
+enum SessionStatus {
+  // Default value. Should not be used explicitly.
+  SESSION_STATUS_UNSPECIFIED = 0;
+
+  // Session is currently active.
+  SESSION_STATUS_ACTIVE = 1;
+
+  // Session is paused.
+  SESSION_STATUS_PAUSED = 2;
+
+  // Session has ended.
+  SESSION_STATUS_ENDED = 3;
+}
+
+// =============================================================================
+// Session Management Messages
+// =============================================================================
+
+// ReviewSession represents a user's review session.
+message ReviewSession {
+  // Unique identifier for the session.
+  string id = 1;
+
+  // Current session status.
+  SessionStatus status = 2;
+
+  // When the session was started.
+  google.protobuf.Timestamp started_at = 3;
+
+  // When the session was last paused (if paused).
+  google.protobuf.Timestamp paused_at = 4;
+
+  // When the session ended (if ended).
+  google.protobuf.Timestamp ended_at = 5;
+
+  // Total number of items reviewed in this session.
+  int32 total_reviewed = 6;
+
+  // Number of items approved.
+  int32 approved_count = 7;
+
+  // Number of items rejected.
+  int32 rejected_count = 8;
+
+  // Number of items deferred.
+  int32 deferred_count = 9;
+
+  // Total active duration in seconds (excludes paused time).
+  int64 active_duration_seconds = 10;
+}
+
+// StartSessionRequest starts a new review session.
+message StartSessionRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+}
+
+// StartSessionResponse confirms session creation.
+message StartSessionResponse {
+  // The newly created session.
+  ReviewSession session = 1;
+
+  // Whether a previous session was ended to start this one.
+  bool previous_session_ended = 2;
+}
+
+// PauseSessionRequest pauses the current session.
+message PauseSessionRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+
+  // Optional session ID (uses current session if not specified).
+  string session_id = 2;
+}
+
+// PauseSessionResponse confirms the session was paused.
+message PauseSessionResponse {
+  // The paused session.
+  ReviewSession session = 1;
+}
+
+// ResumeSessionRequest resumes a paused session.
+message ResumeSessionRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+
+  // Optional session ID (uses current paused session if not specified).
+  string session_id = 2;
+}
+
+// ResumeSessionResponse confirms the session was resumed.
+message ResumeSessionResponse {
+  // The resumed session.
+  ReviewSession session = 1;
+}
+
+// EndSessionRequest ends the current session.
+message EndSessionRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+
+  // Optional session ID (uses current session if not specified).
+  string session_id = 2;
+}
+
+// EndSessionResponse confirms the session was ended and provides summary.
+message EndSessionResponse {
+  // The ended session with final statistics.
+  ReviewSession session = 1;
+
+  // Summary message for the user.
+  string summary = 2;
+}
+
+// GetCurrentSessionRequest retrieves the current session.
+message GetCurrentSessionRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+}
+
+// GetCurrentSessionResponse contains the current session if any.
+message GetCurrentSessionResponse {
+  // The current session (null if no active/paused session).
+  ReviewSession session = 1;
+
+  // Whether there is an active session.
+  bool has_session = 2;
+}
+
+// GetSessionHistoryRequest retrieves past sessions.
+message GetSessionHistoryRequest {
+  // Optional tenant ID for multi-tenancy support.
+  optional string tenant_id = 1;
+
+  // Maximum number of sessions to return (default: 10).
+  int32 limit = 2;
+
+  // Pagination offset.
+  int32 offset = 3;
+}
+
+// GetSessionHistoryResponse contains past sessions.
+message GetSessionHistoryResponse {
+  // List of past sessions, most recent first.
+  repeated ReviewSession sessions = 1;
+
+  // Total number of sessions.
+  int64 total_count = 2;
+}

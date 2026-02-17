@@ -1,0 +1,125 @@
+// Common Protobuf Definitions
+// Provides shared message types and enums used across all Penfold services
+
+syntax = "proto3";
+
+package penfold.core.common.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/core/v1/commonpb;commonpb";
+
+// =============================================================================
+// Pagination
+// =============================================================================
+
+// Pagination contains pagination parameters for list requests.
+// Used as an embedded message in paginated request types.
+message Pagination {
+  // Maximum number of results to return per page.
+  // If unspecified, the server will pick an appropriate default.
+  // Maximum allowed value is typically 1000.
+  int32 page_size = 1;
+
+  // Token from a previous response to fetch the next page.
+  // Empty string means start from the beginning.
+  string page_token = 2;
+}
+
+// PaginatedRequest is a base message that can be embedded in list requests
+// to provide consistent pagination across all services.
+message PaginatedRequest {
+  // Pagination parameters
+  Pagination pagination = 1;
+}
+
+// PaginatedResponse contains pagination metadata for list responses.
+// Used as an embedded message in paginated response types.
+message PaginatedResponse {
+  // Token for fetching the next page of results.
+  // Empty string indicates no more results.
+  string next_page_token = 1;
+
+  // Total count of items matching the query.
+  // May not be provided if the count is expensive to compute.
+  optional int64 total_count = 2;
+}
+
+// =============================================================================
+// Error Handling
+// =============================================================================
+
+// Error represents a standardized error response.
+// Provides consistent error handling across all Penfold services.
+message Error {
+  // Machine-readable error code.
+  // Uses standard gRPC status codes or service-specific codes.
+  int32 code = 1;
+
+  // Human-readable error message describing what went wrong.
+  string message = 2;
+
+  // Additional error details as key-value pairs.
+  // May contain field-specific validation errors, trace IDs, etc.
+  map<string, string> details = 3;
+}
+
+// =============================================================================
+// Status Enum
+// =============================================================================
+
+// Status represents the lifecycle state of a resource or operation.
+// Used consistently across all services for status tracking.
+enum Status {
+  // Default value. Should not be used explicitly.
+  STATUS_UNKNOWN = 0;
+
+  // Resource or operation is awaiting processing.
+  STATUS_PENDING = 1;
+
+  // Resource or operation is currently being processed.
+  STATUS_IN_PROGRESS = 2;
+
+  // Resource or operation completed successfully.
+  STATUS_COMPLETED = 3;
+
+  // Resource or operation failed with an error.
+  STATUS_FAILED = 4;
+
+  // Resource or operation was cancelled by user or system.
+  STATUS_CANCELLED = 5;
+}
+
+// =============================================================================
+// Metadata
+// =============================================================================
+
+// Metadata provides a flexible key-value store for resource metadata.
+// Used for storing additional context that doesn't fit in typed fields.
+message Metadata {
+  // Key-value pairs of metadata.
+  // Keys should follow a consistent naming convention (e.g., snake_case).
+  map<string, string> entries = 1;
+}
+
+// =============================================================================
+// Identifiers
+// =============================================================================
+
+// UUID represents a universally unique identifier.
+// Provides type safety for UUID fields across the API.
+message UUID {
+  // The UUID value as a string.
+  // Must be in standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  string value = 1;
+}
+
+// ResourceReference provides a generic way to reference another resource.
+// Useful for polymorphic associations and cross-service references.
+message ResourceReference {
+  // The type of the referenced resource.
+  // Examples: "workflow", "source", "entity", "tenant"
+  string type = 1;
+
+  // The unique identifier of the referenced resource.
+  // May be a UUID, integer ID, or other identifier format.
+  string id = 2;
+}

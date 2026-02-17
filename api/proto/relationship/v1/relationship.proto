@@ -1,0 +1,1001 @@
+// Relationship Discovery Service Protobuf Definitions
+// Defines the gRPC service for discovering and managing entity relationships
+
+syntax = "proto3";
+
+package penfold.relationship.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/relationship/v1;relationshipv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// RelationshipService provides gRPC endpoints for discovering and managing
+// relationships between entities extracted from content sources.
+service RelationshipService {
+  // DiscoverRelationships analyzes content to find relationships between entities.
+  // This triggers AI-powered relationship extraction from the specified content.
+  rpc DiscoverRelationships(DiscoverRelationshipsRequest) returns (DiscoverRelationshipsResponse);
+
+  // GetRelationship retrieves a single relationship by ID.
+  rpc GetRelationship(GetRelationshipRequest) returns (Relationship);
+
+  // ListRelationships returns a paginated list of relationships with optional filters.
+  rpc ListRelationships(ListRelationshipsRequest) returns (ListRelationshipsResponse);
+
+  // SearchRelationships searches relationships by entity name.
+  rpc SearchRelationships(SearchRelationshipsRequest) returns (SearchRelationshipsResponse);
+
+  // ValidateRelationship allows users to confirm or reject a discovered relationship.
+  // This provides human-in-the-loop validation for AI-discovered relationships.
+  rpc ValidateRelationship(ValidateRelationshipRequest) returns (ValidateRelationshipResponse);
+
+  // GetNetworkGraph retrieves the relationship network graph for visualization
+  // and analysis of entity connections.
+  rpc GetNetworkGraph(GetNetworkGraphRequest) returns (NetworkGraph);
+
+  // GetNetworkStats retrieves statistics about the relationship network.
+  rpc GetNetworkStats(GetNetworkStatsRequest) returns (NetworkStats);
+
+  // GetCentralEntities retrieves the most connected entities in the network.
+  rpc GetCentralEntities(GetCentralEntitiesRequest) returns (GetCentralEntitiesResponse);
+
+  // GetClusters retrieves clusters (communities) in the relationship network.
+  rpc GetClusters(GetClustersRequest) returns (GetClustersResponse);
+
+  // ListEntities returns a paginated list of entities with optional filters.
+  rpc ListEntities(ListEntitiesRequest) returns (ListEntitiesResponse);
+
+  // GetEntity retrieves a single entity by ID.
+  rpc GetEntity(GetEntityRequest) returns (Entity);
+
+  // MergeEntities merges two entities into one.
+  rpc MergeEntities(MergeEntitiesRequest) returns (MergeEntitiesResponse);
+
+  // ListConflicts returns a list of detected relationship conflicts.
+  rpc ListConflicts(ListConflictsRequest) returns (ListConflictsResponse);
+
+  // GetConflict retrieves a single conflict by ID.
+  rpc GetConflict(GetConflictRequest) returns (Conflict);
+
+  // ResolveConflict resolves a relationship conflict.
+  rpc ResolveConflict(ResolveConflictRequest) returns (ResolveConflictResponse);
+
+  // CreateRelationship manually creates a new relationship between two entities.
+  rpc CreateRelationship(CreateRelationshipRequest) returns (CreateRelationshipResponse);
+
+  // FindDuplicates finds pairs of entities that are likely duplicates.
+  rpc FindDuplicates(FindDuplicatesRequest) returns (FindDuplicatesResponse);
+
+  // MergePreview shows what would happen if two entities were merged.
+  rpc MergePreview(MergePreviewRequest) returns (MergePreviewResponse);
+
+  // AutoMergeDuplicates automatically merges high-confidence duplicate entities.
+  rpc AutoMergeDuplicates(AutoMergeDuplicatesRequest) returns (AutoMergeDuplicatesResponse);
+}
+
+// =============================================================================
+// Core Entity and Relationship Messages
+// =============================================================================
+
+// Entity represents a named entity that can participate in relationships.
+// Entities are extracted from content and can be people, organizations, topics, etc.
+message Entity {
+  // Unique identifier for the entity
+  string id = 1;
+
+  // Display name of the entity
+  string name = 2;
+
+  // Type of entity
+  EntityType type = 3;
+
+  // Optional normalized/canonical name for deduplication
+  optional string canonical_name = 4;
+
+  // Additional metadata about the entity
+  map<string, string> metadata = 5;
+
+  // When the entity was first discovered
+  google.protobuf.Timestamp created_at = 6;
+
+  // When the entity was last updated
+  google.protobuf.Timestamp updated_at = 7;
+
+  // Known aliases for this entity
+  repeated string aliases = 8;
+
+  // Confidence score (0.0 to 1.0)
+  float confidence = 9;
+
+  // Number of sources where this entity was found
+  int32 source_count = 10;
+
+  // Number of relationships this entity participates in
+  int32 relation_count = 11;
+
+  // When the entity was first seen in content
+  google.protobuf.Timestamp first_seen = 12;
+
+  // When the entity was last seen in content
+  google.protobuf.Timestamp last_seen = 13;
+
+  // Number of messages sent by this person (for person entities only)
+  int32 sent_count = 14;
+
+  // Number of messages received by this person (for person entities only)
+  int32 received_count = 15;
+}
+
+// EntityType enumerates the possible types of entities.
+enum EntityType {
+  // Unspecified entity type
+  ENTITY_TYPE_UNSPECIFIED = 0;
+
+  // A person (individual human)
+  ENTITY_TYPE_PERSON = 1;
+
+  // An organization (company, team, department)
+  ENTITY_TYPE_ORGANIZATION = 2;
+
+  // A topic or subject area
+  ENTITY_TYPE_TOPIC = 3;
+
+  // A project or initiative
+  ENTITY_TYPE_PROJECT = 4;
+
+  // A location (physical or virtual)
+  ENTITY_TYPE_LOCATION = 5;
+
+  // An event (meeting, conference, etc.)
+  ENTITY_TYPE_EVENT = 6;
+
+  // A product or service
+  ENTITY_TYPE_PRODUCT = 7;
+
+  // A document or artifact
+  ENTITY_TYPE_DOCUMENT = 8;
+}
+
+// Relationship represents a discovered connection between two entities.
+message Relationship {
+  // Unique identifier for the relationship
+  string id = 1;
+
+  // The source entity in the relationship
+  Entity source_entity = 2;
+
+  // The target entity in the relationship
+  Entity target_entity = 3;
+
+  // Type of relationship between entities
+  RelationshipType relationship_type = 4;
+
+  // Confidence score for the relationship (0.0 to 1.0)
+  // Higher values indicate stronger evidence for the relationship
+  float confidence = 5;
+
+  // Evidence supporting this relationship
+  repeated Evidence evidence = 6;
+
+  // Current validation status of the relationship
+  RelationshipStatus status = 7;
+
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 8;
+
+  // When the relationship was discovered
+  google.protobuf.Timestamp created_at = 9;
+
+  // When the relationship was last updated
+  google.protobuf.Timestamp updated_at = 10;
+
+  // Optional notes about the relationship
+  optional string notes = 11;
+}
+
+// RelationshipType enumerates the types of relationships between entities.
+enum RelationshipType {
+  // Unspecified relationship type
+  RELATIONSHIP_TYPE_UNSPECIFIED = 0;
+
+  // Person works at an organization
+  RELATIONSHIP_TYPE_WORKS_AT = 1;
+
+  // Person knows another person
+  RELATIONSHIP_TYPE_KNOWS = 2;
+
+  // Entities were mentioned together in the same context
+  RELATIONSHIP_TYPE_MENTIONED_WITH = 3;
+
+  // A topic or subject was discussed
+  RELATIONSHIP_TYPE_DISCUSSED = 4;
+
+  // Person manages another person or organization
+  RELATIONSHIP_TYPE_MANAGES = 5;
+
+  // Person reports to another person
+  RELATIONSHIP_TYPE_REPORTS_TO = 6;
+
+  // Entity collaborates with another entity
+  RELATIONSHIP_TYPE_COLLABORATES_WITH = 7;
+
+  // Person attended an event
+  RELATIONSHIP_TYPE_ATTENDED = 8;
+
+  // Person or organization owns something
+  RELATIONSHIP_TYPE_OWNS = 9;
+
+  // Person or organization is a member of something
+  RELATIONSHIP_TYPE_MEMBER_OF = 10;
+
+  // Person or entity created something
+  RELATIONSHIP_TYPE_CREATED = 11;
+
+  // Entity is located at a location
+  RELATIONSHIP_TYPE_LOCATED_AT = 12;
+
+  // Entity is part of another entity
+  RELATIONSHIP_TYPE_PART_OF = 13;
+
+  // Entity is related to another entity (generic)
+  RELATIONSHIP_TYPE_RELATED_TO = 14;
+}
+
+// RelationshipStatus represents the validation status of a relationship.
+enum RelationshipStatus {
+  // Unspecified status
+  RELATIONSHIP_STATUS_UNSPECIFIED = 0;
+
+  // Relationship has been discovered but not validated
+  RELATIONSHIP_STATUS_DISCOVERED = 1;
+
+  // Relationship has been confirmed by a user
+  RELATIONSHIP_STATUS_CONFIRMED = 2;
+
+  // Relationship has been rejected by a user
+  RELATIONSHIP_STATUS_REJECTED = 3;
+
+  // Relationship has been archived (no longer active)
+  RELATIONSHIP_STATUS_ARCHIVED = 4;
+}
+
+// Evidence represents supporting evidence for a discovered relationship.
+message Evidence {
+  // Source ID where the relationship was found
+  string source_id = 1;
+
+  // Type of source content
+  string source_type = 2;
+
+  // Excerpt from the source supporting the relationship
+  string excerpt = 3;
+
+  // When the evidence was discovered
+  google.protobuf.Timestamp discovered_at = 4;
+
+  // Confidence contribution from this evidence
+  float confidence_contribution = 5;
+}
+
+// =============================================================================
+// Discovery Messages
+// =============================================================================
+
+// DiscoveryOptions configures the relationship discovery process.
+message DiscoveryOptions {
+  // Entity types to discover relationships for
+  repeated EntityType entity_types = 1;
+
+  // Relationship types to discover
+  repeated RelationshipType relationship_types = 2;
+
+  // Minimum confidence threshold for discovered relationships (0.0 to 1.0)
+  float min_confidence = 3;
+
+  // Maximum number of relationships to discover
+  int32 max_relationships = 4;
+
+  // Whether to include existing relationships in results
+  bool include_existing = 5;
+}
+
+// DiscoverRelationshipsRequest initiates relationship discovery for content.
+message DiscoverRelationshipsRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Content source ID to analyze for relationships
+  string content_id = 2;
+
+  // Optional discovery configuration
+  DiscoveryOptions discovery_options = 3;
+}
+
+// DiscoverRelationshipsResponse contains the discovered relationships.
+message DiscoverRelationshipsResponse {
+  // List of discovered relationships
+  repeated Relationship relationships = 1;
+
+  // Total number of relationships discovered
+  int32 total_discovered = 2;
+
+  // Processing metadata
+  DiscoveryMetadata metadata = 3;
+}
+
+// DiscoveryMetadata provides information about the discovery process.
+message DiscoveryMetadata {
+  // Time taken for discovery in milliseconds
+  int64 processing_time_ms = 1;
+
+  // Model used for relationship extraction
+  string model_name = 2;
+
+  // Number of entities analyzed
+  int32 entities_analyzed = 3;
+
+  // Processing job ID for tracking
+  string job_id = 4;
+}
+
+// =============================================================================
+// Query Messages
+// =============================================================================
+
+// GetRelationshipRequest retrieves a single relationship by ID.
+message GetRelationshipRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Unique relationship ID
+  string relationship_id = 2;
+}
+
+// ListRelationshipsRequest retrieves relationships with filters.
+message ListRelationshipsRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Filter by entity ID (either source or target)
+  optional string entity_id = 2;
+
+  // Filter by relationship type
+  optional RelationshipType relationship_type = 3;
+
+  // Filter by status
+  optional RelationshipStatus status = 4;
+
+  // Filter by minimum confidence
+  optional float min_confidence = 5;
+
+  // Maximum number of results to return (default: 100, max: 1000)
+  int32 page_size = 6;
+
+  // Pagination token from previous response
+  string page_token = 7;
+
+  // Filter by created time range
+  optional google.protobuf.Timestamp created_after = 8;
+  optional google.protobuf.Timestamp created_before = 9;
+
+  // Filter by source entity type
+  optional EntityType source_entity_type = 10;
+
+  // Filter by target entity type
+  optional EntityType target_entity_type = 11;
+}
+
+// ListRelationshipsResponse contains the paginated relationship list.
+message ListRelationshipsResponse {
+  // List of relationships matching the filters
+  repeated Relationship relationships = 1;
+
+  // Token for fetching the next page (empty if no more results)
+  string next_page_token = 2;
+
+  // Total count of matching relationships (if available)
+  optional int64 total_count = 3;
+}
+
+// =============================================================================
+// Validation Messages
+// =============================================================================
+
+// ValidateRelationshipRequest confirms or rejects a discovered relationship.
+message ValidateRelationshipRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Unique relationship ID to validate
+  string relationship_id = 2;
+
+  // Validation action to perform
+  ValidationAction action = 3;
+
+  // Optional notes explaining the validation decision
+  optional string notes = 4;
+}
+
+// ValidationAction specifies the validation decision.
+enum ValidationAction {
+  // Unspecified action
+  VALIDATION_ACTION_UNSPECIFIED = 0;
+
+  // Confirm the relationship is valid
+  VALIDATION_ACTION_CONFIRM = 1;
+
+  // Reject the relationship as invalid
+  VALIDATION_ACTION_REJECT = 2;
+
+  // Archive the relationship (no longer relevant)
+  VALIDATION_ACTION_ARCHIVE = 3;
+}
+
+// ValidateRelationshipResponse confirms the validation was applied.
+message ValidateRelationshipResponse {
+  // The updated relationship
+  Relationship relationship = 1;
+
+  // Whether the validation was successful
+  bool success = 2;
+
+  // Message providing additional details
+  string message = 3;
+}
+
+// =============================================================================
+// Create Relationship Messages
+// =============================================================================
+
+// CreateRelationshipRequest manually creates a new relationship.
+message CreateRelationshipRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Source entity ID
+  string from_entity_id = 2;
+
+  // Target entity ID
+  string to_entity_id = 3;
+
+  // Type of relationship
+  RelationshipType type = 4;
+
+  // Optional subtype for additional specificity
+  optional string subtype = 5;
+}
+
+// CreateRelationshipResponse contains the created relationship.
+message CreateRelationshipResponse {
+  // The created relationship
+  Relationship relationship = 1;
+}
+
+// =============================================================================
+// Network Graph Messages
+// =============================================================================
+
+// GetNetworkGraphRequest retrieves the relationship network graph.
+message GetNetworkGraphRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Optional center entity ID to build graph around
+  optional string center_entity_id = 2;
+
+  // Maximum depth of relationships to include (default: 2)
+  int32 depth = 3;
+
+  // Filter by entity types to include
+  repeated EntityType entity_types = 4;
+
+  // Filter by relationship types to include
+  repeated RelationshipType relationship_types = 5;
+
+  // Minimum confidence threshold for relationships
+  optional float min_confidence = 6;
+
+  // Maximum number of nodes to return (default: 100)
+  int32 max_nodes = 7;
+
+  // Only include confirmed relationships
+  bool confirmed_only = 8;
+}
+
+// NetworkGraph represents the relationship network for visualization.
+message NetworkGraph {
+  // Nodes in the graph (entities)
+  repeated GraphNode nodes = 1;
+
+  // Edges in the graph (relationships)
+  repeated GraphEdge edges = 2;
+
+  // Graph metadata
+  GraphMetadata metadata = 3;
+}
+
+// GraphNode represents an entity in the network graph.
+message GraphNode {
+  // Entity ID
+  string id = 1;
+
+  // Display label
+  string label = 2;
+
+  // Entity type
+  EntityType type = 3;
+
+  // Number of connections (degree)
+  int32 degree = 4;
+
+  // Additional properties for visualization
+  map<string, string> properties = 5;
+}
+
+// GraphEdge represents a relationship in the network graph.
+message GraphEdge {
+  // Relationship ID
+  string id = 1;
+
+  // Source node ID
+  string source = 2;
+
+  // Target node ID
+  string target = 3;
+
+  // Relationship type
+  RelationshipType relationship_type = 4;
+
+  // Edge weight (based on confidence and evidence count)
+  float weight = 5;
+
+  // Display label
+  string label = 6;
+
+  // Additional properties for visualization
+  map<string, string> properties = 7;
+}
+
+// GraphMetadata provides information about the network graph.
+message GraphMetadata {
+  // Total number of nodes
+  int32 total_nodes = 1;
+
+  // Total number of edges
+  int32 total_edges = 2;
+
+  // Whether the graph was truncated due to size limits
+  bool truncated = 3;
+
+  // Center entity ID (if specified)
+  optional string center_entity_id = 4;
+
+  // Depth of the graph
+  int32 depth = 5;
+}
+
+// =============================================================================
+// Search Messages
+// =============================================================================
+
+// SearchRelationshipsRequest searches relationships by entity name.
+message SearchRelationshipsRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Search query string
+  string query = 2;
+
+  // Minimum confidence threshold
+  optional float min_confidence = 3;
+
+  // Maximum number of results
+  int32 limit = 4;
+}
+
+// SearchRelationshipsResponse contains the search results.
+message SearchRelationshipsResponse {
+  // List of matching relationships
+  repeated Relationship relationships = 1;
+
+  // Total count of matching relationships
+  int64 total_count = 2;
+}
+
+// =============================================================================
+// Entity Messages
+// =============================================================================
+
+// ListEntitiesRequest retrieves entities with filters.
+message ListEntitiesRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Filter by entity type
+  optional EntityType entity_type = 2;
+
+  // Search query for entity name/aliases
+  optional string search = 3;
+
+  // Minimum confidence threshold
+  optional float min_confidence = 4;
+
+  // Maximum number of results (default: 100, max: 1000)
+  int32 page_size = 5;
+
+  // Pagination offset
+  int32 offset = 6;
+}
+
+// ListEntitiesResponse contains the paginated entity list.
+message ListEntitiesResponse {
+  // List of entities matching the filters
+  repeated Entity entities = 1;
+
+  // Total count of matching entities
+  int64 total_count = 2;
+}
+
+// GetEntityRequest retrieves a single entity by ID.
+message GetEntityRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Unique entity ID
+  string entity_id = 2;
+}
+
+// MergeEntitiesRequest merges two entities into one.
+message MergeEntitiesRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // ID of the primary entity (will be kept)
+  string primary_entity_id = 2;
+
+  // ID of the entity to merge (will be archived)
+  string merged_entity_id = 3;
+}
+
+// MergeEntitiesResponse contains the result of the merge operation.
+message MergeEntitiesResponse {
+  // The updated primary entity
+  Entity primary_entity = 1;
+
+  // Number of relationships transferred
+  int32 relationships_transferred = 2;
+
+  // Whether the merge was successful
+  bool success = 3;
+
+  // Message providing additional details
+  string message = 4;
+}
+
+// =============================================================================
+// Network Statistics Messages
+// =============================================================================
+
+// GetNetworkStatsRequest retrieves network statistics.
+message GetNetworkStatsRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+}
+
+// NetworkStats contains statistics about the relationship network.
+message NetworkStats {
+  // Total number of nodes (entities)
+  int32 total_nodes = 1;
+
+  // Total number of edges (relationships)
+  int32 total_edges = 2;
+
+  // Network density (0.0 to 1.0)
+  float density = 3;
+
+  // Average number of connections per node
+  float avg_connections = 4;
+
+  // Number of clusters in the network
+  int32 cluster_count = 5;
+
+  // Count of entities by type
+  map<string, int32> entity_type_counts = 6;
+
+  // Count of relationships by type
+  map<string, int32> relationship_type_counts = 7;
+}
+
+// GetCentralEntitiesRequest retrieves the most connected entities.
+message GetCentralEntitiesRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Maximum number of entities to return
+  int32 limit = 2;
+}
+
+// GetCentralEntitiesResponse contains the most connected entities.
+message GetCentralEntitiesResponse {
+  // List of central entities, ordered by connectivity
+  repeated Entity entities = 1;
+}
+
+// GetClustersRequest retrieves clusters in the network.
+message GetClustersRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+}
+
+// GetClustersResponse contains the network clusters.
+message GetClustersResponse {
+  // List of clusters
+  repeated NetworkCluster clusters = 1;
+}
+
+// NetworkCluster represents a cluster in the relationship network.
+message NetworkCluster {
+  // Unique identifier for the cluster
+  string id = 1;
+
+  // Display name for the cluster
+  string name = 2;
+
+  // Number of entities in the cluster
+  int32 entity_count = 3;
+
+  // Top entities in the cluster
+  repeated Entity top_entities = 4;
+
+  // Cluster density (0.0 to 1.0)
+  float density = 5;
+}
+
+// =============================================================================
+// Conflict Messages
+// =============================================================================
+
+// ConflictStatus represents the status of a conflict.
+enum ConflictStatus {
+  // Unspecified status
+  CONFLICT_STATUS_UNSPECIFIED = 0;
+
+  // Conflict is pending resolution
+  CONFLICT_STATUS_PENDING = 1;
+
+  // Conflict has been resolved
+  CONFLICT_STATUS_RESOLVED = 2;
+}
+
+// ConflictResolutionStrategy defines how to resolve conflicts.
+enum ConflictResolutionStrategy {
+  // Unspecified strategy
+  CONFLICT_RESOLUTION_STRATEGY_UNSPECIFIED = 0;
+
+  // Keep the most recently updated item
+  CONFLICT_RESOLUTION_STRATEGY_KEEP_LATEST = 1;
+
+  // Keep the first discovered item
+  CONFLICT_RESOLUTION_STRATEGY_KEEP_FIRST = 2;
+
+  // Attempt to merge conflicting data
+  CONFLICT_RESOLUTION_STRATEGY_MERGE = 3;
+
+  // Mark for manual review
+  CONFLICT_RESOLUTION_STRATEGY_MANUAL = 4;
+}
+
+// Conflict represents a detected conflict in the relationship graph.
+message Conflict {
+  // Unique identifier for the conflict
+  string id = 1;
+
+  // Tenant identifier
+  string tenant_id = 2;
+
+  // Type of conflict (duplicate_entity, contradictory_relationship, low_confidence)
+  string type = 3;
+
+  // Human-readable description
+  string description = 4;
+
+  // Suggested action to resolve
+  string suggested_action = 5;
+
+  // Current status
+  ConflictStatus status = 6;
+
+  // Resolution notes (if resolved)
+  optional string resolution = 7;
+
+  // Who resolved the conflict
+  optional string resolved_by = 8;
+
+  // When the conflict was resolved
+  optional google.protobuf.Timestamp resolved_at = 9;
+
+  // When the conflict was created
+  google.protobuf.Timestamp created_at = 10;
+
+  // Related relationships (if applicable)
+  repeated Relationship relationships = 11;
+}
+
+// ListConflictsRequest retrieves conflicts with filters.
+message ListConflictsRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Filter by status
+  optional ConflictStatus status = 2;
+
+  // Maximum number of results
+  int32 limit = 3;
+
+  // Pagination offset
+  int32 offset = 4;
+}
+
+// ListConflictsResponse contains the conflict list.
+message ListConflictsResponse {
+  // List of conflicts
+  repeated Conflict conflicts = 1;
+
+  // Total count of conflicts
+  int64 total_count = 2;
+}
+
+// GetConflictRequest retrieves a single conflict by ID.
+message GetConflictRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Unique conflict ID
+  string conflict_id = 2;
+}
+
+// ResolveConflictRequest resolves a conflict.
+message ResolveConflictRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Unique conflict ID
+  string conflict_id = 2;
+
+  // Resolution strategy
+  ConflictResolutionStrategy strategy = 3;
+
+  // User resolving the conflict
+  optional string resolved_by = 4;
+
+  // Optional notes about the resolution
+  optional string notes = 5;
+}
+
+// ResolveConflictResponse contains the resolution result.
+message ResolveConflictResponse {
+  // The resolved conflict
+  Conflict conflict = 1;
+
+  // Number of relationships updated
+  int32 relationships_updated = 2;
+
+  // Whether the resolution was successful
+  bool success = 3;
+
+  // Message providing additional details
+  string message = 4;
+}
+
+// =============================================================================
+// Deduplication Messages
+// =============================================================================
+
+// DuplicatePair represents a pair of potentially duplicate entities.
+message DuplicatePair {
+  // ID of the first entity
+  string entity_id1 = 1;
+
+  // ID of the second entity
+  string entity_id2 = 2;
+
+  // Name of the first entity (for display)
+  string entity_name1 = 3;
+
+  // Name of the second entity (for display)
+  string entity_name2 = 4;
+
+  // Similarity score (0.0 to 1.0)
+  float similarity = 5;
+
+  // Signals explaining why these might be duplicates
+  repeated string signals = 6;
+}
+
+// FindDuplicatesRequest finds duplicate entities.
+message FindDuplicatesRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Minimum similarity threshold (default: 0.85, range: 0.5 to 1.0)
+  optional float min_similarity = 2;
+}
+
+// FindDuplicatesResponse contains duplicate entity pairs.
+message FindDuplicatesResponse {
+  // List of duplicate pairs
+  repeated DuplicatePair duplicate_pairs = 1;
+
+  // Total count of pairs found
+  int32 total_count = 2;
+}
+
+// MergePreviewRequest requests a preview of merging two entities.
+message MergePreviewRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // ID of the first entity
+  string entity_id1 = 2;
+
+  // ID of the second entity
+  string entity_id2 = 3;
+}
+
+// MergePreviewResponse contains a preview of the merge operation.
+message MergePreviewResponse {
+  // The merged entity (preview only)
+  Entity merged_entity = 1;
+
+  // Aliases that would be transferred
+  repeated string transferring_aliases = 2;
+
+  // Relationships that would be transferred (IDs only)
+  repeated string transferring_relationships = 3;
+
+  // Fields that have conflicting values
+  repeated string conflict_fields = 4;
+}
+
+// AutoMergeDuplicatesRequest automatically merges duplicate entities.
+message AutoMergeDuplicatesRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Minimum similarity threshold (minimum: 0.90, default: 0.95)
+  optional float min_similarity = 2;
+
+  // If true, only preview what would be merged
+  bool dry_run = 3;
+
+  // Confirmation flag (reserved for future use)
+  bool confirm = 4;
+}
+
+// SkippedPair represents a duplicate pair that was skipped during auto-merge.
+message SkippedPair {
+  // The duplicate pair
+  DuplicatePair pair = 1;
+
+  // Reason why this pair was skipped
+  string reason = 2;
+}
+
+// AutoMergeDuplicatesResponse contains the results of auto-merge.
+message AutoMergeDuplicatesResponse {
+  // Number of entities merged
+  int32 merged_count = 1;
+
+  // Pairs that were merged
+  repeated DuplicatePair merged_pairs = 2;
+
+  // Pairs that were skipped
+  repeated SkippedPair skipped_pairs = 3;
+
+  // Whether this was a dry run
+  bool was_dry_run = 4;
+}

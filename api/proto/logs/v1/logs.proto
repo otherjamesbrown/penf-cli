@@ -1,0 +1,218 @@
+// Logs Service Protobuf Definitions
+// Provides gRPC service for viewing and querying service logs
+// Bead: pe-iaw8
+
+syntax = "proto3";
+
+package penfold.logs.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/logs/v1;logsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// LogsService provides gRPC endpoints for viewing and querying service logs.
+service LogsService {
+  // ListLogs retrieves log entries matching the specified filters.
+  rpc ListLogs(ListLogsRequest) returns (ListLogsResponse);
+
+  // StreamLogs streams log entries in real-time (for --follow functionality).
+  rpc StreamLogs(StreamLogsRequest) returns (stream LogEntry);
+
+  // GetStats returns statistics about the logs.
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
+  // ListServices returns all distinct service names that have logged.
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
+
+  // WriteLogs writes log entries (for services to send logs to the gateway).
+  rpc WriteLogs(WriteLogsRequest) returns (WriteLogsResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// LogLevel represents log severity.
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+}
+
+// LogEntry represents a single log entry.
+message LogEntry {
+  // Unique identifier for the log entry.
+  int64 id = 1;
+
+  // Timestamp when the log was generated.
+  google.protobuf.Timestamp timestamp = 2;
+
+  // Log severity level.
+  LogLevel level = 3;
+
+  // Service that generated the log.
+  string service = 4;
+
+  // Log message content.
+  string message = 5;
+
+  // Structured log fields as key-value pairs.
+  map<string, string> fields = 6;
+
+  // Optional trace ID for correlation.
+  string trace_id = 7;
+
+  // Optional span ID for correlation.
+  string span_id = 8;
+
+  // Source file:line that generated the log.
+  string caller = 9;
+}
+
+// LogFilter specifies criteria for querying logs.
+message LogFilter {
+  // Filter by service name.
+  string service = 1;
+
+  // Minimum log level (includes this level and higher).
+  LogLevel level = 2;
+
+  // Show logs after this time.
+  google.protobuf.Timestamp since = 3;
+
+  // Show logs before this time.
+  google.protobuf.Timestamp until = 4;
+
+  // Full-text search in message content.
+  string contains = 5;
+
+  // Filter by trace ID.
+  string trace_id = 6;
+}
+
+// LogStats contains log statistics.
+message LogStats {
+  // Total number of log entries.
+  int64 total_count = 1;
+
+  // Count by log level.
+  map<string, int64> count_by_level = 2;
+
+  // Count by service.
+  map<string, int64> count_by_service = 3;
+
+  // Timestamp of oldest log entry.
+  google.protobuf.Timestamp oldest_log = 4;
+
+  // Timestamp of newest log entry.
+  google.protobuf.Timestamp newest_log = 5;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// ListLogsRequest specifies the filter criteria for listing logs.
+message ListLogsRequest {
+  // Filter criteria.
+  LogFilter filter = 1;
+
+  // Maximum number of entries to return (default: 100, max: 1000).
+  int32 limit = 2;
+
+  // Pagination offset.
+  int32 offset = 3;
+
+  // Order ascending by timestamp (default: false = newest first).
+  bool order_asc = 4;
+}
+
+// ListLogsResponse contains the matching log entries.
+message ListLogsResponse {
+  // The matching log entries.
+  repeated LogEntry entries = 1;
+
+  // Total count of matching entries (before limit/offset).
+  int64 total_count = 2;
+
+  // True if results were truncated by limit.
+  bool truncated = 3;
+}
+
+// StreamLogsRequest specifies the filter for streaming logs.
+message StreamLogsRequest {
+  // Filter criteria (same as ListLogs).
+  LogFilter filter = 1;
+
+  // Poll interval in milliseconds (default: 1000, min: 500, max: 10000).
+  int32 poll_interval_ms = 2;
+}
+
+// GetStatsRequest requests log statistics.
+message GetStatsRequest {
+  // Optional tenant ID filter.
+  string tenant_id = 1;
+}
+
+// GetStatsResponse contains log statistics.
+message GetStatsResponse {
+  // The log statistics.
+  LogStats stats = 1;
+}
+
+// ListServicesRequest requests the list of services.
+message ListServicesRequest {
+  // Optional tenant ID filter.
+  string tenant_id = 1;
+}
+
+// ListServicesResponse contains the list of services.
+message ListServicesResponse {
+  // Distinct service names that have logged.
+  repeated string services = 1;
+}
+
+// WriteLogsRequest contains log entries to write.
+message WriteLogsRequest {
+  // Log entries to write.
+  repeated LogEntryInput entries = 1;
+}
+
+// LogEntryInput is the input format for writing a log entry.
+message LogEntryInput {
+  // Timestamp when the log was generated (default: now).
+  google.protobuf.Timestamp timestamp = 1;
+
+  // Log severity level.
+  LogLevel level = 2;
+
+  // Service that generated the log.
+  string service = 3;
+
+  // Log message content.
+  string message = 4;
+
+  // Structured log fields as key-value pairs.
+  map<string, string> fields = 5;
+
+  // Optional trace ID for correlation.
+  string trace_id = 6;
+
+  // Optional span ID for correlation.
+  string span_id = 7;
+
+  // Source file:line that generated the log.
+  string caller = 8;
+}
+
+// WriteLogsResponse contains the result of writing logs.
+message WriteLogsResponse {
+  // Number of entries successfully written.
+  int64 written_count = 1;
+}

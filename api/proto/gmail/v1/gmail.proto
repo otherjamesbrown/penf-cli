@@ -1,0 +1,413 @@
+// Gmail Connector Service Protobuf Definitions
+// Defines the gRPC service for syncing and managing Gmail messages
+
+syntax = "proto3";
+
+package penfold.gmail.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/gmail/v1;gmailv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// GmailConnectorService provides gRPC endpoints for managing Gmail synchronization.
+// This service handles fetching, syncing, and querying email messages from Gmail
+// for the Penfold AI processing pipeline.
+service GmailConnectorService {
+  // SyncEmails triggers synchronization of emails from Gmail.
+  // Fetches new or updated emails based on the provided criteria.
+  rpc SyncEmails(SyncEmailsRequest) returns (SyncEmailsResponse);
+
+  // GetSyncStatus retrieves the current status of an ongoing or completed sync operation.
+  rpc GetSyncStatus(GetSyncStatusRequest) returns (SyncStatus);
+
+  // ListEmails returns a paginated list of processed emails.
+  rpc ListEmails(ListEmailsRequest) returns (ListEmailsResponse);
+
+  // GetEmail retrieves detailed information about a single email.
+  rpc GetEmail(GetEmailRequest) returns (Email);
+
+  // WatchMailbox sets up push notifications for new emails.
+  // Uses Gmail's push notification API to receive real-time updates.
+  rpc WatchMailbox(WatchMailboxRequest) returns (WatchMailboxResponse);
+}
+
+// =============================================================================
+// Email Message
+// =============================================================================
+
+// Email represents a Gmail message with all relevant metadata.
+message Email {
+  // Unique Gmail message ID
+  string id = 1;
+
+  // Gmail thread ID for conversation grouping
+  string thread_id = 2;
+
+  // Email subject line
+  string subject = 3;
+
+  // Sender email address and optional display name
+  EmailAddress from = 4;
+
+  // List of primary recipients
+  repeated EmailAddress to = 5;
+
+  // List of CC recipients
+  repeated EmailAddress cc = 6;
+
+  // List of BCC recipients (if available)
+  repeated EmailAddress bcc = 7;
+
+  // Email body content
+  EmailBody body = 8;
+
+  // When the email was sent/received
+  google.protobuf.Timestamp timestamp = 9;
+
+  // Gmail labels applied to this message
+  repeated string labels = 10;
+
+  // Whether the email has attachments
+  bool has_attachments = 11;
+
+  // List of attachment metadata (if has_attachments is true)
+  repeated Attachment attachments = 12;
+
+  // Gmail internal date (epoch milliseconds)
+  int64 internal_date = 13;
+
+  // Size of the message in bytes
+  int64 size_estimate = 14;
+
+  // Whether the email has been read
+  bool is_read = 15;
+
+  // Whether the email is starred
+  bool is_starred = 16;
+
+  // Snippet preview of the email content
+  string snippet = 17;
+
+  // RFC 2822 Message-ID header
+  string message_id_header = 18;
+
+  // In-Reply-To header for threading
+  optional string in_reply_to = 19;
+
+  // References header for threading
+  repeated string references = 20;
+}
+
+// EmailAddress represents an email address with optional display name.
+message EmailAddress {
+  // Email address (e.g., "user@example.com")
+  string address = 1;
+
+  // Display name (e.g., "John Doe")
+  optional string name = 2;
+}
+
+// EmailBody contains the email content in various formats.
+message EmailBody {
+  // Plain text version of the email body
+  string plain_text = 1;
+
+  // HTML version of the email body (if available)
+  optional string html = 2;
+}
+
+// Attachment represents email attachment metadata.
+message Attachment {
+  // Attachment ID for fetching the content
+  string attachment_id = 1;
+
+  // Original filename
+  string filename = 2;
+
+  // MIME type of the attachment
+  string mime_type = 3;
+
+  // Size in bytes
+  int64 size = 4;
+}
+
+// =============================================================================
+// Sync Request/Response Messages
+// =============================================================================
+
+// SyncEmailsRequest initiates email synchronization from Gmail.
+message SyncEmailsRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Start date for sync range (inclusive, optional)
+  // If not specified, syncs from last sync point or beginning
+  optional google.protobuf.Timestamp start_date = 2;
+
+  // End date for sync range (inclusive, optional)
+  // If not specified, syncs up to current time
+  optional google.protobuf.Timestamp end_date = 3;
+
+  // Filter to specific labels (e.g., "INBOX", "IMPORTANT")
+  // Empty list means sync all labels
+  repeated string labels = 4;
+
+  // Gmail search query for filtering (e.g., "from:example.com")
+  optional string query = 5;
+
+  // Maximum number of emails to sync in this request
+  // Default: 500, Max: 10000
+  int32 max_results = 6;
+
+  // Whether to force full sync (ignore last sync point)
+  bool force_full_sync = 7;
+
+  // Include spam and trash folders
+  bool include_spam_trash = 8;
+}
+
+// SyncEmailsResponse contains the result of a sync operation.
+message SyncEmailsResponse {
+  // Unique sync job identifier for tracking progress
+  string sync_id = 1;
+
+  // Current status of the sync operation
+  SyncStatus status = 2;
+
+  // Message providing additional context
+  string message = 3;
+}
+
+// GetSyncStatusRequest retrieves status of a sync operation.
+message GetSyncStatusRequest {
+  // Unique sync job identifier
+  string sync_id = 1;
+
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 2;
+}
+
+// SyncStatus represents the current state of a sync operation.
+message SyncStatus {
+  // Unique sync job identifier
+  string sync_id = 1;
+
+  // Current state of the sync operation
+  SyncState state = 2;
+
+  // Number of emails processed so far
+  int64 processed_count = 3;
+
+  // Total number of emails to process (may be estimated)
+  int64 total_count = 4;
+
+  // Number of emails successfully synced
+  int64 success_count = 5;
+
+  // Number of emails that failed to sync
+  int64 error_count = 6;
+
+  // List of errors encountered during sync
+  repeated SyncError errors = 7;
+
+  // When the sync operation started
+  google.protobuf.Timestamp started_at = 8;
+
+  // When the sync operation completed (if finished)
+  optional google.protobuf.Timestamp completed_at = 9;
+
+  // Estimated time remaining in seconds (if in progress)
+  optional int64 estimated_seconds_remaining = 10;
+
+  // History ID for incremental sync tracking
+  optional uint64 history_id = 11;
+
+  // Progress percentage (0-100)
+  int32 progress_percent = 12;
+}
+
+// SyncState enumerates the possible states of a sync operation.
+enum SyncState {
+  // Default value, should not be used
+  SYNC_STATE_UNSPECIFIED = 0;
+
+  // Sync operation is queued and waiting to start
+  SYNC_STATE_PENDING = 1;
+
+  // Sync operation is currently in progress
+  SYNC_STATE_IN_PROGRESS = 2;
+
+  // Sync operation completed successfully
+  SYNC_STATE_COMPLETED = 3;
+
+  // Sync operation completed with some errors
+  SYNC_STATE_COMPLETED_WITH_ERRORS = 4;
+
+  // Sync operation failed
+  SYNC_STATE_FAILED = 5;
+
+  // Sync operation was cancelled
+  SYNC_STATE_CANCELLED = 6;
+}
+
+// SyncError represents an error that occurred during sync.
+message SyncError {
+  // Email ID that caused the error (if applicable)
+  optional string email_id = 1;
+
+  // Error code
+  string code = 2;
+
+  // Human-readable error message
+  string message = 3;
+
+  // When the error occurred
+  google.protobuf.Timestamp timestamp = 4;
+
+  // Whether the error is retryable
+  bool retryable = 5;
+}
+
+// =============================================================================
+// List/Get Email Messages
+// =============================================================================
+
+// ListEmailsRequest retrieves a paginated list of processed emails.
+message ListEmailsRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Maximum number of results per page (default: 50, max: 200)
+  int32 page_size = 2;
+
+  // Pagination token from previous response
+  string page_token = 3;
+
+  // Filter by labels
+  repeated string labels = 4;
+
+  // Filter by sender email address
+  optional string from_address = 5;
+
+  // Filter by start date (inclusive)
+  optional google.protobuf.Timestamp start_date = 6;
+
+  // Filter by end date (inclusive)
+  optional google.protobuf.Timestamp end_date = 7;
+
+  // Search query for filtering results
+  optional string query = 8;
+
+  // Include only read or unread emails
+  optional bool is_read = 9;
+
+  // Include only starred emails
+  optional bool is_starred = 10;
+
+  // Thread ID to filter by specific conversation
+  optional string thread_id = 11;
+
+  // Sort order for results
+  // Default: SORT_ORDER_DATE_DESC
+  SortOrder order_by = 12;
+}
+
+// ListEmailsResponse contains a paginated list of emails.
+message ListEmailsResponse {
+  // List of emails matching the query
+  repeated Email emails = 1;
+
+  // Token for fetching the next page (empty if no more results)
+  string next_page_token = 2;
+
+  // Total count of matching emails (if available)
+  optional int64 total_count = 3;
+
+  // Number of results in this page
+  int32 result_size = 4;
+}
+
+// GetEmailRequest retrieves a single email by ID.
+message GetEmailRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Gmail message ID
+  string email_id = 2;
+
+  // Format for the email body
+  // Default: EMAIL_FORMAT_FULL
+  EmailFormat format = 3;
+}
+
+// =============================================================================
+// Watch/Push Notification Messages
+// =============================================================================
+
+// WatchMailboxRequest sets up push notifications for new emails.
+message WatchMailboxRequest {
+  // Tenant identifier for multi-tenancy support
+  string tenant_id = 1;
+
+  // Labels to watch (e.g., "INBOX")
+  // Empty list means watch all labels
+  repeated string labels = 2;
+
+  // Cloud Pub/Sub topic for receiving notifications
+  // Format: "projects/{project}/topics/{topic}"
+  string topic_name = 3;
+
+  // Filter types to watch: "message_added", "message_deleted", "label_added", "label_removed"
+  // Default: ["message_added"]
+  repeated string label_filter_action = 4;
+}
+
+// WatchMailboxResponse contains the result of setting up push notifications.
+message WatchMailboxResponse {
+  // History ID to use for subsequent sync operations
+  uint64 history_id = 1;
+
+  // When the watch will expire (requires renewal)
+  google.protobuf.Timestamp expiration = 2;
+
+  // Message providing additional context
+  string message = 3;
+}
+
+// =============================================================================
+// Common Enums
+// =============================================================================
+
+// SortOrder specifies the ordering for list operations.
+enum SortOrder {
+  // Unspecified, defaults to date descending
+  SORT_ORDER_UNSPECIFIED = 0;
+
+  // Newest first
+  SORT_ORDER_DATE_DESC = 1;
+
+  // Oldest first
+  SORT_ORDER_DATE_ASC = 2;
+}
+
+// EmailFormat specifies the format for retrieving email content.
+enum EmailFormat {
+  // Unspecified, defaults to full format
+  EMAIL_FORMAT_UNSPECIFIED = 0;
+
+  // Returns only email metadata (IDs, labels, thread info)
+  EMAIL_FORMAT_METADATA = 1;
+
+  // Returns all email data except body content
+  EMAIL_FORMAT_MINIMAL = 2;
+
+  // Returns full email message including body
+  EMAIL_FORMAT_FULL = 3;
+
+  // Returns the raw RFC 2822 formatted email
+  EMAIL_FORMAT_RAW = 4;
+}

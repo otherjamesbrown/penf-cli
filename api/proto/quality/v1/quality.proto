@@ -1,0 +1,140 @@
+// Quality Dashboard Service Protobuf Definitions
+// Provides quality metrics and issue tracking for data quality monitoring
+
+syntax = "proto3";
+
+package penfold.quality.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/quality/v1;qualityv1";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// QualityService provides gRPC endpoints for quality monitoring and issue tracking.
+// This service exposes quality metrics for entities and content extractions.
+service QualityService {
+  // GetQualitySummary returns aggregated quality issue counts by severity.
+  rpc GetQualitySummary(GetQualitySummaryRequest) returns (GetQualitySummaryResponse);
+
+  // GetEntityQuality returns entities needing attention with quality issues.
+  rpc GetEntityQuality(GetEntityQualityRequest) returns (GetEntityQualityResponse);
+
+  // GetExtractionQuality returns content items ranked by extraction quality.
+  rpc GetExtractionQuality(GetExtractionQualityRequest) returns (GetExtractionQualityResponse);
+}
+
+// =============================================================================
+// Quality Summary Messages
+// =============================================================================
+
+// GetQualitySummaryRequest requests aggregated quality statistics.
+message GetQualitySummaryRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+}
+
+// GetQualitySummaryResponse returns issue counts by severity.
+message GetQualitySummaryResponse {
+  // Number of HIGH severity issues
+  int64 high_count = 1;
+
+  // Number of MEDIUM severity issues
+  int64 medium_count = 2;
+
+  // Number of LOW severity issues
+  int64 low_count = 3;
+}
+
+// =============================================================================
+// Entity Quality Messages
+// =============================================================================
+
+// GetEntityQualityRequest requests entity quality issues.
+message GetEntityQualityRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Maximum number of results (default: 50)
+  int32 limit = 2;
+}
+
+// GetEntityQualityResponse returns entities with quality issues.
+message GetEntityQualityResponse {
+  // List of entity quality items
+  repeated EntityQualityItem items = 1;
+}
+
+// EntityQualityItem represents an entity with quality issues.
+message EntityQualityItem {
+  // Entity unique identifier
+  int64 entity_id = 1;
+
+  // Entity display name
+  string entity_name = 2;
+
+  // Primary email address
+  string primary_email = 3;
+
+  // List of quality issues for this entity
+  repeated QualityIssue issues = 4;
+
+  // Entity confidence score (0.0 to 1.0)
+  float confidence = 5;
+}
+
+// =============================================================================
+// Extraction Quality Messages
+// =============================================================================
+
+// GetExtractionQualityRequest requests content extraction quality issues.
+message GetExtractionQualityRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Maximum number of results (default: 50)
+  int32 limit = 2;
+}
+
+// GetExtractionQualityResponse returns content items with quality issues.
+message GetExtractionQualityResponse {
+  // List of extraction quality items
+  repeated ExtractionQualityItem items = 1;
+}
+
+// ExtractionQualityItem represents a content item with extraction quality metrics.
+message ExtractionQualityItem {
+  // Content item unique identifier
+  int64 content_item_id = 1;
+
+  // Content type (email, slack, meeting, etc.)
+  string content_type = 2;
+
+  // Content subject/title
+  string subject = 3;
+
+  // Extraction quality score (0.0 to 1.0)
+  float extraction_score = 4;
+
+  // List of quality issues for this content item
+  repeated QualityIssue issues = 5;
+}
+
+// =============================================================================
+// Common Messages
+// =============================================================================
+
+// QualityIssue represents a single quality issue in the system.
+message QualityIssue {
+  // Issue severity: HIGH, MEDIUM, LOW
+  string severity = 1;
+
+  // Issue category: entity, extraction, etc.
+  string category = 2;
+
+  // Human-readable issue description
+  string description = 3;
+
+  // Suggested CLI command to fix the issue
+  string suggested_command = 4;
+}

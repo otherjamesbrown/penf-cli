@@ -1,0 +1,1313 @@
+// AI Coordinator Service Protobuf Definitions
+// Defines the gRPC service for AI/ML operations including embeddings,
+// summarization, assertion extraction, and content classification.
+
+syntax = "proto3";
+
+package penfold.ai.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/ai/v1;aiv1";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// AICoordinatorService provides gRPC endpoints for AI/ML operations.
+// This service coordinates access to embedding models, LLMs, and other AI
+// capabilities used throughout the Penfold information processing pipeline.
+service AICoordinatorService {
+  // GenerateEmbedding creates a vector embedding for the given text.
+  // Used for semantic search and similarity matching.
+  rpc GenerateEmbedding(EmbeddingRequest) returns (EmbeddingResponse);
+
+  // GenerateSummary produces a concise summary of the given content.
+  // Supports different summary styles and length constraints.
+  rpc GenerateSummary(SummaryRequest) returns (SummaryResponse);
+
+  // ExtractAssertions identifies facts and claims from content.
+  // Returns structured subject-predicate-object triples with confidence scores.
+  rpc ExtractAssertions(AssertionRequest) returns (AssertionResponse);
+
+  // ClassifyContent categorizes content into predefined or dynamic categories.
+  // Returns classification labels with confidence scores.
+  rpc ClassifyContent(ClassifyContentRequest) returns (ClassifyContentResponse);
+
+  // TriageContent classifies content into categories and importance levels.
+  // Used for initial email/content triage with SLM (8 categories, 3 importance levels).
+  rpc TriageContent(TriageContentRequest) returns (TriageContentResponse);
+
+  // ExtractEntities performs two-pass entity extraction (NER + semantic) from content.
+  // Stage 2a extracts people, dates, projects, organisations.
+  // Stage 2b extracts action_items, decisions, risks.
+  rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse);
+
+  // DeepAnalyze performs Stage 4 deep analysis using remote LLM.
+  // Takes pre-processed input from pipeline stages and sends structured prompt to LLM.
+  // Content is wrapped in <untrusted_content> delimiters per security model.
+  rpc DeepAnalyze(DeepAnalyzeRequest) returns (DeepAnalyzeResponse);
+
+  // GetModelStatus checks the availability and health of AI models.
+  // Returns information about loaded models and their capabilities.
+  rpc GetModelStatus(GetModelStatusRequest) returns (GetModelStatusResponse);
+
+  // ---------------------------------------------------------------------------
+  // Model Management RPCs
+  // ---------------------------------------------------------------------------
+
+  // ListModels returns all registered models with optional filtering.
+  // Use this to discover available models and their configurations.
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+
+  // RegisterModel adds a new model to the registry.
+  // Returns the registered model configuration.
+  rpc RegisterModel(RegisterModelRequest) returns (RegisterModelResponse);
+
+  // UpdateModel modifies an existing model's configuration.
+  // Only specified fields are updated; unset fields remain unchanged.
+  rpc UpdateModel(UpdateModelRequest) returns (UpdateModelResponse);
+
+  // DeleteModel removes a model from the registry.
+  // Active requests using this model may fail after deletion.
+  rpc DeleteModel(DeleteModelRequest) returns (DeleteModelResponse);
+
+  // ---------------------------------------------------------------------------
+  // Routing Rule RPCs
+  // ---------------------------------------------------------------------------
+
+  // GetRoutingRules returns routing rules with optional filtering.
+  // Routing rules determine which models are used for different task types.
+  rpc GetRoutingRules(GetRoutingRulesRequest) returns (GetRoutingRulesResponse);
+
+  // UpdateRoutingRule creates or updates a routing rule.
+  // If a rule with the same name exists, it is updated; otherwise, created.
+  rpc UpdateRoutingRule(UpdateRoutingRuleRequest) returns (UpdateRoutingRuleResponse);
+
+  // ---------------------------------------------------------------------------
+  // AI Operations RPCs (CLI-facing)
+  // ---------------------------------------------------------------------------
+
+  // Query performs RAG-style question answering over the knowledge base.
+  // Searches relevant content and generates an answer using an LLM.
+  rpc Query(QueryRequest) returns (QueryResponse);
+
+  // SummarizeByID generates a summary of content identified by its ID.
+  // Fetches the content and produces a summary with key points.
+  rpc SummarizeByID(SummarizeByIDRequest) returns (SummarizeByIDResponse);
+
+  // AnalyzeByID performs deep analysis on content identified by its ID.
+  // Supports sentiment, entity, topic, and action item extraction.
+  rpc AnalyzeByID(AnalyzeByIDRequest) returns (AnalyzeByIDResponse);
+}
+
+// =============================================================================
+// Embedding Messages
+// =============================================================================
+
+// EmbeddingRequest contains the text to generate an embedding for.
+message EmbeddingRequest {
+  // The text content to embed.
+  // Maximum length depends on the model's context window.
+  string text = 1;
+
+  // The embedding model to use.
+  // If not specified, the default model will be used.
+  // Examples: "nomic-embed-text", "text-embedding-3-small"
+  optional string model = 2;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 3;
+
+  // Optional pipeline trace ID for grouping related operations.
+  // When set, this span will be a child of the pipeline trace.
+  optional string pipeline_trace_id = 4;
+
+  // Optional content ID for Langfuse tag attribute.
+  // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
+  optional string content_id = 5;
+}
+
+// EmbeddingResponse contains the generated vector embedding.
+message EmbeddingResponse {
+  // The embedding vector as a list of float values.
+  // Length varies by model (typically 768, 1024, or 1536 dimensions).
+  repeated float vector = 1;
+
+  // The number of dimensions in the embedding vector.
+  int32 dimensions = 2;
+
+  // The model that was actually used to generate the embedding.
+  // May differ from requested model if fallback occurred.
+  string model_used = 3;
+
+  // Token count of the input text.
+  // Useful for cost tracking and rate limiting.
+  optional int32 token_count = 4;
+}
+
+// =============================================================================
+// Summary Messages
+// =============================================================================
+
+// SummaryStyle defines the format and tone of the generated summary.
+enum SummaryStyle {
+  // Default style - balanced and informative.
+  SUMMARY_STYLE_UNSPECIFIED = 0;
+
+  // Brief, executive-style summary focusing on key points.
+  SUMMARY_STYLE_BRIEF = 1;
+
+  // Detailed summary preserving more context and nuance.
+  SUMMARY_STYLE_DETAILED = 2;
+
+  // Bullet-point format highlighting main topics.
+  SUMMARY_STYLE_BULLET_POINTS = 3;
+
+  // Technical summary focusing on facts and data.
+  SUMMARY_STYLE_TECHNICAL = 4;
+}
+
+// SummaryRequest contains the content to summarize.
+message SummaryRequest {
+  // The content to summarize.
+  // Can be plain text, markdown, or other text formats.
+  string content = 1;
+
+  // Maximum length of the summary in tokens or characters.
+  // Interpretation depends on the model. Default: 150 tokens.
+  optional int32 max_length = 2;
+
+  // The style of summary to generate.
+  SummaryStyle style = 3;
+
+  // The LLM model to use for summarization.
+  // If not specified, the default model will be used.
+  optional string model = 4;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 5;
+
+  // Whether to request JSON-structured output from the LLM.
+  // When true, the backend will constrain the model to output valid JSON.
+  optional bool json_mode = 6;
+
+  // Optional pipeline trace ID for grouping related operations.
+  // When set, this span will be a child of the pipeline trace.
+  optional string pipeline_trace_id = 7;
+
+  // Optional content ID for Langfuse tag attribute.
+  // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
+  optional string content_id = 8;
+}
+
+// SummaryResponse contains the generated summary and key points.
+message SummaryResponse {
+  // The generated summary text.
+  string summary = 1;
+
+  // Key points extracted from the content.
+  // Provides quick-reference highlights independent of the summary style.
+  repeated string key_points = 2;
+
+  // The model that was actually used to generate the summary.
+  string model_used = 3;
+
+  // Token count of the input content.
+  optional int32 input_tokens = 4;
+
+  // Token count of the generated summary.
+  optional int32 output_tokens = 5;
+
+  // Why the model stopped generating: "stop" (natural), "length" (hit token limit).
+  // Empty if not reported by the backend.
+  optional string finish_reason = 6;
+}
+
+// =============================================================================
+// Assertion Extraction Messages
+// =============================================================================
+
+// AssertionRequest contains content from which to extract assertions.
+message AssertionRequest {
+  // The content to analyze for assertions.
+  // Can include emails, documents, meeting notes, etc.
+  string content = 1;
+
+  // Minimum confidence threshold for returned assertions (0.0 to 1.0).
+  // Assertions below this threshold will be filtered out.
+  // Default: 0.5
+  optional float min_confidence = 2;
+
+  // Maximum number of assertions to return.
+  // Default: 20
+  optional int32 max_assertions = 3;
+
+  // The LLM model to use for assertion extraction.
+  // If not specified, the default model will be used.
+  optional string model = 4;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 5;
+
+  // Optional pipeline trace ID for grouping related operations.
+  // When set, this span will be a child of the pipeline trace.
+  optional string pipeline_trace_id = 6;
+
+  // Optional content ID for Langfuse tag attribute.
+  // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
+  optional string content_id = 7;
+}
+
+// Assertion represents a structured fact or claim extracted from content.
+// Modeled as a subject-predicate-object triple.
+message Assertion {
+  // The subject of the assertion (e.g., "John", "Project Alpha").
+  string subject = 1;
+
+  // The predicate or relationship (e.g., "works on", "is scheduled for").
+  string predicate = 2;
+
+  // The object of the assertion (e.g., "the marketing team", "next Tuesday").
+  string object = 3;
+
+  // Confidence score for this assertion (0.0 to 1.0).
+  // Higher values indicate higher confidence in the extraction accuracy.
+  float confidence = 4;
+
+  // The source text span that supports this assertion.
+  // Useful for verification and citation.
+  optional string source_text = 5;
+
+  // Category of the assertion (e.g., "temporal", "organizational", "factual").
+  optional string category = 6;
+}
+
+// AssertionResponse contains the extracted assertions.
+message AssertionResponse {
+  // List of extracted assertions, ordered by confidence (highest first).
+  repeated Assertion assertions = 1;
+
+  // The model that was actually used for extraction.
+  string model_used = 2;
+
+  // Total number of assertions found before filtering.
+  int32 total_found = 3;
+
+  // Number of assertions filtered out due to confidence threshold.
+  int32 filtered_count = 4;
+}
+
+// =============================================================================
+// Content Classification Messages
+// =============================================================================
+
+// ClassifyContentRequest contains content to classify.
+message ClassifyContentRequest {
+  // The content to classify.
+  string content = 1;
+
+  // Predefined categories to classify into.
+  // If empty, the model will use its default taxonomy.
+  // Examples: ["work", "personal", "finance", "health"]
+  repeated string categories = 2;
+
+  // Whether to allow multi-label classification.
+  // If false, only the top category will be returned.
+  // Default: true
+  optional bool multi_label = 3;
+
+  // Minimum confidence threshold for returned classifications (0.0 to 1.0).
+  // Default: 0.3
+  optional float min_confidence = 4;
+
+  // The model to use for classification.
+  // If not specified, the default model will be used.
+  optional string model = 5;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 6;
+
+  // Optional pipeline trace ID for grouping related operations.
+  // When set, this span will be a child of the pipeline trace.
+  optional string pipeline_trace_id = 7;
+
+  // Optional content ID for Langfuse tag attribute.
+  // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
+  optional string content_id = 8;
+}
+
+// Classification represents a single category assignment.
+message Classification {
+  // The category label.
+  string label = 1;
+
+  // Confidence score for this classification (0.0 to 1.0).
+  float confidence = 2;
+
+  // Optional explanation for why this classification was assigned.
+  optional string explanation = 3;
+}
+
+// ClassifyContentResponse contains the classification results.
+message ClassifyContentResponse {
+  // List of classifications, ordered by confidence (highest first).
+  repeated Classification classifications = 1;
+
+  // The primary classification (highest confidence).
+  // Convenience field for single-label use cases.
+  Classification primary = 2;
+
+  // The model that was actually used for classification.
+  string model_used = 3;
+}
+
+// =============================================================================
+// Content Triage Messages
+// =============================================================================
+
+// TriageContentRequest contains content to triage (category + importance).
+message TriageContentRequest {
+  // The content to triage (first ~500 characters recommended).
+  string content = 1;
+
+  // Optional email subject for additional context.
+  optional string subject = 2;
+
+  // Optional sender for additional context.
+  optional string sender = 3;
+
+  // The model to use for triage.
+  // If not specified, the default SLM will be used.
+  optional string model = 4;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 5;
+
+  // Optional source ID for pipeline_runs provenance tracking.
+  optional int64 source_id = 6;
+
+  // Optional pipeline trace ID for grouping related operations.
+  // When set, this span will be a child of the pipeline trace.
+  optional string pipeline_trace_id = 7;
+
+  // Optional content ID for Langfuse tag attribute.
+  // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
+  optional string content_id = 8;
+}
+
+// TriageContentResponse contains the triage classification results.
+message TriageContentResponse {
+  // Category classification.
+  // One of: PROJECT_UPDATE, CUSTOMER, RISK_ISSUE, ACTION_REQUEST,
+  // DECISION, INTERNAL_COMMS, PERSONAL, OTHER
+  string category = 1;
+
+  // Importance level.
+  // One of: HIGH, MEDIUM, LOW
+  string importance = 2;
+
+  // Brief explanation for the classification.
+  string reason = 3;
+
+  // The model that was actually used for triage.
+  string model_used = 4;
+
+  // Number of input tokens processed.
+  optional int32 input_tokens = 5;
+
+  // Number of output tokens generated.
+  optional int32 output_tokens = 6;
+
+  // Number of retries needed to get a valid response.
+  int32 retries = 7;
+
+  // Content contribution level (how much NEW information the message contributes).
+  // One of: HIGH, MEDIUM, LOW, NONE
+  // Used to gate expensive pipeline stages.
+  optional string content_contribution = 8;
+
+  // Brief explanation for the contribution assessment.
+  optional string contribution_reason = 9;
+}
+
+// =============================================================================
+// Entity Extraction Messages
+// =============================================================================
+
+// ExtractEntitiesRequest contains content for two-pass entity extraction.
+message ExtractEntitiesRequest {
+  // The content to extract entities from.
+  string content = 1;
+
+  // Triage category from Stage 1 (used for quality gate).
+  // If RISK_ISSUE and extraction finds 0 risks, re-runs with focused prompt.
+  optional string triage_category = 2;
+
+  // The model to use for extraction.
+  optional string model = 3;
+
+  // Optional tenant identifier.
+  optional string tenant_id = 4;
+
+  // Optional source ID for provenance tracking.
+  optional int64 source_id = 5;
+
+  // Optional pipeline trace ID for grouping related operations.
+  // When set, this span will be a child of the pipeline trace.
+  optional string pipeline_trace_id = 6;
+
+  // Optional content ID for Langfuse tag attribute.
+  // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
+  optional string content_id = 7;
+}
+
+// PersonEntity represents a person extracted from content.
+message PersonEntity {
+  string name = 1;
+  string role = 2;  // Role/title if stated
+}
+
+// DateEntity represents a date or deadline extracted from content.
+message DateEntity {
+  string date = 1;
+  string context = 2;  // What the date relates to
+}
+
+// ActionItemEntity represents an explicit action item.
+message ActionItemEntity {
+  string assignee = 1;
+  string action = 2;
+  string due = 3;
+}
+
+// RiskEntity represents a risk from the quality gate re-run.
+// Used when triage=RISK_ISSUE triggers focused extraction.
+message RiskEntity {
+  string description = 1;
+  string severity_hint = 2;
+  string owner_hint = 3;
+}
+
+// ExtractEntitiesResponse contains the merged extraction results.
+message ExtractEntitiesResponse {
+  // Stage 2a: NER results
+  repeated PersonEntity people = 1;
+  repeated DateEntity dates = 2;
+  repeated string projects = 3;
+  repeated string organisations = 4;
+
+  // Stage 2b: Semantic results
+  repeated ActionItemEntity action_items = 5;
+  repeated string decisions = 6;
+  repeated string risks = 7;
+
+  // Quality gate results (only populated if re-run triggered)
+  repeated RiskEntity detailed_risks = 8;
+  bool quality_gate_triggered = 9;
+
+  // Metadata
+  string model_used = 10;
+  optional int32 input_tokens = 11;
+  optional int32 output_tokens = 12;
+  int32 retries = 13;
+}
+
+// =============================================================================
+// Deep Analysis Messages (Stage 4)
+// =============================================================================
+
+// DeepAnalyzeRequest contains pre-processed input for Stage 4 deep analysis.
+message DeepAnalyzeRequest {
+  // Clean text from Stage 0
+  string content = 1;
+
+  // Stage 2 NER extraction results (verified entities)
+  repeated PersonEntity verified_people = 2;
+  repeated DateEntity verified_dates = 3;
+  repeated string verified_projects = 4;
+  repeated string verified_organisations = 5;
+
+  // Stage 2 semantic extraction results (preliminary, needs verification)
+  repeated ActionItemEntity preliminary_action_items = 6;
+  repeated string preliminary_decisions = 7;
+  repeated string preliminary_risks = 8;
+
+  // Stage 3 resolved context (background knowledge from KB)
+  string background_context = 9;
+
+  // Triage metadata for model selection
+  string triage_category = 10;  // e.g., RISK_ISSUE, PROJECT_UPDATE
+  string triage_importance = 11;  // HIGH, MEDIUM, LOW
+
+  // Metadata
+  optional string model = 12;
+  optional string tenant_id = 13;
+  optional int64 source_id = 14;
+  optional string content_id = 15;
+
+  // Optional pipeline trace ID for grouping related operations.
+  // When set, this span will be a child of the pipeline trace.
+  optional string pipeline_trace_id = 16;
+}
+
+// DeepAnalyzeResponse contains the Stage 4 analysis results.
+message DeepAnalyzeResponse {
+  string summary = 1;
+  DeepSentiment sentiment = 2;
+  repeated TopicMapping topic_mappings = 3;
+  repeated VerifiedActionItem verified_action_items = 4;
+  repeated VerifiedDecision verified_decisions = 5;
+  repeated RiskReference risk_references = 6;
+  repeated string strategic_insights = 7;
+  repeated ImplicitActionItem implicit_action_items = 8;
+
+  string model_used = 9;
+  optional int32 input_tokens = 10;
+  optional int32 output_tokens = 11;
+}
+
+// DeepSentiment contains business-context-aware sentiment analysis.
+message DeepSentiment {
+  float score = 1;        // -1.0 to 1.0
+  string label = 2;       // positive, negative, neutral, mixed
+  float confidence = 3;
+  repeated string indicators = 4;
+  string explanation = 5;  // Business context explanation
+}
+
+// TopicMapping connects content to known projects/products.
+message TopicMapping {
+  string topic = 1;
+  string related_project = 2;  // Resolved product/project name
+  string relationship = 3;     // How content relates to this topic
+  float confidence = 4;
+}
+
+// VerifiedActionItem represents an action item verified/refined by LLM.
+message VerifiedActionItem {
+  string description = 1;
+  string assignee = 2;
+  string due = 3;
+  string priority = 4;      // high, medium, low
+  string context_excerpt = 5;  // Direct quote from content (REQUIRED)
+  string status = 6;        // confirmed, refined, removed, new
+}
+
+// VerifiedDecision represents a decision verified/refined by LLM.
+message VerifiedDecision {
+  string description = 1;
+  string context_excerpt = 2;  // Direct quote from content (REQUIRED)
+  string status = 3;  // confirmed, refined, removed, new
+}
+
+// RiskReference connects content to existing or new risks.
+message RiskReference {
+  optional int64 root_id = 1;          // If matching existing risk
+  string description = 2;
+  optional string lifecycle_change = 3; // escalated, de_escalated, assigned, decided, deferred, resolved
+  string significance = 4;             // primary, secondary, passing
+  string context_excerpt = 5;          // Direct quote from content (REQUIRED)
+  optional string severity_change = 6;
+  optional string owner_change = 7;
+  bool is_new = 8;
+}
+
+// ImplicitActionItem represents an inferred action not explicitly stated.
+message ImplicitActionItem {
+  string description = 1;
+  string reasoning = 2;      // Why this is inferred
+  string context_excerpt = 3;  // Supporting quote from content (REQUIRED)
+}
+
+// =============================================================================
+// Model Status Messages
+// =============================================================================
+
+// ModelType identifies the category of AI model.
+enum ModelType {
+  // Unknown or unspecified model type.
+  MODEL_TYPE_UNSPECIFIED = 0;
+
+  // Embedding model for vector generation.
+  MODEL_TYPE_EMBEDDING = 1;
+
+  // Large language model for text generation.
+  MODEL_TYPE_LLM = 2;
+
+  // Classification model for categorization.
+  MODEL_TYPE_CLASSIFIER = 3;
+
+  // Named entity recognition model.
+  MODEL_TYPE_NER = 4;
+}
+
+// ModelStatus indicates the operational state of a model.
+enum ModelStatus {
+  // Unknown or unspecified status.
+  MODEL_STATUS_UNSPECIFIED = 0;
+
+  // Model is loaded and ready to serve requests.
+  MODEL_STATUS_READY = 1;
+
+  // Model is currently loading or warming up.
+  MODEL_STATUS_LOADING = 2;
+
+  // Model is unavailable due to an error.
+  MODEL_STATUS_ERROR = 3;
+
+  // Model is not loaded and must be loaded before use.
+  MODEL_STATUS_UNLOADED = 4;
+
+  // Model is being updated or replaced.
+  MODEL_STATUS_UPDATING = 5;
+}
+
+// ModelInfo contains information about an available AI model.
+message ModelInfo {
+  // Unique identifier for the model in the registry.
+  // Generated by the system when registering a new model.
+  string id = 1;
+
+  // Human-readable name for the model.
+  // Examples: "GPT-4 Turbo", "Local Nomic Embeddings"
+  string name = 2;
+
+  // The type of model.
+  ModelType type = 3;
+
+  // Current operational status of the model.
+  ModelStatus status = 4;
+
+  // List of capabilities this model supports.
+  // Examples: ["embedding", "chat", "summarization", "extraction"]
+  repeated string capabilities = 5;
+
+  // Maximum context length in tokens.
+  // Relevant for LLMs and embedding models.
+  optional int32 max_context_length = 6;
+
+  // Embedding dimensions (for embedding models only).
+  optional int32 embedding_dimensions = 7;
+
+  // Whether this is a local model (e.g., Ollama) or cloud API.
+  bool is_local = 8;
+
+  // Provider name (e.g., "ollama", "openai", "google", "anthropic").
+  string provider = 9;
+
+  // The provider's model identifier.
+  // Examples: "gpt-4-turbo", "nomic-embed-text", "gemini-1.5-pro"
+  string model_name = 10;
+
+  // Model version or variant.
+  optional string version = 11;
+
+  // Error message if status is MODEL_STATUS_ERROR.
+  optional string error_message = 12;
+
+  // Average latency in milliseconds for recent requests.
+  optional double avg_latency_ms = 13;
+
+  // Number of requests processed in the last hour.
+  optional int64 requests_last_hour = 14;
+
+  // ---------------------------------------------------------------------------
+  // Configuration Fields (for model management)
+  // ---------------------------------------------------------------------------
+
+  // API endpoint URL for the model.
+  // For local models, this might be "http://localhost:11434".
+  // For cloud APIs, this is typically the provider's API URL.
+  optional string endpoint = 15;
+
+  // Cost per 1,000 input tokens in USD.
+  // Used for cost optimization in routing decisions.
+  optional double input_cost_per_1k = 16;
+
+  // Cost per 1,000 output tokens in USD.
+  // Used for cost optimization in routing decisions.
+  optional double output_cost_per_1k = 17;
+
+  // Priority for model selection (higher = preferred).
+  // Used when multiple models have similar capabilities.
+  // Default: 0
+  int32 priority = 18;
+
+  // Whether this model is enabled for use.
+  // Disabled models are not selected by routing but remain in registry.
+  bool is_enabled = 19;
+}
+
+// GetModelStatusRequest queries the status of AI models.
+message GetModelStatusRequest {
+  // Filter by model name (optional).
+  // If not specified, returns all models.
+  optional string model_name = 1;
+
+  // Filter by model type (optional).
+  optional ModelType model_type = 2;
+
+  // Whether to include detailed metrics.
+  // Default: false
+  optional bool include_metrics = 3;
+}
+
+// GetModelStatusResponse contains information about available models.
+message GetModelStatusResponse {
+  // List of available models matching the request filters.
+  repeated ModelInfo models = 1;
+
+  // Default embedding model name.
+  string default_embedding_model = 2;
+
+  // Default LLM model name.
+  string default_llm_model = 3;
+
+  // Overall health status of the AI coordinator.
+  bool healthy = 4;
+
+  // Human-readable status message.
+  string message = 5;
+}
+
+// =============================================================================
+// Model Management Messages
+// =============================================================================
+
+// ListModelsRequest filters the list of registered models.
+message ListModelsRequest {
+  // Filter by provider (e.g., "ollama", "openai", "anthropic").
+  // If empty, returns models from all providers.
+  optional string provider = 1;
+
+  // Filter by capability (e.g., "embedding", "chat", "summarization").
+  // If empty, returns models with any capabilities.
+  optional string capability = 2;
+
+  // Filter by local/cloud deployment.
+  // If not specified, returns both local and cloud models.
+  optional bool is_local = 3;
+
+  // Filter by enabled status.
+  // If not specified, returns both enabled and disabled models.
+  optional bool is_enabled = 4;
+
+  // Filter by model type.
+  optional ModelType model_type = 5;
+
+  // Maximum number of results to return.
+  // Default: 100, Maximum: 1000
+  optional int32 page_size = 6;
+
+  // Pagination token from a previous response.
+  optional string page_token = 7;
+}
+
+// ListModelsResponse contains the list of matching models.
+message ListModelsResponse {
+  // List of models matching the request filters.
+  repeated ModelInfo models = 1;
+
+  // Token for retrieving the next page of results.
+  // Empty if there are no more results.
+  string next_page_token = 2;
+
+  // Total number of models matching the filter (ignoring pagination).
+  int32 total_count = 3;
+}
+
+// RegisterModelRequest contains the configuration for a new model.
+message RegisterModelRequest {
+  // Human-readable name for the model.
+  // Required. Must be unique within the tenant.
+  string name = 1;
+
+  // Provider name (e.g., "ollama", "openai", "google", "anthropic").
+  // Required.
+  string provider = 2;
+
+  // The provider's model identifier.
+  // Required. Examples: "gpt-4-turbo", "nomic-embed-text"
+  string model_name = 3;
+
+  // The type of model.
+  // Required.
+  ModelType type = 4;
+
+  // API endpoint URL for the model.
+  // Optional. Uses provider default if not specified.
+  optional string endpoint = 5;
+
+  // List of capabilities this model supports.
+  // Required. At least one capability must be specified.
+  repeated string capabilities = 6;
+
+  // Maximum context length in tokens.
+  // Optional. Uses provider default if not specified.
+  optional int32 max_context_length = 7;
+
+  // Embedding dimensions (required for embedding models).
+  optional int32 embedding_dimensions = 8;
+
+  // Whether this is a local model.
+  // Default: false (cloud API)
+  bool is_local = 9;
+
+  // Model version or variant.
+  optional string version = 10;
+
+  // Cost per 1,000 input tokens in USD.
+  optional double input_cost_per_1k = 11;
+
+  // Cost per 1,000 output tokens in USD.
+  optional double output_cost_per_1k = 12;
+
+  // Priority for model selection (higher = preferred).
+  // Default: 0
+  int32 priority = 13;
+
+  // Whether this model is enabled for use.
+  // Default: true
+  bool is_enabled = 14;
+}
+
+// RegisterModelResponse contains the registered model.
+message RegisterModelResponse {
+  // The registered model with its assigned ID.
+  ModelInfo model = 1;
+}
+
+// UpdateModelRequest specifies which model to update and the new values.
+message UpdateModelRequest {
+  // The ID of the model to update.
+  // Required.
+  string model_id = 1;
+
+  // New human-readable name for the model.
+  // If not set, the existing name is preserved.
+  optional string name = 2;
+
+  // New API endpoint URL.
+  // If not set, the existing endpoint is preserved.
+  optional string endpoint = 3;
+
+  // New list of capabilities.
+  // If not set, the existing capabilities are preserved.
+  // To clear capabilities, set to an empty list.
+  repeated string capabilities = 4;
+
+  // New maximum context length.
+  // If not set, the existing value is preserved.
+  optional int32 max_context_length = 5;
+
+  // New embedding dimensions.
+  // If not set, the existing value is preserved.
+  optional int32 embedding_dimensions = 6;
+
+  // New cost per 1,000 input tokens.
+  // If not set, the existing value is preserved.
+  optional double input_cost_per_1k = 7;
+
+  // New cost per 1,000 output tokens.
+  // If not set, the existing value is preserved.
+  optional double output_cost_per_1k = 8;
+
+  // New priority for model selection.
+  // If not set, the existing value is preserved.
+  optional int32 priority = 9;
+
+  // New enabled status.
+  // If not set, the existing value is preserved.
+  optional bool is_enabled = 10;
+}
+
+// UpdateModelResponse contains the updated model.
+message UpdateModelResponse {
+  // The updated model configuration.
+  ModelInfo model = 1;
+}
+
+// DeleteModelRequest specifies which model to remove.
+message DeleteModelRequest {
+  // The ID of the model to delete.
+  // Required.
+  string model_id = 1;
+}
+
+// DeleteModelResponse confirms the deletion.
+message DeleteModelResponse {
+  // True if the model was deleted, false if it didn't exist.
+  bool deleted = 1;
+
+  // Human-readable message about the deletion.
+  string message = 2;
+}
+
+// =============================================================================
+// Routing Rule Messages
+// =============================================================================
+
+// OptimizationMode determines how the router selects models.
+enum OptimizationMode {
+  // Default: balanced optimization considering all factors.
+  OPTIMIZATION_MODE_UNSPECIFIED = 0;
+
+  // Optimize for lowest latency response times.
+  OPTIMIZATION_MODE_LATENCY = 1;
+
+  // Optimize for highest quality outputs.
+  // Prefers larger, more capable models.
+  OPTIMIZATION_MODE_QUALITY = 2;
+
+  // Optimize for lowest cost per request.
+  OPTIMIZATION_MODE_COST = 3;
+
+  // Balanced optimization across latency, quality, and cost.
+  OPTIMIZATION_MODE_BALANCED = 4;
+}
+
+// RoutingRule defines how requests are routed to models.
+message RoutingRule {
+  // Unique identifier for this rule.
+  string id = 1;
+
+  // Human-readable name for the rule.
+  // Examples: "embedding-routing", "summarization-high-quality"
+  string name = 2;
+
+  // The task type this rule applies to.
+  // Examples: "embedding", "summarization", "extraction", "classification"
+  string task_type = 3;
+
+  // Ordered list of preferred model IDs.
+  // The router tries these models in order until one succeeds.
+  repeated string preferred_model_ids = 4;
+
+  // Ordered list of fallback model IDs.
+  // Used if all preferred models fail or are unavailable.
+  repeated string fallback_model_ids = 5;
+
+  // Optimization mode for model selection within this rule.
+  OptimizationMode optimization_mode = 6;
+
+  // Whether this rule is enabled.
+  // Disabled rules are ignored during routing.
+  bool is_enabled = 7;
+
+  // Optional description of the rule's purpose.
+  optional string description = 8;
+
+  // When this rule was created (RFC 3339 timestamp).
+  string created_at = 9;
+
+  // When this rule was last updated (RFC 3339 timestamp).
+  string updated_at = 10;
+}
+
+// GetRoutingRulesRequest filters the list of routing rules.
+message GetRoutingRulesRequest {
+  // Filter by task type.
+  // If empty, returns rules for all task types.
+  optional string task_type = 1;
+
+  // Filter by enabled status.
+  // If not specified, returns both enabled and disabled rules.
+  optional bool is_enabled = 2;
+}
+
+// GetRoutingRulesResponse contains the matching routing rules.
+message GetRoutingRulesResponse {
+  // List of routing rules matching the request filters.
+  repeated RoutingRule rules = 1;
+}
+
+// UpdateRoutingRuleRequest creates or updates a routing rule.
+message UpdateRoutingRuleRequest {
+  // Human-readable name for the rule.
+  // Required. If a rule with this name exists, it is updated.
+  string name = 1;
+
+  // The task type this rule applies to.
+  // Required.
+  string task_type = 2;
+
+  // Ordered list of preferred model IDs.
+  // Required. At least one model ID must be specified.
+  repeated string preferred_model_ids = 3;
+
+  // Ordered list of fallback model IDs.
+  // Optional. Used when preferred models are unavailable.
+  repeated string fallback_model_ids = 4;
+
+  // Optimization mode for model selection.
+  // Default: OPTIMIZATION_MODE_BALANCED
+  OptimizationMode optimization_mode = 5;
+
+  // Whether this rule is enabled.
+  // Default: true
+  bool is_enabled = 6;
+
+  // Optional description of the rule's purpose.
+  optional string description = 7;
+}
+
+// UpdateRoutingRuleResponse contains the created or updated rule.
+message UpdateRoutingRuleResponse {
+  // The routing rule that was created or updated.
+  RoutingRule rule = 1;
+
+  // True if a new rule was created, false if an existing rule was updated.
+  bool created = 2;
+}
+
+// =============================================================================
+// AI Operations Messages (CLI-facing)
+// =============================================================================
+
+// QueryRequest contains the question for RAG-style Q&A over the knowledge base.
+message QueryRequest {
+  // The question to answer using the knowledge base.
+  string question = 1;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 2;
+
+  // Maximum number of source documents to consider for context (default: 5).
+  optional int32 context_limit = 3;
+
+  // The LLM model to use for answering.
+  // If not specified, the default model will be used.
+  optional string model = 4;
+
+  // Maximum tokens in the response (default: 1000).
+  optional int32 max_tokens = 5;
+
+  // Response creativity (0.0 to 1.0, default: 0.7).
+  optional float temperature = 6;
+}
+
+// QuerySource represents a source document used to answer a query.
+message QuerySource {
+  // Unique identifier of the source document.
+  string source_id = 1;
+
+  // Title or subject of the source document.
+  string title = 2;
+
+  // Type of content: "email", "document", "meeting", etc.
+  string content_type = 3;
+
+  // Relevance score (0.0 to 1.0).
+  float relevance = 4;
+
+  // Snippet showing relevant content.
+  optional string snippet = 5;
+}
+
+// QueryResponse contains the answer and its sources.
+message QueryResponse {
+  // Unique identifier for this query response.
+  string response_id = 1;
+
+  // The generated answer to the question.
+  string answer = 2;
+
+  // Source documents that informed the answer.
+  repeated QuerySource sources = 3;
+
+  // The model that was used to generate the answer.
+  string model_used = 4;
+
+  // Token count of the input (question + context).
+  optional int32 input_tokens = 5;
+
+  // Token count of the generated answer.
+  optional int32 output_tokens = 6;
+
+  // Query execution time in milliseconds.
+  optional double latency_ms = 7;
+}
+
+// SummarizeByIDRequest requests a summary of content by its ID.
+message SummarizeByIDRequest {
+  // The content ID to summarize.
+  string content_id = 1;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 2;
+
+  // Summary length: "brief", "standard", or "detailed" (default: "standard").
+  optional string length = 3;
+
+  // The LLM model to use for summarization.
+  // If not specified, the default model will be used.
+  optional string model = 4;
+}
+
+// SummarizeByIDResponse contains the generated summary.
+message SummarizeByIDResponse {
+  // Unique identifier for this summary response.
+  string response_id = 1;
+
+  // The content ID that was summarized.
+  string content_id = 2;
+
+  // The generated summary.
+  string summary = 3;
+
+  // Key points extracted from the content.
+  repeated string key_points = 4;
+
+  // The model that was used to generate the summary.
+  string model_used = 5;
+
+  // Content type of the summarized content.
+  string content_type = 6;
+
+  // Token count of the input content.
+  optional int32 input_tokens = 7;
+
+  // Token count of the generated summary.
+  optional int32 output_tokens = 8;
+
+  // Execution time in milliseconds.
+  optional double latency_ms = 9;
+}
+
+// AnalysisType specifies the type of analysis to perform.
+enum AnalysisType {
+  // Unspecified - performs full analysis.
+  ANALYSIS_TYPE_UNSPECIFIED = 0;
+
+  // Analyze emotional tone and sentiment.
+  ANALYSIS_TYPE_SENTIMENT = 1;
+
+  // Extract key entities (people, places, organizations).
+  ANALYSIS_TYPE_ENTITIES = 2;
+
+  // Identify main topics and themes.
+  ANALYSIS_TYPE_TOPICS = 3;
+
+  // Extract action items and tasks.
+  ANALYSIS_TYPE_ACTION = 4;
+
+  // Comprehensive analysis (all of the above).
+  ANALYSIS_TYPE_FULL = 5;
+}
+
+// AnalyzeByIDRequest requests deep analysis of content by its ID.
+message AnalyzeByIDRequest {
+  // The content ID to analyze.
+  string content_id = 1;
+
+  // Optional tenant identifier for multi-tenancy support.
+  optional string tenant_id = 2;
+
+  // Type of analysis to perform (default: FULL).
+  AnalysisType analysis_type = 3;
+
+  // The LLM model to use for analysis.
+  // If not specified, the default model will be used.
+  optional string model = 4;
+}
+
+// SentimentResult contains sentiment analysis results.
+message SentimentResult {
+  // Overall sentiment score (-1.0 negative to 1.0 positive).
+  float score = 1;
+
+  // Sentiment label: "positive", "negative", "neutral", "mixed".
+  string label = 2;
+
+  // Confidence in the sentiment analysis (0.0 to 1.0).
+  float confidence = 3;
+
+  // Key sentiment indicators found in the content.
+  repeated string indicators = 4;
+}
+
+// ExtractedEntity represents an entity found in content.
+message ExtractedEntity {
+  // Name of the entity.
+  string name = 1;
+
+  // Type of entity: "person", "organization", "location", "date", "project".
+  string entity_type = 2;
+
+  // Number of times this entity appears.
+  int32 mention_count = 3;
+
+  // Role or context of the entity (if known).
+  optional string role = 4;
+}
+
+// TopicResult represents a topic identified in content.
+message TopicResult {
+  // Topic name or label.
+  string topic = 1;
+
+  // Confidence score (0.0 to 1.0).
+  float confidence = 2;
+
+  // Keywords associated with this topic.
+  repeated string keywords = 3;
+}
+
+// ActionItem represents an action item extracted from content.
+message ActionItem {
+  // Description of the action item.
+  string description = 1;
+
+  // Priority: "high", "medium", "low".
+  optional string priority = 2;
+
+  // Assigned person (if mentioned).
+  optional string assignee = 3;
+
+  // Due date (if mentioned).
+  optional string due_date = 4;
+}
+
+// AnalyzeByIDResponse contains the analysis results.
+message AnalyzeByIDResponse {
+  // Unique identifier for this analysis response.
+  string response_id = 1;
+
+  // The content ID that was analyzed.
+  string content_id = 2;
+
+  // Type of analysis performed.
+  AnalysisType analysis_type = 3;
+
+  // Content type of the analyzed content.
+  string content_type = 4;
+
+  // Brief summary of the content (always included).
+  string summary = 5;
+
+  // Sentiment analysis results (if requested or full analysis).
+  optional SentimentResult sentiment = 6;
+
+  // Extracted entities (if requested or full analysis).
+  repeated ExtractedEntity entities = 7;
+
+  // Identified topics (if requested or full analysis).
+  repeated TopicResult topics = 8;
+
+  // Extracted action items (if requested or full analysis).
+  repeated ActionItem action_items = 9;
+
+  // Additional insights or recommendations.
+  repeated string insights = 10;
+
+  // The model that was used for analysis.
+  string model_used = 11;
+
+  // Token count of the input content.
+  optional int32 input_tokens = 12;
+
+  // Token count of the analysis output.
+  optional int32 output_tokens = 13;
+
+  // Execution time in milliseconds.
+  optional double latency_ms = 14;
+}

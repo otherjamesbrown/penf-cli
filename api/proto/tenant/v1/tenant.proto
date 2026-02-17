@@ -1,0 +1,194 @@
+// Tenant Service Protobuf Definitions
+// Provides gRPC service for managing tenants in multi-tenant deployments
+
+syntax = "proto3";
+
+package penfold.tenant.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/tenant/v1;tenantv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// TenantService provides gRPC endpoints for managing tenants.
+// Tenants represent isolated organizational contexts in multi-tenant deployments.
+service TenantService {
+  // CreateTenant creates a new tenant.
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+
+  // GetTenant retrieves a tenant by ID or slug.
+  rpc GetTenant(GetTenantRequest) returns (GetTenantResponse);
+
+  // ListTenants returns a filtered list of tenants.
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
+
+  // UpdateTenant updates an existing tenant.
+  rpc UpdateTenant(UpdateTenantRequest) returns (UpdateTenantResponse);
+
+  // DeleteTenant soft-deletes a tenant.
+  rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantResponse);
+
+  // SetCurrentTenant validates and sets the current tenant context.
+  rpc SetCurrentTenant(SetCurrentTenantRequest) returns (SetCurrentTenantResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// Tenant represents a tenant organization.
+message Tenant {
+  // Unique identifier (UUID).
+  string id = 1;
+
+  // Short name (e.g., "acme").
+  string name = 2;
+
+  // URL-safe slug (unique, used in paths).
+  string slug = 3;
+
+  // Optional description.
+  string description = 4;
+
+  // Whether the tenant is active.
+  bool is_active = 5;
+
+  // Tenant-wide settings (JSON).
+  string settings = 6;
+
+  // When the tenant was created.
+  google.protobuf.Timestamp created_at = 7;
+
+  // When the tenant was last updated.
+  google.protobuf.Timestamp updated_at = 8;
+
+  // Number of active integrations.
+  int32 integration_count = 9;
+
+  // Number of active processing rules.
+  int32 rule_count = 10;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// CreateTenantRequest creates a new tenant.
+message CreateTenantRequest {
+  // Short name for the tenant.
+  string name = 1;
+
+  // URL-safe slug (optional - will be generated from name if not provided).
+  string slug = 2;
+
+  // Optional description.
+  string description = 3;
+
+  // Initial settings (JSON).
+  string settings = 4;
+}
+
+// CreateTenantResponse confirms the tenant was created.
+message CreateTenantResponse {
+  // The created tenant.
+  Tenant tenant = 1;
+}
+
+// GetTenantRequest retrieves a tenant by ID or slug.
+message GetTenantRequest {
+  // Get by ID (UUID).
+  string id = 1;
+
+  // Or get by slug.
+  string slug = 2;
+}
+
+// GetTenantResponse contains the requested tenant.
+message GetTenantResponse {
+  // The tenant, or null if not found.
+  Tenant tenant = 1;
+}
+
+// ListTenantsRequest retrieves a filtered list of tenants.
+message ListTenantsRequest {
+  // Filter by active status (if set).
+  optional bool is_active = 1;
+
+  // Search across name, slug, and description.
+  string search = 2;
+
+  // Maximum results (default: 50).
+  int32 limit = 3;
+
+  // Pagination offset.
+  int32 offset = 4;
+}
+
+// ListTenantsResponse contains the list of tenants.
+message ListTenantsResponse {
+  // The matching tenants.
+  repeated Tenant tenants = 1;
+
+  // Total count of matching tenants.
+  int64 total_count = 2;
+}
+
+// UpdateTenantRequest updates an existing tenant.
+message UpdateTenantRequest {
+  // ID of the tenant to update (UUID).
+  string id = 1;
+
+  // New name (optional).
+  optional string name = 2;
+
+  // New description (optional).
+  optional string description = 3;
+
+  // Update active status (optional).
+  optional bool is_active = 4;
+
+  // Update settings (JSON, optional).
+  optional string settings = 5;
+}
+
+// UpdateTenantResponse confirms the update.
+message UpdateTenantResponse {
+  // The updated tenant.
+  Tenant tenant = 1;
+}
+
+// DeleteTenantRequest soft-deletes a tenant.
+message DeleteTenantRequest {
+  // ID of the tenant to delete (UUID).
+  string id = 1;
+
+  // Reason for deletion (optional).
+  string reason = 2;
+}
+
+// DeleteTenantResponse confirms deletion.
+message DeleteTenantResponse {
+  // Whether the tenant was deleted.
+  bool deleted = 1;
+}
+
+// SetCurrentTenantRequest validates and returns tenant info for switching.
+message SetCurrentTenantRequest {
+  // Tenant identifier (can be ID as string or slug).
+  string tenant_ref = 1;
+}
+
+// SetCurrentTenantResponse confirms the tenant is valid and accessible.
+message SetCurrentTenantResponse {
+  // Whether the tenant is valid and accessible.
+  bool valid = 1;
+
+  // The tenant details.
+  Tenant tenant = 2;
+
+  // Error message if not valid.
+  string error = 3;
+}

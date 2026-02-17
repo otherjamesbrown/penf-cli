@@ -1,0 +1,724 @@
+// Entity Seeding Service Protobuf Definitions
+// Provides bulk entity creation for init entities workflow
+
+syntax = "proto3";
+
+package penfold.entity.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/entity/v1;entityv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// EntityService provides gRPC endpoints for bulk entity seeding operations.
+// This service is used during onboarding to seed known entities before content import.
+service EntityService {
+  // BulkCreatePeople creates multiple people in a single request.
+  rpc BulkCreatePeople(BulkCreatePeopleRequest) returns (BulkCreatePeopleResponse);
+
+  // BulkCreateProducts creates multiple products in a single request.
+  rpc BulkCreateProducts(BulkCreateProductsRequest) returns (BulkCreateProductsResponse);
+
+  // BulkCreateProjects creates multiple projects in a single request.
+  rpc BulkCreateProjects(BulkCreateProjectsRequest) returns (BulkCreateProjectsResponse);
+}
+
+// EntityManagementService provides gRPC endpoints for entity lifecycle management.
+// This service handles entity rejection, restoration, filtering, statistics, and search.
+service EntityManagementService {
+  // RejectEntity soft-deletes an entity.
+  rpc RejectEntity(RejectEntityRequest) returns (RejectEntityResponse);
+
+  // RestoreEntity removes the rejection from an entity.
+  rpc RestoreEntity(RestoreEntityRequest) returns (RestoreEntityResponse);
+
+  // BulkRejectEntities rejects multiple entities matching a pattern.
+  rpc BulkRejectEntities(BulkRejectEntitiesRequest) returns (BulkRejectEntitiesResponse);
+
+  // CreateFilterRule creates a new entity filter rule.
+  rpc CreateFilterRule(CreateFilterRuleRequest) returns (CreateFilterRuleResponse);
+
+  // ListFilterRules lists all filter rules for a tenant.
+  rpc ListFilterRules(ListFilterRulesRequest) returns (ListFilterRulesResponse);
+
+  // DeleteFilterRule deletes a filter rule.
+  rpc DeleteFilterRule(DeleteFilterRuleRequest) returns (DeleteFilterRuleResponse);
+
+  // CreateEmailPattern creates a tenant email pattern.
+  rpc CreateEmailPattern(CreateEmailPatternRequest) returns (CreateEmailPatternResponse);
+
+  // ListEmailPatterns lists tenant email patterns.
+  rpc ListEmailPatterns(ListEmailPatternsRequest) returns (ListEmailPatternsResponse);
+
+  // DeleteEmailPattern deletes a tenant email pattern.
+  rpc DeleteEmailPattern(DeleteEmailPatternRequest) returns (DeleteEmailPatternResponse);
+
+  // TestFilterRule tests if an email/name would match any filter rules.
+  rpc TestFilterRule(TestFilterRuleRequest) returns (TestFilterRuleResponse);
+
+  // GetEntityStats returns statistics about entities in the system.
+  rpc GetEntityStats(GetEntityStatsRequest) returns (GetEntityStatsResponse);
+
+  // SearchEntities searches for entities by name or email.
+  rpc SearchEntities(SearchEntitiesRequest) returns (SearchEntitiesResponse);
+
+  // UpdateEntity updates specific fields of an entity.
+  rpc UpdateEntity(UpdateEntityRequest) returns (UpdateEntityResponse);
+
+  // DeleteEntity permanently deletes an entity and all related records.
+  rpc DeleteEntity(DeleteEntityRequest) returns (DeleteEntityResponse);
+
+  // BulkEnrichEntities enriches entities by domain with company and is_internal flag.
+  rpc BulkEnrichEntities(BulkEnrichEntitiesRequest) returns (BulkEnrichEntitiesResponse);
+}
+
+// =============================================================================
+// People Messages
+// =============================================================================
+
+// PersonInput represents a person to create.
+message PersonInput {
+  // Display name of the person (required)
+  string name = 1;
+
+  // Primary email address (required)
+  string email = 2;
+
+  // Company or organization name (optional)
+  string company = 3;
+
+  // Job title (optional)
+  string title = 4;
+
+  // Department (optional)
+  string department = 5;
+
+  // Alternative names/emails for this person (optional)
+  repeated string aliases = 6;
+
+  // Whether this is an internal (employee) or external contact (optional)
+  bool is_internal = 7;
+}
+
+// Person represents a created person record.
+message Person {
+  // Unique identifier
+  int64 id = 1;
+
+  // Display name
+  string name = 2;
+
+  // Primary email address
+  string email = 3;
+
+  // Company name
+  string company = 4;
+
+  // Job title
+  string title = 5;
+
+  // Department
+  string department = 6;
+
+  // Whether internal
+  bool is_internal = 7;
+
+  // When created
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// BulkCreatePeopleRequest creates multiple people.
+message BulkCreatePeopleRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // People to create
+  repeated PersonInput people = 2;
+
+  // If true, skip duplicates instead of erroring (based on email)
+  bool skip_duplicates = 3;
+}
+
+// BulkCreatePeopleResponse contains the results of bulk creation.
+message BulkCreatePeopleResponse {
+  // Successfully created people
+  repeated Person created = 1;
+
+  // People that were skipped (duplicates)
+  repeated PersonSkipped skipped = 2;
+
+  // Errors encountered
+  repeated EntityError errors = 3;
+
+  // Summary statistics
+  int32 total_requested = 4;
+  int32 total_created = 5;
+  int32 total_skipped = 6;
+  int32 total_errors = 7;
+}
+
+// PersonSkipped represents a person that was skipped.
+message PersonSkipped {
+  string email = 1;
+  string reason = 2;
+  int64 existing_id = 3;
+}
+
+// =============================================================================
+// Products Messages
+// =============================================================================
+
+// ProductInput represents a product to create.
+message ProductInput {
+  // Product name (required)
+  string name = 1;
+
+  // Product description (optional)
+  string description = 2;
+
+  // Product type: product, sub_product, feature (optional, default: product)
+  string product_type = 3;
+
+  // Name of parent product for hierarchy (optional)
+  string parent_name = 4;
+
+  // Alternative names for this product (optional)
+  repeated string aliases = 5;
+
+  // Product status: active, beta, sunset, deprecated (optional, default: active)
+  string status = 6;
+
+  // Keywords for matching (optional)
+  repeated string keywords = 7;
+}
+
+// Product represents a created product record.
+message Product {
+  // Unique identifier
+  int64 id = 1;
+
+  // Product name
+  string name = 2;
+
+  // Description
+  string description = 3;
+
+  // Product type
+  string product_type = 4;
+
+  // Parent product ID if hierarchical
+  optional int64 parent_id = 5;
+
+  // Status
+  string status = 6;
+
+  // When created
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// BulkCreateProductsRequest creates multiple products.
+message BulkCreateProductsRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Products to create
+  repeated ProductInput products = 2;
+
+  // If true, skip duplicates instead of erroring (based on name)
+  bool skip_duplicates = 3;
+}
+
+// BulkCreateProductsResponse contains the results of bulk creation.
+message BulkCreateProductsResponse {
+  // Successfully created products
+  repeated Product created = 1;
+
+  // Products that were skipped (duplicates)
+  repeated ProductSkipped skipped = 2;
+
+  // Errors encountered
+  repeated EntityError errors = 3;
+
+  // Summary statistics
+  int32 total_requested = 4;
+  int32 total_created = 5;
+  int32 total_skipped = 6;
+  int32 total_errors = 7;
+}
+
+// ProductSkipped represents a product that was skipped.
+message ProductSkipped {
+  string name = 1;
+  string reason = 2;
+  int64 existing_id = 3;
+}
+
+// =============================================================================
+// Projects Messages
+// =============================================================================
+
+// ProjectInput represents a project to create.
+message ProjectInput {
+  // Project name (required)
+  string name = 1;
+
+  // Project description (optional)
+  string description = 2;
+
+  // Keywords for matching content to this project (optional)
+  repeated string keywords = 3;
+
+  // Jira project keys linked to this project (optional)
+  repeated string jira_projects = 4;
+}
+
+// Project represents a created project record.
+message Project {
+  // Unique identifier
+  int64 id = 1;
+
+  // Project name
+  string name = 2;
+
+  // Description
+  string description = 3;
+
+  // Keywords
+  repeated string keywords = 4;
+
+  // Jira project keys
+  repeated string jira_projects = 5;
+
+  // When created
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// BulkCreateProjectsRequest creates multiple projects.
+message BulkCreateProjectsRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Projects to create
+  repeated ProjectInput projects = 2;
+
+  // If true, skip duplicates instead of erroring (based on name)
+  bool skip_duplicates = 3;
+}
+
+// BulkCreateProjectsResponse contains the results of bulk creation.
+message BulkCreateProjectsResponse {
+  // Successfully created projects
+  repeated Project created = 1;
+
+  // Projects that were skipped (duplicates)
+  repeated ProjectSkipped skipped = 2;
+
+  // Errors encountered
+  repeated EntityError errors = 3;
+
+  // Summary statistics
+  int32 total_requested = 4;
+  int32 total_created = 5;
+  int32 total_skipped = 6;
+  int32 total_errors = 7;
+}
+
+// ProjectSkipped represents a project that was skipped.
+message ProjectSkipped {
+  string name = 1;
+  string reason = 2;
+  int64 existing_id = 3;
+}
+
+// =============================================================================
+// Common Messages
+// =============================================================================
+
+// EntityError represents an error during entity creation.
+message EntityError {
+  // The identifier of the entity that failed (email for people, name for products/projects)
+  string identifier = 1;
+
+  // Error message
+  string error = 2;
+
+  // Index in the input array
+  int32 index = 3;
+}
+
+// =============================================================================
+// Entity Lifecycle Management Messages
+// =============================================================================
+
+// RejectEntityRequest soft-deletes an entity.
+message RejectEntityRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Entity ID to reject
+  int64 entity_id = 2;
+
+  // Reason for rejection
+  string reason = 3;
+
+  // User or service performing the rejection
+  string rejected_by = 4;
+}
+
+// RejectEntityResponse confirms entity rejection.
+message RejectEntityResponse {
+  // The rejected entity ID
+  int64 entity_id = 1;
+
+  // When the entity was rejected
+  google.protobuf.Timestamp rejected_at = 2;
+}
+
+// RestoreEntityRequest removes rejection from an entity.
+message RestoreEntityRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Entity ID to restore
+  int64 entity_id = 2;
+}
+
+// RestoreEntityResponse confirms entity restoration.
+message RestoreEntityResponse {
+  // The restored entity ID
+  int64 entity_id = 1;
+}
+
+// BulkRejectEntitiesRequest rejects entities matching patterns.
+message BulkRejectEntitiesRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Email pattern (SQL LIKE format, e.g., "%@aha.io")
+  string email_pattern = 2;
+
+  // Name pattern (SQL LIKE format, e.g., "Bot%")
+  string name_pattern = 3;
+
+  // Reason for bulk rejection
+  string reason = 4;
+
+  // User or service performing the rejection
+  string rejected_by = 5;
+}
+
+// BulkRejectEntitiesResponse returns count of rejected entities.
+message BulkRejectEntitiesResponse {
+  // Number of entities rejected
+  int32 count = 1;
+}
+
+// FilterRule represents a pattern-based entity filter.
+message FilterRule {
+  // Rule ID
+  int64 id = 1;
+
+  // Tenant ID
+  string tenant_id = 2;
+
+  // Email pattern (SQL LIKE format)
+  string email_pattern = 3;
+
+  // Name pattern (SQL LIKE format)
+  string name_pattern = 4;
+
+  // Entity type filter
+  string entity_type = 5;
+
+  // Reason for the rule
+  string reason = 6;
+
+  // When created
+  google.protobuf.Timestamp created_at = 7;
+
+  // Who created it
+  string created_by = 8;
+}
+
+// CreateFilterRuleRequest creates a new filter rule.
+message CreateFilterRuleRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Email pattern (SQL LIKE format, e.g., "%@aha.io")
+  string email_pattern = 2;
+
+  // Name pattern (SQL LIKE format, e.g., "Bot%")
+  string name_pattern = 3;
+
+  // Entity type filter (optional)
+  string entity_type = 4;
+
+  // Reason for the rule
+  string reason = 5;
+
+  // User or service creating the rule
+  string created_by = 6;
+}
+
+// CreateFilterRuleResponse returns the created rule.
+message CreateFilterRuleResponse {
+  // The created filter rule
+  FilterRule rule = 1;
+}
+
+// ListFilterRulesRequest lists filter rules.
+message ListFilterRulesRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+}
+
+// ListFilterRulesResponse returns all filter rules.
+message ListFilterRulesResponse {
+  // Filter rules
+  repeated FilterRule rules = 1;
+}
+
+// DeleteFilterRuleRequest deletes a filter rule.
+message DeleteFilterRuleRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Rule ID to delete
+  int64 rule_id = 2;
+}
+
+// DeleteFilterRuleResponse confirms deletion.
+message DeleteFilterRuleResponse {
+  // The deleted rule ID
+  int64 rule_id = 1;
+}
+
+// TestFilterRuleRequest tests if an email/name matches any rules.
+message TestFilterRuleRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Email to test
+  string email = 2;
+
+  // Name to test
+  string name = 3;
+}
+
+// TestFilterRuleResponse returns matching rules.
+message TestFilterRuleResponse {
+  // Matching filter rules
+  repeated FilterRule matching_rules = 1;
+
+  // Whether the email/name would be blocked
+  bool would_be_blocked = 2;
+}
+
+// EmailPattern represents a tenant-specific email pattern for account type detection.
+message EmailPattern {
+  // Pattern ID
+  int64 id = 1;
+
+  // Tenant ID
+  string tenant_id = 2;
+
+  // Pattern string (substring match)
+  string pattern = 3;
+
+  // Pattern type: bot, distribution, role, external_domain
+  string pattern_type = 4;
+
+  // Priority for pattern matching (higher = checked first)
+  int32 priority = 5;
+
+  // Whether this pattern is enabled
+  bool enabled = 6;
+
+  // When created
+  google.protobuf.Timestamp created_at = 7;
+
+  // Who created it
+  string created_by = 8;
+
+  // Optional notes about this pattern
+  string notes = 9;
+}
+
+// CreateEmailPatternRequest creates a new email pattern.
+message CreateEmailPatternRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Pattern string
+  string pattern = 2;
+
+  // Pattern type: bot, distribution, role, external_domain
+  string pattern_type = 3;
+
+  // Optional notes
+  string notes = 4;
+}
+
+// CreateEmailPatternResponse returns the created pattern.
+message CreateEmailPatternResponse {
+  // The created email pattern
+  EmailPattern pattern = 1;
+}
+
+// ListEmailPatternsRequest lists email patterns.
+message ListEmailPatternsRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+}
+
+// ListEmailPatternsResponse returns all email patterns.
+message ListEmailPatternsResponse {
+  // Email patterns
+  repeated EmailPattern patterns = 1;
+}
+
+// DeleteEmailPatternRequest deletes an email pattern.
+message DeleteEmailPatternRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Pattern ID to delete
+  int64 pattern_id = 2;
+}
+
+// DeleteEmailPatternResponse confirms deletion.
+message DeleteEmailPatternResponse {
+  // The deleted pattern ID
+  int64 pattern_id = 1;
+}
+
+// GetEntityStatsRequest requests entity statistics.
+message GetEntityStatsRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+}
+
+// GetEntityStatsResponse returns entity statistics.
+message GetEntityStatsResponse {
+  // Total number of people
+  int64 total_people = 1;
+
+  // Total rejected (soft-deleted)
+  int64 total_rejected = 2;
+
+  // Count by account type
+  map<string, int64> by_account_type = 3;
+
+  // Count by confidence (high/medium/low)
+  map<string, int64> by_confidence = 4;
+
+  // Entities needing review
+  int64 needing_review = 5;
+
+  // Auto-created entities
+  int64 auto_created = 6;
+
+  // Internal entities
+  int64 internal = 7;
+
+  // External entities
+  int64 external = 8;
+}
+
+// SearchEntitiesRequest searches for entities.
+message SearchEntitiesRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Search query (substring match)
+  string query = 2;
+
+  // Field to search: "name", "email", or empty for both
+  string field = 3;
+
+  // Maximum number of results
+  int32 limit = 4;
+}
+
+// SearchEntitiesResponse returns matching entities.
+message SearchEntitiesResponse {
+  // Matching people
+  repeated Person people = 1;
+}
+
+// UpdateEntityRequest updates specific fields of an entity.
+message UpdateEntityRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Entity ID to update
+  int64 entity_id = 2;
+
+  // New name (optional, omit to leave unchanged)
+  optional string name = 3;
+
+  // New account type (optional, omit to leave unchanged)
+  // Valid values: person, role, distribution, bot, external_service, team, service
+  optional string account_type = 4;
+
+  // Metadata key-value pairs (optional, merges with existing metadata)
+  map<string, string> metadata = 5;
+
+  // New job title (optional, omit to leave unchanged)
+  optional string title = 6;
+
+  // New company name (optional, omit to leave unchanged)
+  optional string company = 7;
+}
+
+// UpdateEntityResponse confirms entity update.
+message UpdateEntityResponse {
+  // The updated entity ID
+  int64 entity_id = 1;
+
+  // Confirmation message
+  string message = 2;
+}
+
+// DeleteEntityRequest permanently deletes an entity.
+message DeleteEntityRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Entity ID to delete
+  int64 entity_id = 2;
+}
+
+// DeleteEntityResponse confirms entity deletion.
+message DeleteEntityResponse {
+  // The deleted entity ID
+  int64 entity_id = 1;
+
+  // Confirmation message
+  string message = 2;
+}
+
+// BulkEnrichEntitiesRequest enriches entities by email domain.
+message BulkEnrichEntitiesRequest {
+  // Tenant identifier
+  string tenant_id = 1;
+
+  // Email domain to match (e.g., "akamai.com")
+  string domain = 2;
+
+  // Company name to set for matching entities
+  string company = 3;
+
+  // Whether to mark matching entities as internal
+  bool is_internal = 4;
+}
+
+// BulkEnrichEntitiesResponse returns count of enriched entities.
+message BulkEnrichEntitiesResponse {
+  // Number of entities enriched
+  int32 count = 1;
+}

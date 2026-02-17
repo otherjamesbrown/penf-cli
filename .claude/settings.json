@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/dev/github/otherjamesbrown/penf-cli/.claude/hooks/session-start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cxp session checkpoint '[auto-compact] Context compressed' 2>/dev/null; true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "clear|prompt_input_exit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cxp session checkpoint '[auto-exit] Session ended' 2>/dev/null; true",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

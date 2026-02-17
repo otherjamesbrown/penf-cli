@@ -1,0 +1,988 @@
+// Pipeline Service Protobuf Definitions
+// Provides gRPC service for viewing pipeline status and job tracking
+
+syntax = "proto3";
+
+package penfold.pipeline.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1;pipelinev1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// PipelineService provides gRPC endpoints for viewing pipeline status and jobs.
+service PipelineService {
+  // GetStats retrieves overall pipeline statistics.
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
+  // GetJob retrieves detailed information about a specific ingest job.
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
+
+  // ListJobs lists recent ingest jobs with optional filtering.
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+
+  // KickProcessing triggers processing of pending pipeline items.
+  rpc KickProcessing(KickProcessingRequest) returns (KickProcessingResponse);
+
+  // RetryFailed retries failed pipeline items.
+  rpc RetryFailed(RetryFailedRequest) returns (RetryFailedResponse);
+
+  // GetQueueStatus retrieves processing queue depths and rates.
+  rpc GetQueueStatus(GetQueueStatusRequest) returns (GetQueueStatusResponse);
+
+  // GetPipelineHealth performs a comprehensive pipeline health check.
+  rpc GetPipelineHealth(GetPipelineHealthRequest) returns (GetPipelineHealthResponse);
+
+  // GetContentTrace retrieves full processing history for a content item.
+  rpc GetContentTrace(GetContentTraceRequest) returns (GetContentTraceResponse);
+
+  // ListDeletedSources lists soft-deleted sources.
+  rpc ListDeletedSources(ListDeletedSourcesRequest) returns (ListDeletedSourcesResponse);
+
+  // UndeleteSource restores a soft-deleted source.
+  rpc UndeleteSource(UndeleteSourceRequest) returns (UndeleteSourceResponse);
+
+  // DescribePipeline retrieves pipeline stage registry information.
+  rpc DescribePipeline(DescribePipelineRequest) returns (DescribePipelineResponse);
+
+  // GetPrompt retrieves the active prompt for a stage or a specific version.
+  rpc GetPrompt(GetPromptRequest) returns (GetPromptResponse);
+
+  // ListPromptVersions lists all prompt versions for a stage.
+  rpc ListPromptVersions(ListPromptVersionsRequest) returns (ListPromptVersionsResponse);
+
+  // UpdatePrompt creates a new prompt version and sets it as active.
+  rpc UpdatePrompt(UpdatePromptRequest) returns (UpdatePromptResponse);
+
+  // RollbackPrompt activates a previous prompt version.
+  rpc RollbackPrompt(RollbackPromptRequest) returns (RollbackPromptResponse);
+
+  // ExportPrompt exports prompt templates as portable JSON.
+  rpc ExportPrompt(ExportPromptRequest) returns (ExportPromptResponse);
+
+  // GetSourceHistory retrieves pipeline execution history for a source.
+  rpc GetSourceHistory(GetSourceHistoryRequest) returns (GetSourceHistoryResponse);
+
+  // ReprocessDryRun calculates the impact of reprocessing a stage.
+  rpc ReprocessDryRun(ReprocessDryRunRequest) returns (ReprocessDryRunResponse);
+
+  // GetTimeoutConfig retrieves timeout configuration entries.
+  rpc GetTimeoutConfig(GetTimeoutConfigRequest) returns (GetTimeoutConfigResponse);
+
+  // UpdateTimeoutConfig updates a timeout configuration value.
+  rpc UpdateTimeoutConfig(UpdateTimeoutConfigRequest) returns (UpdateTimeoutConfigResponse);
+
+  // GetPipelineErrors retrieves pipeline errors with filtering.
+  rpc GetPipelineErrors(GetPipelineErrorsRequest) returns (GetPipelineErrorsResponse);
+
+  // InspectStage retrieves pipeline stage IO data for debugging and inspection.
+  rpc InspectStage(InspectStageRequest) returns (InspectStageResponse);
+
+  // DiffStageRuns compares two pipeline runs to identify differences.
+  rpc DiffStageRuns(DiffStageRunsRequest) returns (DiffStageRunsResponse);
+
+  // DiffPipelineRuns compares two pipeline runs for a source to show what changed.
+  rpc DiffPipelineRuns(DiffPipelineRunsRequest) returns (DiffPipelineRunsResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// StatusCount represents a count grouped by status.
+message StatusCount {
+  // The status value.
+  string status = 1;
+
+  // The count for this status.
+  int64 count = 2;
+}
+
+// FailureCategory identifies why content failed validation or processing.
+enum FailureCategory {
+  FAILURE_CATEGORY_UNSPECIFIED = 0;
+  FAILURE_CATEGORY_EMPTY_CONTENT = 1;
+  FAILURE_CATEGORY_CORRUPT_FILE = 2;
+  FAILURE_CATEGORY_MALFORMED_STRUCTURE = 3;
+  FAILURE_CATEGORY_PROCESSING_ERROR = 4;
+  FAILURE_CATEGORY_UNSUPPORTED_FORMAT = 5;
+  FAILURE_CATEGORY_TIMEOUT = 6;
+  FAILURE_CATEGORY_TIMEOUT_HEARTBEAT = 7;
+  FAILURE_CATEGORY_RATE_LIMIT = 8;
+  FAILURE_CATEGORY_RATE_LIMIT_EMBEDDING = 9;
+  FAILURE_CATEGORY_MODEL_UNAVAILABLE = 10;
+  FAILURE_CATEGORY_CONTEXT_CANCELLED = 11;
+  FAILURE_CATEGORY_PARSE_ERROR = 12;
+  FAILURE_CATEGORY_CONTENT_TOO_LARGE = 13;
+  FAILURE_CATEGORY_STAGE_DEPENDENCY_FAILED = 14;
+  FAILURE_CATEGORY_DUPLICATE_CONTENT = 15;
+  FAILURE_CATEGORY_ENTITY_RESOLUTION_FAILED = 16;
+  FAILURE_CATEGORY_EMBEDDING_DIMENSION_MISMATCH = 17;
+}
+
+// JobSummary represents summary information about an ingest job.
+message JobSummary {
+  // Unique job identifier (UUID).
+  string id = 1;
+
+  // Current job status (pending, in_progress, completed, failed).
+  string status = 2;
+
+  // Source tag identifying the data source.
+  string source_tag = 3;
+
+  // Total number of files in the job.
+  int32 total_files = 4;
+
+  // Number of successfully imported files.
+  int32 imported_count = 5;
+
+  // Number of skipped files (e.g., duplicates).
+  int32 skipped_count = 6;
+
+  // Number of failed files.
+  int32 failed_count = 7;
+
+  // When the job was created.
+  google.protobuf.Timestamp created_at = 8;
+
+  // When the job completed (null if still running).
+  google.protobuf.Timestamp completed_at = 9;
+}
+
+// JobDetails contains full job details including processed files.
+message JobDetails {
+  // The job summary information.
+  JobSummary summary = 1;
+
+  // List of processed file paths.
+  repeated string processed_files = 2;
+}
+
+// SourceStats contains statistics about sources from this job.
+message SourceStats {
+  // Total number of sources.
+  int64 total = 1;
+
+  // Sources grouped by processing status.
+  repeated StatusCount by_status = 2;
+}
+
+// PipelineStats contains overall pipeline statistics.
+message PipelineStats {
+  // Total number of sources.
+  int64 sources_total = 1;
+
+  // Sources grouped by processing status.
+  repeated StatusCount sources_by_status = 2;
+
+  // Total number of embeddings.
+  int64 embeddings_total = 3;
+
+  // Embeddings created in the last hour.
+  int64 embeddings_recent = 4;
+
+  // Total number of attachments.
+  int64 attachments_total = 5;
+
+  // Attachments grouped by processing tier.
+  repeated StatusCount attachments_by_tier = 6;
+
+  // Total number of ingest jobs.
+  int64 jobs_total = 7;
+
+  // Jobs grouped by status.
+  repeated StatusCount jobs_by_status = 8;
+
+  // Recent ingest jobs (limited, usually 5).
+  repeated JobSummary recent_jobs = 9;
+
+  // When the stats were collected.
+  google.protobuf.Timestamp timestamp = 10;
+
+  // Sources grouped by failure category (for failed/rejected items).
+  repeated StatusCount sources_by_failure_category = 11;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// GetStatsRequest retrieves pipeline statistics.
+message GetStatsRequest {
+  // Optional tenant ID filter (for multi-tenant support).
+  string tenant_id = 1;
+}
+
+// GetStatsResponse contains pipeline statistics.
+message GetStatsResponse {
+  // The pipeline statistics.
+  PipelineStats stats = 1;
+}
+
+// GetJobRequest retrieves a specific job.
+message GetJobRequest {
+  // The job ID to retrieve.
+  string job_id = 1;
+}
+
+// GetJobResponse contains job details.
+message GetJobResponse {
+  // The job details.
+  JobDetails job = 1;
+
+  // Source statistics for this job.
+  SourceStats sources = 2;
+}
+
+// ListJobsRequest lists ingest jobs.
+message ListJobsRequest {
+  // Maximum number of jobs to return (default: 10, max: 100).
+  int32 limit = 1;
+
+  // Pagination offset.
+  int32 offset = 2;
+
+  // Filter by status (optional).
+  string status = 3;
+
+  // Filter by source tag (optional).
+  string source_tag = 4;
+}
+
+// ListJobsResponse contains the list of jobs.
+message ListJobsResponse {
+  // The matching jobs.
+  repeated JobSummary jobs = 1;
+
+  // Total count of matching jobs.
+  int64 total_count = 2;
+}
+
+// KickProcessingRequest triggers processing of pending pipeline items.
+message KickProcessingRequest {
+  // Tenant ID (for multi-tenant support).
+  string tenant_id = 1;
+
+  // Maximum number of items to queue (optional, 0 = no limit).
+  int32 limit = 2;
+
+  // Filter by source tag (optional).
+  string source_tag = 3;
+}
+
+// KickProcessingResponse contains the result of the kick operation.
+message KickProcessingResponse {
+  // Number of items queued for processing.
+  int64 queued_count = 1;
+
+  // Human-readable message.
+  string message = 2;
+}
+
+// RetryFailedRequest retries failed pipeline items.
+message RetryFailedRequest {
+  // Tenant ID (for multi-tenant support).
+  string tenant_id = 1;
+
+  // Job ID to retry (optional, if empty retries all failed).
+  string job_id = 2;
+
+  // Filter by pipeline stage (optional: "embedding", "attachment").
+  string stage = 3;
+}
+
+// RetryFailedResponse contains the result of the retry operation.
+message RetryFailedResponse {
+  // Number of items retried.
+  int64 retried_count = 1;
+
+  // Human-readable message.
+  string message = 2;
+}
+
+// =============================================================================
+// Queue Status Messages
+// =============================================================================
+
+// GetQueueStatusRequest retrieves queue status information.
+message GetQueueStatusRequest {
+  // Optional: filter by stage (embeddings, entities, etc.).
+  string stage = 1;
+}
+
+// GetQueueStatusResponse contains queue status information.
+message GetQueueStatusResponse {
+  // Queue statistics for each processing stage.
+  repeated QueueStats queues = 1;
+}
+
+// QueueStats represents statistics for a single processing queue.
+message QueueStats {
+  // Queue/stage name.
+  string name = 1;
+
+  // Number of pending items.
+  int64 pending_count = 2;
+
+  // Number of items currently being processed.
+  int64 processing_count = 3;
+
+  // Processing rate (items per minute).
+  double rate_per_minute = 4;
+
+  // Age of oldest pending item in seconds.
+  int64 oldest_item_age_seconds = 5;
+
+  // Number of active workers.
+  int32 worker_count = 6;
+}
+
+// =============================================================================
+// Pipeline Health Messages
+// =============================================================================
+
+// GetPipelineHealthRequest requests a comprehensive health check.
+message GetPipelineHealthRequest {}
+
+// GetPipelineHealthResponse contains comprehensive health check results.
+message GetPipelineHealthResponse {
+  // Overall status: HEALTHY, DEGRADED, UNHEALTHY.
+  string overall_status = 1;
+
+  // Individual health checks.
+  repeated HealthCheck checks = 2;
+
+  // Issues detected.
+  repeated string issues = 3;
+}
+
+// HealthCheck represents a single health check result.
+message HealthCheck {
+  // Check name (e.g., "database", "temporal", "worker_service").
+  string name = 1;
+
+  // Whether the check passed.
+  bool healthy = 2;
+
+  // Status description.
+  string status = 3;
+
+  // Detailed message.
+  string message = 4;
+}
+
+// =============================================================================
+// Content Trace Messages
+// =============================================================================
+
+// GetContentTraceRequest retrieves processing history for a content item.
+message GetContentTraceRequest {
+  // Content ID to trace.
+  string content_id = 1;
+
+  // Include detailed payloads.
+  bool verbose = 2;
+}
+
+// GetContentTraceResponse contains the full processing timeline.
+message GetContentTraceResponse {
+  // Content ID.
+  string content_id = 1;
+
+  // Timeline of processing events.
+  repeated TraceEvent events = 2;
+}
+
+// TraceEvent represents a single event in the content processing timeline.
+message TraceEvent {
+  // Event timestamp.
+  google.protobuf.Timestamp timestamp = 1;
+
+  // Processing stage (e.g., "ingestion", "embedding", "entity_extraction").
+  string stage = 2;
+
+  // Action performed (e.g., "started", "completed", "failed").
+  string action = 3;
+
+  // Event message.
+  string message = 4;
+
+  // Duration in milliseconds (if applicable).
+  int64 duration_ms = 5;
+
+  // Additional event details.
+  map<string, string> details = 6;
+}
+
+// =============================================================================
+// Deleted Sources Messages
+// =============================================================================
+
+// ListDeletedSourcesRequest lists soft-deleted sources.
+message ListDeletedSourcesRequest {
+  // Maximum number of sources to return (default: 50).
+  int32 limit = 1;
+}
+
+// ListDeletedSourcesResponse contains the list of deleted sources.
+message ListDeletedSourcesResponse {
+  // The deleted sources.
+  repeated DeletedSource sources = 1;
+}
+
+// DeletedSource represents a soft-deleted source.
+message DeletedSource {
+  // Source ID.
+  int64 id = 1;
+
+  // Source system (e.g., "gmail", "manual_eml").
+  string source_system = 2;
+
+  // External ID from the source system.
+  string external_id = 3;
+
+  // When the source was deleted.
+  google.protobuf.Timestamp deleted_at = 4;
+
+  // Who deleted the source.
+  string deleted_by = 5;
+
+  // Reason for deletion.
+  string deletion_reason = 6;
+
+  // Processing status at time of deletion.
+  string processing_status = 7;
+}
+
+// UndeleteSourceRequest restores a soft-deleted source.
+message UndeleteSourceRequest {
+  // Source ID to restore.
+  int64 source_id = 1;
+}
+
+// UndeleteSourceResponse confirms the undelete operation.
+message UndeleteSourceResponse {
+  // Whether the operation succeeded.
+  bool success = 1;
+
+  // Human-readable message.
+  string message = 2;
+}
+
+// =============================================================================
+// Pipeline Introspection Messages
+// =============================================================================
+
+// StageInfo contains information about a pipeline stage.
+message StageInfo {
+  // Stage identifier (e.g., "parse", "triage", "extract_ner").
+  string stage = 1;
+
+  // Display name (e.g., "Stage 1: Triage").
+  string display_name = 2;
+
+  // Description of what this stage does.
+  string description = 3;
+
+  // Stage type (e.g., "code_only", "slm", "llm", "embedding").
+  string stage_type = 4;
+
+  // Whether output changes when model/prompt changes.
+  bool model_dependent = 5;
+
+  // Whether this stage uses a prompt template.
+  bool has_prompt = 6;
+
+  // Stages that must complete before this one.
+  repeated string depends_on = 7;
+
+  // Stages that consume this stage's output.
+  repeated string downstream = 8;
+
+  // Active prompt version (0 if no prompt).
+  int32 active_prompt_version = 9;
+
+  // Active model ID (empty if code-only).
+  string active_model_id = 10;
+}
+
+// DescribePipelineRequest requests pipeline stage information.
+message DescribePipelineRequest {
+  // Optional: filter by specific stage.
+  string stage = 1;
+}
+
+// DescribePipelineResponse contains pipeline stage information.
+message DescribePipelineResponse {
+  // List of pipeline stages.
+  repeated StageInfo stages = 1;
+}
+
+// PromptTemplate represents a versioned prompt template.
+message PromptTemplate {
+  // Unique template ID.
+  int64 id = 1;
+
+  // Stage this prompt is for.
+  string stage = 2;
+
+  // Version number.
+  int32 version = 3;
+
+  // Prompt template content.
+  string content = 4;
+
+  // Description of changes in this version.
+  string description = 5;
+
+  // Whether this is the active version.
+  bool is_active = 6;
+
+  // Who created this version.
+  string created_by = 7;
+
+  // When this version was created.
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// GetPromptRequest requests a prompt template.
+message GetPromptRequest {
+  // Stage to get prompt for (required).
+  string stage = 1;
+
+  // Optional: specific version (0 = active version).
+  int32 version = 2;
+}
+
+// GetPromptResponse contains the requested prompt.
+message GetPromptResponse {
+  // The prompt template.
+  PromptTemplate prompt = 1;
+}
+
+// ListPromptVersionsRequest lists all versions for a stage.
+message ListPromptVersionsRequest {
+  // Stage to list versions for (required).
+  string stage = 1;
+}
+
+// ListPromptVersionsResponse contains all prompt versions.
+message ListPromptVersionsResponse {
+  // All versions for the stage, ordered by version desc.
+  repeated PromptTemplate versions = 1;
+}
+
+// UpdatePromptRequest creates a new prompt version.
+message UpdatePromptRequest {
+  // Stage to update prompt for (required).
+  string stage = 1;
+
+  // New prompt content (required).
+  string content = 2;
+
+  // Description of changes (optional).
+  string description = 3;
+
+  // Who is making this change (optional).
+  string created_by = 4;
+}
+
+// UpdatePromptResponse confirms the prompt update.
+message UpdatePromptResponse {
+  // The newly created prompt version.
+  PromptTemplate prompt = 1;
+
+  // Success message.
+  string message = 2;
+}
+
+// RollbackPromptRequest activates a previous version.
+message RollbackPromptRequest {
+  // Stage to rollback (required).
+  string stage = 1;
+
+  // Version to activate (required).
+  int32 version = 2;
+}
+
+// RollbackPromptResponse confirms the rollback.
+message RollbackPromptResponse {
+  // The activated prompt version.
+  PromptTemplate prompt = 1;
+
+  // Success message.
+  string message = 2;
+}
+
+// ExportPromptRequest exports prompts.
+message ExportPromptRequest {
+  // Optional: filter by stage (empty = all stages).
+  string stage = 1;
+
+  // Optional: specific version (0 = active version only).
+  int32 version = 2;
+}
+
+// ExportPromptResponse contains exported prompts as JSON.
+message ExportPromptResponse {
+  // JSON-encoded array of prompt templates.
+  string json = 1;
+}
+
+// PipelineRun represents a single pipeline execution.
+message PipelineRun {
+  // Unique run ID.
+  int64 id = 1;
+
+  // Source ID that was processed.
+  int64 source_id = 2;
+
+  // Pipeline stage.
+  string stage = 3;
+
+  // Model used (empty for code-only stages).
+  string model_id = 4;
+
+  // Prompt version used (0 for no-prompt stages).
+  int32 prompt_version = 5;
+
+  // Config hash.
+  string config_hash = 6;
+
+  // Run status (completed, failed, superseded).
+  string status = 7;
+
+  // When the run started.
+  google.protobuf.Timestamp created_at = 8;
+
+  // Duration in milliseconds.
+  int64 duration_ms = 9;
+}
+
+// GetSourceHistoryRequest requests pipeline history for a source.
+message GetSourceHistoryRequest {
+  // Source ID to get history for (required).
+  int64 source_id = 1;
+
+  // Optional: filter by stage.
+  string stage = 2;
+}
+
+// GetSourceHistoryResponse contains pipeline execution history.
+message GetSourceHistoryResponse {
+  // Source ID.
+  int64 source_id = 1;
+
+  // All pipeline runs for this source.
+  repeated PipelineRun runs = 2;
+}
+
+// ReprocessDryRunRequest calculates reprocessing impact.
+message ReprocessDryRunRequest {
+  // Stage to reprocess (required).
+  string stage = 1;
+
+  // Optional: filter by source tag.
+  string source_tag = 2;
+
+  // Optional: limit to specific source IDs.
+  repeated int64 source_ids = 3;
+}
+
+// ReprocessDryRunResponse contains impact calculation.
+message ReprocessDryRunResponse {
+  // Stages that would be affected (including requested stage).
+  repeated string affected_stages = 1;
+
+  // Number of sources that would be reprocessed.
+  int64 source_count = 2;
+
+  // Estimated processing time in seconds (rough estimate).
+  int64 estimated_duration_seconds = 3;
+
+  // Human-readable summary.
+  string message = 4;
+}
+
+// =============================================================================
+// Timeout Configuration Messages
+// =============================================================================
+
+// TimeoutEntry represents a single timeout configuration entry.
+message TimeoutEntry {
+  // Configuration key (e.g., "timeout.ai_client.request").
+  string key = 1;
+
+  // Current value (duration string, e.g., "120s").
+  string value = 2;
+
+  // Value type (always "duration" for timeouts).
+  string value_type = 3;
+
+  // Human-readable description.
+  string description = 4;
+
+  // Minimum allowed value (duration string).
+  string min_value = 5;
+
+  // Maximum allowed value (duration string).
+  string max_value = 6;
+
+  // Default value (duration string).
+  string default_value = 7;
+
+  // When this entry was last updated.
+  string updated_at = 8;
+
+  // Who last updated this entry.
+  string updated_by = 9;
+}
+
+// GetTimeoutConfigRequest requests timeout configuration.
+message GetTimeoutConfigRequest {
+  // Optional key filter (prefix match, e.g., "timeout.activity").
+  string key = 1;
+}
+
+// GetTimeoutConfigResponse contains timeout configuration entries.
+message GetTimeoutConfigResponse {
+  // All matching timeout entries.
+  repeated TimeoutEntry entries = 1;
+}
+
+// UpdateTimeoutConfigRequest updates a timeout value.
+message UpdateTimeoutConfigRequest {
+  // Configuration key to update (required).
+  string key = 1;
+
+  // New value as duration string (e.g., "180s", "5m") (required).
+  string value = 2;
+
+  // Who is making this change (required).
+  string updated_by = 3;
+
+  // Reason for the change (required for audit trail).
+  string reason = 4;
+}
+
+// UpdateTimeoutConfigResponse confirms the timeout update.
+message UpdateTimeoutConfigResponse {
+  // Updated entry with new value.
+  TimeoutEntry entry = 1;
+
+  // Previous value (duration string).
+  string previous_value = 2;
+
+  // Success message.
+  string message = 3;
+}
+
+// =============================================================================
+// Pipeline Errors Messages
+// =============================================================================
+
+// GetPipelineErrorsRequest retrieves pipeline errors with filtering.
+message GetPipelineErrorsRequest {
+  // Filter by time range: errors occurring since this timestamp.
+  google.protobuf.Timestamp since = 1;
+
+  // Filter by time range: errors occurring until this timestamp.
+  google.protobuf.Timestamp until = 2;
+
+  // Filter by specific error code (e.g., "timeout", "rate_limit").
+  string error_code = 3;
+
+  // Filter by source ID.
+  string source_id = 4;
+
+  // Maximum number of results (default: 100).
+  int32 limit = 5;
+
+  // Pagination offset.
+  int32 offset = 6;
+}
+
+// GetPipelineErrorsResponse contains filtered pipeline errors.
+message GetPipelineErrorsResponse {
+  // The error events matching the filter.
+  repeated PipelineErrorEvent errors = 1;
+
+  // Total count of matching errors (before pagination).
+  int64 total_count = 2;
+}
+
+// PipelineErrorEvent represents a single pipeline error occurrence.
+message PipelineErrorEvent {
+  // Error code.
+  string code = 1;
+
+  // Pipeline stage where error occurred.
+  string stage = 2;
+
+  // Error message.
+  string message = 3;
+
+  // Whether this error is retryable.
+  bool retryable = 4;
+
+  // Suggested action to resolve the error.
+  string suggested_action = 5;
+
+  // When the error occurred.
+  google.protobuf.Timestamp occurred_at = 6;
+
+  // Source ID (if applicable).
+  string source_id = 7;
+
+  // Additional error details.
+  map<string, string> details = 8;
+}
+
+// =============================================================================
+// Pipeline Stage IO Inspection Messages
+// =============================================================================
+
+// StageIOData contains input/output data for a pipeline stage run.
+message StageIOData {
+  // JSON string of input/prompt data.
+  string input_data = 1;
+
+  // JSON string of raw response/output data.
+  string output_data = 2;
+
+  // JSON string of parsed/structured result.
+  string parsed_data = 3;
+}
+
+// PipelineRunDetail represents detailed information about a single pipeline run.
+message PipelineRunDetail {
+  // Unique run ID.
+  int64 id = 1;
+
+  // Source ID that was processed.
+  int64 source_id = 2;
+
+  // Pipeline stage.
+  string stage = 3;
+
+  // Model used (empty for code-only stages).
+  string model_id = 4;
+
+  // Prompt version used (0 for no-prompt stages).
+  int32 prompt_version = 5;
+
+  // Run status (completed, failed, superseded).
+  string status = 6;
+
+  // When the run started.
+  google.protobuf.Timestamp created_at = 7;
+
+  // Duration in milliseconds.
+  int64 duration_ms = 8;
+
+  // Input/output data for this run.
+  StageIOData io = 9;
+}
+
+// InspectStageRequest requests pipeline stage IO data for inspection.
+message InspectStageRequest {
+  // Source ID to inspect (required).
+  int64 source_id = 1;
+
+  // Optional: filter by specific stage (empty = all stages).
+  string stage = 2;
+
+  // Maximum number of runs to return per stage (default: 3).
+  int32 limit = 3;
+}
+
+// InspectStageResponse contains pipeline run details with IO data.
+message InspectStageResponse {
+  // All matching pipeline runs.
+  repeated PipelineRunDetail runs = 1;
+}
+
+// DiffStageRunsRequest requests a comparison of two pipeline runs.
+message DiffStageRunsRequest {
+  // First run ID to compare (required).
+  int64 run_id_a = 1;
+
+  // Second run ID to compare (required).
+  int64 run_id_b = 2;
+}
+
+// DiffStageRunsResponse contains the diff between two pipeline runs.
+message DiffStageRunsResponse {
+  // Stage name.
+  string stage = 1;
+
+  // Status of run A.
+  string run_a_status = 2;
+
+  // Status of run B.
+  string run_b_status = 3;
+
+  // Timestamp of run A.
+  google.protobuf.Timestamp run_a_time = 4;
+
+  // Timestamp of run B.
+  google.protobuf.Timestamp run_b_time = 5;
+
+  // Human-readable summary of differences.
+  string diff_summary = 6;
+
+  // Structured diff as JSON.
+  string diff_json = 7;
+}
+
+// =============================================================================
+// DiffPipelineRuns Messages
+// =============================================================================
+
+// ChangeType indicates the type of change detected in a field.
+enum ChangeType {
+  CHANGE_TYPE_UNSPECIFIED = 0;
+  CHANGE_TYPE_ADDED = 1;
+  CHANGE_TYPE_REMOVED = 2;
+  CHANGE_TYPE_MODIFIED = 3;
+}
+
+// DiffPipelineRunsRequest compares two pipeline runs for a source.
+message DiffPipelineRunsRequest {
+  // Source ID to compare runs for (required).
+  int64 source_id = 1;
+
+  // First run ID to compare (optional, defaults to previous run if not set).
+  optional int64 run_id_a = 2;
+
+  // Second run ID to compare (optional, defaults to latest run if not set).
+  optional int64 run_id_b = 3;
+}
+
+// StageDiff represents a difference in a specific field between two runs.
+message StageDiff {
+  // Pipeline stage name.
+  string stage = 1;
+
+  // Field name that changed.
+  string field = 2;
+
+  // Old value (from run A).
+  string old_value = 3;
+
+  // New value (from run B).
+  string new_value = 4;
+
+  // Type of change.
+  ChangeType change_type = 5;
+}
+
+// DiffPipelineRunsResponse contains the differences between two runs.
+message DiffPipelineRunsResponse {
+  // List of differences found.
+  repeated StageDiff diffs = 1;
+}

@@ -1,0 +1,475 @@
+// Audit Service Protobuf Definitions
+// Provides gRPC service for viewing mention resolution traces, corrections, and model comparisons
+
+syntax = "proto3";
+
+package penfold.audit.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/audit/v1;auditv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// AuditService provides gRPC endpoints for viewing resolution traces and comparisons.
+service AuditService {
+  // ListTraces lists resolution traces with optional filtering.
+  rpc ListTraces(ListTracesRequest) returns (ListTracesResponse);
+
+  // GetTrace retrieves detailed information about a specific trace.
+  rpc GetTrace(GetTraceRequest) returns (GetTraceResponse);
+
+  // ListCorrections lists decisions that were corrected by humans.
+  rpc ListCorrections(ListCorrectionsRequest) returns (ListCorrectionsResponse);
+
+  // ListComparisons lists model comparison runs.
+  rpc ListComparisons(ListComparisonsRequest) returns (ListComparisonsResponse);
+
+  // GetComparison retrieves detailed information about a model comparison.
+  rpc GetComparison(GetComparisonRequest) returns (GetComparisonResponse);
+
+  // GetModelStats retrieves aggregate statistics for each model.
+  rpc GetModelStats(GetModelStatsRequest) returns (GetModelStatsResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// TraceSummary provides a summary view of a resolution trace.
+message TraceSummary {
+  // Trace identifier (e.g., trace_abc123).
+  string id = 1;
+
+  // Content ID that was processed.
+  int64 content_id = 2;
+
+  // Content type (email, meeting, document).
+  string content_type = 3;
+
+  // Short description of the content.
+  string content_summary = 4;
+
+  // Trace status (completed, failed, in_progress).
+  string status = 5;
+
+  // Number of mentions found.
+  int32 mentions_found = 6;
+
+  // Number of mentions auto-resolved.
+  int32 auto_resolved = 7;
+
+  // Number of mentions queued for human review.
+  int32 queued_for_review = 8;
+
+  // Model used for resolution.
+  string model_used = 9;
+
+  // Processing duration in milliseconds.
+  int32 duration_ms = 10;
+
+  // When the trace started.
+  google.protobuf.Timestamp started_at = 11;
+}
+
+// Stage represents an individual stage within a trace.
+message Stage {
+  // Internal stage ID.
+  int64 id = 1;
+
+  // Trace ID this stage belongs to.
+  string trace_id = 2;
+
+  // Stage number (1-4).
+  int32 stage_number = 3;
+
+  // Stage name (Understanding, CrossMention, Matching, Verification).
+  string stage_name = 4;
+
+  // When the stage started.
+  google.protobuf.Timestamp started_at = 5;
+
+  // When the stage completed.
+  google.protobuf.Timestamp completed_at = 6;
+
+  // Duration in milliseconds.
+  int32 duration_ms = 7;
+
+  // Summary of input data.
+  string input_summary = 8;
+
+  // Summary of output data.
+  string output_summary = 9;
+
+  // Stage status (completed, failed, skipped, in_progress).
+  string status = 10;
+
+  // Whether this stage was skipped.
+  bool skipped = 11;
+
+  // Reason for skipping.
+  string skip_reason = 12;
+
+  // Error message if failed.
+  string error_message = 13;
+}
+
+// Decision represents an individual resolution decision.
+message Decision {
+  // Internal decision ID.
+  int64 id = 1;
+
+  // Trace ID this decision belongs to.
+  string trace_id = 2;
+
+  // Stage ID where decision was made.
+  int64 stage_id = 3;
+
+  // Type of decision (resolve, suggest_new, queue_for_review).
+  string decision_type = 4;
+
+  // ID of the mention (if applicable).
+  int64 mention_id = 5;
+
+  // Text of the mention.
+  string mentioned_text = 6;
+
+  // Chosen option/entity.
+  string chosen_option = 7;
+
+  // Confidence level (0.0-1.0).
+  float confidence = 8;
+
+  // Reasoning for the decision.
+  string reasoning = 9;
+
+  // Whether the decision was correct.
+  bool was_correct = 10;
+
+  // Human correction notes.
+  string correction_notes = 11;
+
+  // When the decision was made.
+  google.protobuf.Timestamp created_at = 12;
+}
+
+// LLMCall represents an LLM request/response log entry.
+message LLMCall {
+  // Internal call ID.
+  int64 id = 1;
+
+  // Trace ID this call belongs to.
+  string trace_id = 2;
+
+  // Stage ID where call was made.
+  int64 stage_id = 3;
+
+  // Model identifier.
+  string model = 4;
+
+  // Prompt template used.
+  string prompt_template = 5;
+
+  // Full prompt text.
+  string prompt_text = 6;
+
+  // Prompt tokens used.
+  int32 prompt_tokens = 7;
+
+  // Response text received.
+  string response_text = 8;
+
+  // Response tokens used.
+  int32 response_tokens = 9;
+
+  // Latency in milliseconds.
+  int32 latency_ms = 10;
+
+  // Attempt number (for retries).
+  int32 attempt_number = 11;
+
+  // Whether this was a fallback call.
+  bool is_fallback = 12;
+
+  // Reason for fallback.
+  string fallback_reason = 13;
+}
+
+// TraceDetail provides full detail view of a trace.
+message TraceDetail {
+  // The trace summary.
+  TraceSummary trace = 1;
+
+  // All stages in the trace.
+  repeated Stage stages = 2;
+
+  // All decisions made during resolution.
+  repeated Decision decisions = 3;
+
+  // LLM calls (only included if requested).
+  repeated LLMCall llm_calls = 4;
+
+  // Number of new entities suggested.
+  int32 new_entities_suggested = 5;
+}
+
+// ComparisonSummary provides a summary view of a model comparison.
+message ComparisonSummary {
+  // Comparison identifier (e.g., comp_xyz789).
+  string id = 1;
+
+  // Content ID that was compared.
+  int64 content_id = 2;
+
+  // Content type (email, meeting, document).
+  string content_type = 3;
+
+  // Short description of the content.
+  string content_summary = 4;
+
+  // Models that were compared.
+  repeated string models = 5;
+
+  // Total number of decisions compared.
+  int32 total_decisions = 6;
+
+  // Number of unanimous decisions.
+  int32 unanimous_decisions = 7;
+
+  // Number of divergent decisions.
+  int32 divergent_decisions = 8;
+
+  // When the comparison started.
+  google.protobuf.Timestamp started_at = 9;
+}
+
+// ModelDecision represents a single model's decision for a mention.
+message ModelDecision {
+  // Model identifier.
+  string model = 1;
+
+  // Entity ID chosen (if resolved to existing entity).
+  int64 entity_id = 2;
+
+  // Entity name.
+  string entity_name = 3;
+
+  // Confidence level (0.0-1.0).
+  float confidence = 4;
+
+  // Reasoning for the decision.
+  string reasoning = 5;
+
+  // Whether the model suggested a new entity.
+  bool suggest_new = 6;
+
+  // Type of new entity suggested.
+  string new_entity_type = 7;
+}
+
+// ComparisonDecision represents a per-mention decision comparison across models.
+message ComparisonDecision {
+  // Internal decision ID.
+  int64 id = 1;
+
+  // Comparison ID this decision belongs to.
+  string comparison_id = 2;
+
+  // Text of the mention.
+  string mentioned_text = 3;
+
+  // Mention index in the content.
+  int32 mention_index = 4;
+
+  // Decisions by each model.
+  repeated ModelDecision model_decisions = 5;
+
+  // Whether all models agreed.
+  bool is_unanimous = 6;
+
+  // Type of divergence (if not unanimous).
+  string divergence_type = 7;
+
+  // Spread between highest and lowest confidence.
+  float confidence_spread = 8;
+
+  // Ground truth entity ID (if known).
+  int64 ground_truth_entity_id = 9;
+
+  // Models that were correct.
+  repeated string models_correct = 10;
+}
+
+// ComparisonDetail provides full detail view of a comparison.
+message ComparisonDetail {
+  // The comparison summary.
+  ComparisonSummary comparison = 1;
+
+  // All decisions in this comparison.
+  repeated ComparisonDecision decisions = 2;
+
+  // Purpose of the comparison.
+  string purpose = 3;
+
+  // Who initiated the comparison.
+  string initiated_by = 4;
+
+  // Trace IDs for each model's run.
+  repeated string trace_ids = 5;
+}
+
+// ModelStats aggregates statistics for a specific model.
+message ModelStats {
+  // Model identifier.
+  string model = 1;
+
+  // Total number of comparisons.
+  int32 total_comparisons = 2;
+
+  // Total number of decisions.
+  int32 total_decisions = 3;
+
+  // Number of correct decisions.
+  int32 correct_decisions = 4;
+
+  // Accuracy (0.0-1.0).
+  float accuracy = 5;
+
+  // Average confidence.
+  float average_confidence = 6;
+
+  // Average latency in milliseconds.
+  int32 average_latency_ms = 7;
+
+  // Times the model agreed with all others.
+  int32 unanimous_agreement = 8;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// ListTracesRequest lists resolution traces with optional filtering.
+message ListTracesRequest {
+  // Tenant ID (for multi-tenant support).
+  string tenant_id = 1;
+
+  // Filter by content ID (optional).
+  int64 content_id = 2;
+
+  // Filter by content type (optional).
+  string content_type = 3;
+
+  // Show traces since timestamp (optional).
+  google.protobuf.Timestamp since = 4;
+
+  // Only show traces with corrections (optional).
+  bool had_corrections = 5;
+
+  // Maximum number of results (default: 20).
+  int32 limit = 6;
+
+  // Pagination offset.
+  int32 offset = 7;
+}
+
+// ListTracesResponse contains the list of traces.
+message ListTracesResponse {
+  // The matching traces.
+  repeated TraceSummary traces = 1;
+
+  // Total count of matching traces.
+  int64 total_count = 2;
+}
+
+// GetTraceRequest retrieves a specific trace.
+message GetTraceRequest {
+  // Trace ID to retrieve.
+  string trace_id = 1;
+
+  // Include full LLM calls (prompts/responses).
+  bool include_llm_calls = 2;
+}
+
+// GetTraceResponse contains trace details.
+message GetTraceResponse {
+  // The trace details.
+  TraceDetail trace = 1;
+}
+
+// ListCorrectionsRequest lists corrections.
+message ListCorrectionsRequest {
+  // Tenant ID (for multi-tenant support).
+  string tenant_id = 1;
+
+  // Show corrections since timestamp (optional).
+  google.protobuf.Timestamp since = 2;
+
+  // Maximum number of results (default: 20).
+  int32 limit = 3;
+
+  // Pagination offset.
+  int32 offset = 4;
+}
+
+// ListCorrectionsResponse contains the list of corrections.
+message ListCorrectionsResponse {
+  // The corrections.
+  repeated Decision corrections = 1;
+
+  // Total count of corrections.
+  int64 total_count = 2;
+}
+
+// ListComparisonsRequest lists model comparisons.
+message ListComparisonsRequest {
+  // Tenant ID (for multi-tenant support).
+  string tenant_id = 1;
+
+  // Show comparisons since timestamp (optional).
+  google.protobuf.Timestamp since = 2;
+
+  // Maximum number of results (default: 10).
+  int32 limit = 3;
+
+  // Pagination offset.
+  int32 offset = 4;
+}
+
+// ListComparisonsResponse contains the list of comparisons.
+message ListComparisonsResponse {
+  // The matching comparisons.
+  repeated ComparisonSummary comparisons = 1;
+
+  // Total count of matching comparisons.
+  int64 total_count = 2;
+}
+
+// GetComparisonRequest retrieves a specific comparison.
+message GetComparisonRequest {
+  // Comparison ID to retrieve.
+  string comparison_id = 1;
+}
+
+// GetComparisonResponse contains comparison details.
+message GetComparisonResponse {
+  // The comparison details.
+  ComparisonDetail comparison = 1;
+}
+
+// GetModelStatsRequest retrieves model statistics.
+message GetModelStatsRequest {
+  // Tenant ID (for multi-tenant support).
+  string tenant_id = 1;
+
+  // Show stats from last N days (default: 30).
+  int32 days_since = 2;
+}
+
+// GetModelStatsResponse contains model statistics.
+message GetModelStatsResponse {
+  // Statistics for each model.
+  repeated ModelStats stats = 1;
+}

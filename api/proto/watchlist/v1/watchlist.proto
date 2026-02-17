@@ -1,0 +1,199 @@
+// WatchList Service Protobuf Definitions
+// Provides gRPC service for watch list management, trust/seniority, and briefing queries
+
+syntax = "proto3";
+
+package penfold.watchlist.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/watchlist/v1;watchlistv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// WatchListService provides gRPC endpoints for watch list and priority management.
+service WatchListService {
+  // Watch list operations
+  rpc AddWatchItem(AddWatchItemRequest) returns (AddWatchItemResponse);
+  rpc RemoveWatchItem(RemoveWatchItemRequest) returns (RemoveWatchItemResponse);
+  rpc ListWatchItems(ListWatchItemsRequest) returns (ListWatchItemsResponse);
+  rpc UpdateWatchItem(UpdateWatchItemRequest) returns (UpdateWatchItemResponse);
+
+  // Trust and seniority management
+  rpc SetTrust(SetTrustRequest) returns (SetTrustResponse);
+  rpc SetSeniority(SetSeniorityRequest) returns (SetSeniorityResponse);
+
+  // Briefing and escalation queries
+  rpc GetBriefingAssertions(GetBriefingAssertionsRequest) returns (GetBriefingAssertionsResponse);
+  rpc GetSeniorityEscalations(GetSeniorityEscalationsRequest) returns (GetSeniorityEscalationsResponse);
+}
+
+// =============================================================================
+// Watch List Messages
+// =============================================================================
+
+// WatchItem represents a watch list entry.
+message WatchItem {
+  int64 id = 1;
+  string user_id = 2;
+  optional int64 assertion_root_id = 3;
+  optional int64 project_id = 4;
+  string notes = 5;
+  google.protobuf.Timestamp created_at = 6;
+  // Denormalized display fields
+  string assertion_description = 7;
+  string project_name = 8;
+}
+
+// AddWatchItemRequest adds a watch list item.
+message AddWatchItemRequest {
+  string tenant_id = 1;
+  string user_id = 2;
+  optional int64 assertion_root_id = 3;  // watch an assertion
+  optional int64 project_id = 4;         // OR watch a project
+  string notes = 5;
+}
+
+// AddWatchItemResponse returns the created watch item.
+message AddWatchItemResponse {
+  WatchItem item = 1;
+}
+
+// RemoveWatchItemRequest removes a watch list item.
+message RemoveWatchItemRequest {
+  string tenant_id = 1;
+  int64 id = 2;
+}
+
+// RemoveWatchItemResponse confirms removal.
+message RemoveWatchItemResponse {}
+
+// ListWatchItemsRequest lists watch items for a user.
+message ListWatchItemsRequest {
+  string tenant_id = 1;
+  string user_id = 2;
+  optional int64 project_id = 3;  // filter by project
+}
+
+// ListWatchItemsResponse returns watch items.
+message ListWatchItemsResponse {
+  repeated WatchItem items = 1;
+}
+
+// UpdateWatchItemRequest updates a watch item's notes.
+message UpdateWatchItemRequest {
+  string tenant_id = 1;
+  int64 id = 2;
+  string notes = 3;
+}
+
+// UpdateWatchItemResponse returns the updated watch item.
+message UpdateWatchItemResponse {
+  WatchItem item = 1;
+}
+
+// =============================================================================
+// Trust Management Messages
+// =============================================================================
+
+// PersonTrust represents a person with trust settings.
+message PersonTrust {
+  int64 id = 1;
+  string name = 2;
+  int32 trust_level = 3;
+  repeated string trust_domains = 4;
+}
+
+// SetTrustRequest sets trust level and domains for a person.
+message SetTrustRequest {
+  string tenant_id = 1;
+  int64 person_id = 2;
+  int32 trust_level = 3;           // 0-5
+  repeated string trust_domains = 4; // e.g. ["technical-risk", "timeline"]
+}
+
+// SetTrustResponse returns the updated person trust.
+message SetTrustResponse {
+  PersonTrust person = 1;
+}
+
+// =============================================================================
+// Seniority Management Messages
+// =============================================================================
+
+// PersonSeniority represents a person with seniority settings.
+message PersonSeniority {
+  int64 id = 1;
+  string name = 2;
+  int32 seniority_tier = 3;
+  string title = 4;
+}
+
+// SetSeniorityRequest sets seniority tier for a person.
+message SetSeniorityRequest {
+  string tenant_id = 1;
+  int64 person_id = 2;
+  int32 seniority_tier = 3;  // 1-7
+}
+
+// SetSeniorityResponse returns the updated person seniority.
+message SetSeniorityResponse {
+  PersonSeniority person = 1;
+}
+
+// =============================================================================
+// Briefing Query Messages
+// =============================================================================
+
+// BriefingAssertion represents a prioritized assertion for briefing.
+message BriefingAssertion {
+  int64 id = 1;
+  string type = 2;
+  string description = 3;
+  string severity = 4;
+  string lifecycle_event = 5;
+  string owner_name = 6;
+  int32 seniority_tier = 7;
+  int32 trust_level = 8;
+  bool is_watched = 9;
+  int32 priority_tier = 10;  // 1=watched, 2=trusted, 3=senior, 4=other
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// GetBriefingAssertionsRequest requests prioritized assertions for briefing.
+message GetBriefingAssertionsRequest {
+  string tenant_id = 1;
+  string user_id = 2;
+  int64 project_id = 3;
+  int32 limit = 4;
+}
+
+// GetBriefingAssertionsResponse returns prioritized assertions.
+message GetBriefingAssertionsResponse {
+  repeated BriefingAssertion assertions = 1;
+}
+
+// =============================================================================
+// Seniority Escalation Messages
+// =============================================================================
+
+// SeniorityEscalation represents a detected seniority escalation.
+message SeniorityEscalation {
+  int64 assertion_root_id = 1;
+  int32 previous_max_seniority = 2;
+  int32 current_max_seniority = 3;
+  string assertion_description = 4;
+}
+
+// GetSeniorityEscalationsRequest requests seniority escalations.
+message GetSeniorityEscalationsRequest {
+  string tenant_id = 1;
+  int64 source_id = 2;  // current source being processed
+}
+
+// GetSeniorityEscalationsResponse returns detected escalations.
+message GetSeniorityEscalationsResponse {
+  repeated SeniorityEscalation escalations = 1;
+}

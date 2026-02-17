@@ -1,0 +1,13 @@
+From: John Doe <john@example.com>
+To: Jane Smith <jane@example.com>
+Subject: Test Email
+Date: Mon, 15 Jan 2024 10:30:00 -0500
+Message-ID: <test123@example.com>
+Content-Type: text/plain; charset=utf-8
+
+Hello Jane,
+
+This is a simple test email with plain text content.
+
+Best regards,
+John

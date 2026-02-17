@@ -1,0 +1,776 @@
+// Content Processor Service Protobuf Definitions
+// Defines the gRPC service for managing content processing pipeline operations
+
+syntax = "proto3";
+
+package penfold.content.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/content/v1;contentv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// ContentProcessorService provides gRPC endpoints for content processing operations.
+// This service manages the AI-powered content processing pipeline, including
+// fetching, parsing, embedding generation, summarization, and entity extraction.
+service ContentProcessorService {
+  // ProcessContent triggers the content processing pipeline for a specific item.
+  // Initiates async processing through configured stages (embed, summarize, extract).
+  rpc ProcessContent(ProcessContentRequest) returns (ProcessContentResponse);
+
+  // GetProcessingStatus retrieves the current processing status of a content item.
+  // Returns detailed stage completion information and any errors encountered.
+  rpc GetProcessingStatus(GetProcessingStatusRequest) returns (ProcessingStatus);
+
+  // GetContentItem retrieves a specific content item by ID.
+  // Returns the full content item including raw/processed content and metadata.
+  rpc GetContentItem(GetContentItemRequest) returns (ContentItem);
+
+  // ListContentItems returns a paginated list of content items.
+  // Supports filtering by source type, processing state, and time range.
+  rpc ListContentItems(ListContentItemsRequest) returns (ListContentItemsResponse);
+
+  // ReprocessContent triggers reprocessing of an already-processed content item.
+  // Useful for re-running processing after model updates or pipeline changes.
+  rpc ReprocessContent(ReprocessContentRequest) returns (ReprocessContentResponse);
+
+  // DeleteContentItem removes a content item and all derived data.
+  rpc DeleteContentItem(DeleteContentItemRequest) returns (DeleteContentItemResponse);
+
+  // DeleteContentItems bulk deletes content items matching filters.
+  rpc DeleteContentItems(DeleteContentItemsRequest) returns (DeleteContentItemsResponse);
+
+  // GetContentStats returns content statistics.
+  rpc GetContentStats(GetContentStatsRequest) returns (ContentStats);
+
+  // GetContentText retrieves the raw text content for a content item.
+  rpc GetContentText(GetContentTextRequest) returns (GetContentTextResponse);
+
+  // ListAvailableInsights returns available insight types for a content item.
+  rpc ListAvailableInsights(ListAvailableInsightsRequest) returns (ListAvailableInsightsResponse);
+
+  // GetInsights retrieves cached insights for a content item.
+  rpc GetInsights(GetInsightsRequest) returns (GetInsightsResponse);
+
+  // GetContentTrace retrieves Langfuse traces associated with a content item.
+  rpc GetContentTrace(GetContentTraceRequest) returns (GetContentTraceResponse);
+
+  // GetAssertions retrieves extracted assertions for a content item.
+  rpc GetAssertions(GetAssertionsRequest) returns (GetAssertionsResponse);
+
+  // PurgeContentItem hard-deletes a content item and all derived data.
+  // Only works on soft-deleted items. Requires confirm=true.
+  rpc PurgeContentItem(PurgeContentItemRequest) returns (PurgeContentItemResponse);
+
+  // PurgeContentItems bulk hard-deletes soft-deleted content items.
+  // Requires confirm=true.
+  rpc PurgeContentItems(PurgeContentItemsRequest) returns (PurgeContentItemsResponse);
+
+  // ClearError clears error fields from a successfully reprocessed content item.
+  rpc ClearError(ClearErrorRequest) returns (ClearErrorResponse);
+}
+
+// =============================================================================
+// Processing Stage Enum
+// =============================================================================
+
+// ProcessingStage represents stages in the content processing pipeline.
+// Processing proceeds through these stages in order.
+enum ProcessingStage {
+  // Default value. Should not be used explicitly.
+  PROCESSING_STAGE_UNSPECIFIED = 0;
+
+  // Fetching raw content from the source system.
+  PROCESSING_STAGE_FETCH = 1;
+
+  // Parsing and normalizing content structure.
+  PROCESSING_STAGE_PARSE = 2;
+
+  // Generating vector embeddings for semantic search.
+  PROCESSING_STAGE_EMBED = 3;
+
+  // Generating AI summaries of content.
+  PROCESSING_STAGE_SUMMARIZE = 4;
+
+  // Extracting entities, assertions, and structured data.
+  PROCESSING_STAGE_EXTRACT = 5;
+
+  // All processing stages completed successfully.
+  PROCESSING_STAGE_COMPLETE = 6;
+}
+
+// =============================================================================
+// Content Item Messages
+// =============================================================================
+
+// ContentItem represents a unit of content in the processing pipeline.
+// Contains both raw and processed representations along with metadata.
+message ContentItem {
+  // Unique identifier for this content item.
+  string id = 1;
+
+  // Type of source this content originated from: "email", "document", "meeting", "slack".
+  string source_type = 2;
+
+  // Identifier of the source record in the originating system.
+  string source_id = 3;
+
+  // Tenant identifier for multi-tenancy support.
+  string tenant_id = 4;
+
+  // Raw content text as received from the source.
+  string raw_content = 5;
+
+  // Processed/normalized content text after parsing stage.
+  optional string processed_content = 6;
+
+  // Vector embedding as float array.
+  // Dimensions depend on the embedding model used (typically 768 or 1536).
+  repeated float embedding = 7;
+
+  // AI-generated summary of the content.
+  optional string summary = 8;
+
+  // Additional metadata key-value pairs.
+  // May include source-specific attributes like author, recipients, subject, etc.
+  map<string, string> metadata = 9;
+
+  // Current processing state of this content item.
+  ProcessingState state = 10;
+
+  // Timestamp when this content item was created.
+  google.protobuf.Timestamp created_at = 11;
+
+  // Timestamp when this content item was last updated.
+  google.protobuf.Timestamp updated_at = 12;
+
+  // Timestamp when processing completed (if state is COMPLETED).
+  optional google.protobuf.Timestamp processed_at = 13;
+
+  // Content hash for deduplication and change detection.
+  string content_hash = 14;
+
+  // Failure category when state is REJECTED or FAILED.
+  // Values: empty_content, corrupt_file, malformed_structure, processing_error, unsupported_format
+  optional string failure_category = 15;
+
+  // Human-readable explanation of why content was rejected or failed.
+  optional string failure_reason = 16;
+}
+
+// ProcessingState represents the overall processing state of a content item.
+enum ProcessingState {
+  // Default value. Should not be used explicitly.
+  PROCESSING_STATE_UNSPECIFIED = 0;
+
+  // Content item is queued for processing.
+  PROCESSING_STATE_PENDING = 1;
+
+  // Content item is currently being processed.
+  PROCESSING_STATE_IN_PROGRESS = 2;
+
+  // Processing completed successfully.
+  PROCESSING_STATE_COMPLETED = 3;
+
+  // Processing failed with an error.
+  PROCESSING_STATE_FAILED = 4;
+
+  // Processing was cancelled.
+  PROCESSING_STATE_CANCELLED = 5;
+
+  // Content failed validation (empty, corrupt, malformed).
+  PROCESSING_STATE_REJECTED = 6;
+
+  // Content intentionally skipped (not processed by design).
+  PROCESSING_STATE_SKIPPED = 7;
+}
+
+// =============================================================================
+// Processing Request/Response Messages
+// =============================================================================
+
+// ProcessContentRequest triggers content processing for a specific item.
+message ProcessContentRequest {
+  // Unique identifier of the content item to process.
+  string content_id = 1;
+
+  // Processing options to customize the pipeline behavior.
+  optional ProcessingOptions options = 2;
+}
+
+// ProcessingOptions configures the content processing pipeline behavior.
+message ProcessingOptions {
+  // Whether to skip the embedding generation stage.
+  bool skip_embedding = 1;
+
+  // Whether to skip the summarization stage.
+  bool skip_summarization = 2;
+
+  // Whether to skip the entity extraction stage.
+  bool skip_extraction = 3;
+
+  // Force reprocessing even if content hasn't changed.
+  bool force_reprocess = 4;
+
+  // Priority level for processing queue (1=highest, 10=lowest).
+  int32 priority = 5;
+
+  // Maximum time in seconds to wait for processing to complete.
+  // Used for synchronous processing requests. Default: 300 (5 minutes).
+  optional int32 timeout_seconds = 6;
+
+  // Override model for this processing run.
+  // If set, uses this model instead of the stage's default active model.
+  optional string model_id = 7;
+}
+
+// ProcessContentResponse returns the result of initiating content processing.
+message ProcessContentResponse {
+  // Unique identifier of the content item being processed.
+  string content_id = 1;
+
+  // Processing job identifier for tracking this specific processing run.
+  string job_id = 2;
+
+  // Current processing status after request was submitted.
+  ProcessingStatus status = 3;
+}
+
+// GetProcessingStatusRequest retrieves processing status for a content item.
+message GetProcessingStatusRequest {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // Optional: specific job ID to check status of.
+  // If not provided, returns status of the most recent processing job.
+  optional string job_id = 2;
+}
+
+// ProcessingStatus provides detailed status of content processing.
+message ProcessingStatus {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // Processing job identifier.
+  string job_id = 2;
+
+  // Overall processing state.
+  ProcessingState state = 3;
+
+  // List of processing stages that have completed successfully.
+  repeated ProcessingStage stages_completed = 4;
+
+  // Current stage being processed (if state is IN_PROGRESS).
+  optional ProcessingStage current_stage = 5;
+
+  // List of errors encountered during processing.
+  repeated ProcessingError errors = 6;
+
+  // Timestamp when processing started.
+  optional google.protobuf.Timestamp started_at = 7;
+
+  // Timestamp when processing completed or failed.
+  optional google.protobuf.Timestamp finished_at = 8;
+
+  // Processing duration in milliseconds.
+  optional int64 duration_ms = 9;
+
+  // Percentage of processing complete (0-100).
+  int32 progress_percent = 10;
+}
+
+// ProcessingError represents an error that occurred during processing.
+message ProcessingError {
+  // The processing stage where the error occurred.
+  ProcessingStage stage = 1;
+
+  // Machine-readable error code.
+  string code = 2;
+
+  // Human-readable error message.
+  string message = 3;
+
+  // Timestamp when the error occurred.
+  google.protobuf.Timestamp occurred_at = 4;
+
+  // Whether this error is retryable.
+  bool retryable = 5;
+
+  // Number of retry attempts made for this stage.
+  int32 retry_count = 6;
+}
+
+// =============================================================================
+// Content Item CRUD Messages
+// =============================================================================
+
+// GetContentItemRequest retrieves a specific content item.
+message GetContentItemRequest {
+  // Unique identifier of the content item to retrieve.
+  string content_id = 1;
+
+  // Whether to include the full embedding vector in the response.
+  // Default: false (embedding can be large).
+  bool include_embedding = 2;
+}
+
+// ListContentItemsRequest retrieves a paginated list of content items.
+message ListContentItemsRequest {
+  // Filter by source type (optional): "email", "document", "meeting", "slack".
+  optional string source_type = 1;
+
+  // Filter by processing state (optional).
+  optional ProcessingState state = 2;
+
+  // Filter by tenant ID (required for multi-tenant queries).
+  string tenant_id = 3;
+
+  // Filter by content created after this time (optional).
+  optional google.protobuf.Timestamp created_after = 4;
+
+  // Filter by content created before this time (optional).
+  optional google.protobuf.Timestamp created_before = 5;
+
+  // Maximum number of results to return per page (default: 50, max: 1000).
+  int32 page_size = 6;
+
+  // Pagination token from previous response.
+  string page_token = 7;
+
+  // Whether to include the full embedding vectors in responses.
+  // Default: false (embeddings can be large and slow down responses).
+  bool include_embeddings = 8;
+}
+
+// ListContentItemsResponse contains a paginated list of content items.
+message ListContentItemsResponse {
+  // List of content items matching the query.
+  repeated ContentItem items = 1;
+
+  // Token for fetching the next page (empty if no more results).
+  string next_page_token = 2;
+
+  // Total count of items matching the query (if available).
+  optional int64 total_count = 3;
+}
+
+// =============================================================================
+// Reprocessing Messages
+// =============================================================================
+
+// ReprocessContentRequest triggers reprocessing of an already-processed item.
+message ReprocessContentRequest {
+  // Unique identifier of the content item to reprocess.
+  string content_id = 1;
+
+  // Reason for reprocessing (for audit trail).
+  string reason = 2;
+
+  // Processing options to customize the reprocessing behavior.
+  optional ProcessingOptions options = 3;
+
+  // Which stages to reprocess. If empty, all stages are reprocessed.
+  repeated ProcessingStage stages_to_reprocess = 4;
+}
+
+// ReprocessContentResponse returns the result of initiating reprocessing.
+message ReprocessContentResponse {
+  // Unique identifier of the content item being reprocessed.
+  string content_id = 1;
+
+  // New processing job identifier for tracking this reprocessing run.
+  string job_id = 2;
+
+  // Previous processing job identifier (for comparison).
+  string previous_job_id = 3;
+
+  // Current processing status after request was submitted.
+  ProcessingStatus status = 4;
+}
+
+// =============================================================================
+// Delete Messages
+// =============================================================================
+
+// DeleteContentItemRequest removes a content item.
+message DeleteContentItemRequest {
+  // Unique identifier of the content item to delete.
+  string content_id = 1;
+}
+
+// DeleteContentItemResponse returns the result of deleting a content item.
+message DeleteContentItemResponse {
+  // Whether the deletion was successful.
+  bool success = 1;
+
+  // The content_id that was deleted.
+  string content_id = 2;
+}
+
+// DeleteContentItemsRequest bulk deletes content items.
+message DeleteContentItemsRequest {
+  // Tenant identifier for filtering.
+  string tenant_id = 1;
+
+  // Optional filter by source type.
+  optional string source_type = 2;
+
+  // Optional filter by processing state.
+  optional ProcessingState state = 3;
+
+  // Optional filter for items created before this timestamp.
+  optional google.protobuf.Timestamp before = 4;
+
+  // Must be true to confirm bulk delete.
+  bool confirm = 5;
+}
+
+// DeleteContentItemsResponse returns the result of bulk delete.
+message DeleteContentItemsResponse {
+  // Number of items deleted.
+  int64 deleted_count = 1;
+
+  // List of deleted content item IDs.
+  repeated string deleted_ids = 2;
+}
+
+// =============================================================================
+// Stats Messages
+// =============================================================================
+
+// GetContentStatsRequest retrieves content statistics.
+message GetContentStatsRequest {
+  // Tenant identifier.
+  string tenant_id = 1;
+}
+
+// ContentStats provides content statistics.
+message ContentStats {
+  // Tenant identifier.
+  string tenant_id = 1;
+
+  // Total number of content items.
+  int64 total_count = 2;
+
+  // Count by source type (e.g., email: 100, document: 50).
+  map<string, int64> count_by_type = 3;
+
+  // Count by processing state (e.g., pending: 10, completed: 140).
+  map<string, int64> count_by_state = 4;
+
+  // Total storage in bytes.
+  int64 total_storage_bytes = 5;
+
+  // Number of items with embeddings.
+  int64 embedded_count = 6;
+
+  // Number of items with summaries.
+  int64 summarized_count = 7;
+
+  // Number of items with extracted entities.
+  int64 extracted_count = 8;
+}
+
+// =============================================================================
+// Content Insights Messages
+// =============================================================================
+
+// GetContentTextRequest retrieves raw text content for a content item.
+message GetContentTextRequest {
+  // Unique identifier of the content item.
+  string content_id = 1;
+}
+
+// GetContentTextResponse contains the raw text content and metadata.
+message GetContentTextResponse {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // Type of content (email, meeting, document, etc.).
+  string content_type = 2;
+
+  // Raw text content (raw_content for emails/docs, transcript for meetings).
+  string text = 3;
+
+  // Timestamp when the content was created.
+  google.protobuf.Timestamp created_at = 4;
+
+  // Additional metadata (subject, participants, etc.).
+  map<string, string> metadata = 5;
+}
+
+// ListAvailableInsightsRequest retrieves available insight types for content.
+message ListAvailableInsightsRequest {
+  // Unique identifier of the content item.
+  string content_id = 1;
+}
+
+// ListAvailableInsightsResponse contains insight type availability status.
+message ListAvailableInsightsResponse {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // Type of content (email, meeting, document, etc.).
+  string content_type = 2;
+
+  // Insight types available for this content type.
+  repeated string available = 3;
+
+  // Insight types already extracted and cached.
+  repeated string extracted = 4;
+
+  // Insight types pending extraction.
+  repeated string pending = 5;
+}
+
+// GetInsightsRequest retrieves cached insights for a content item.
+message GetInsightsRequest {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // List of insight types to retrieve (e.g., "summary", "action_items").
+  // If empty, returns all available insights.
+  repeated string types = 2;
+
+  // Force refresh of insights (triggers async re-extraction).
+  bool refresh = 3;
+}
+
+// Insight represents a single extracted insight.
+message Insight {
+  // Type of insight (e.g., "summary", "action_items", "key_points").
+  string type = 1;
+
+  // Structured insight data (JSON format).
+  google.protobuf.Struct data = 2;
+
+  // Timestamp when this insight was extracted.
+  google.protobuf.Timestamp extracted_at = 3;
+
+  // Model version used for extraction.
+  string model_version = 4;
+}
+
+// GetInsightsResponse contains retrieved insights.
+message GetInsightsResponse {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // List of retrieved insights.
+  repeated Insight insights = 2;
+}
+
+// =============================================================================
+// Langfuse Trace Messages
+// =============================================================================
+
+// GetContentTraceRequest retrieves Langfuse traces for a content item.
+message GetContentTraceRequest {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // Optional Langfuse environment filter (e.g., "production", "development").
+  optional string environment = 2;
+}
+
+// LangfuseTrace represents a Langfuse trace associated with content processing.
+message LangfuseTrace {
+  // Unique trace identifier from Langfuse.
+  string trace_id = 1;
+
+  // Name/description of the trace.
+  string name = 2;
+
+  // Timestamp when the trace started.
+  google.protobuf.Timestamp start_time = 3;
+
+  // Timestamp when the trace ended.
+  optional google.protobuf.Timestamp end_time = 4;
+
+  // Status of the trace (e.g., "completed", "error").
+  string status = 5;
+
+  // List of observations (generations, spans) within the trace.
+  repeated LangfuseObservation observations = 6;
+}
+
+// LangfuseObservation represents a single observation within a trace.
+message LangfuseObservation {
+  // Unique observation identifier.
+  string id = 1;
+
+  // Type of observation: "GENERATION", "SPAN", etc.
+  string type = 2;
+
+  // Name/description of the observation.
+  string name = 3;
+
+  // Model used for generation (if applicable).
+  optional string model = 4;
+
+  // Timestamp when the observation started.
+  google.protobuf.Timestamp start_time = 5;
+
+  // Timestamp when the observation ended.
+  optional google.protobuf.Timestamp end_time = 6;
+
+  // Number of input tokens (for LLM generations).
+  optional int32 input_tokens = 7;
+
+  // Number of output tokens (for LLM generations).
+  optional int32 output_tokens = 8;
+
+  // Total tokens (input + output).
+  optional int32 total_tokens = 9;
+
+  // Status of the observation.
+  string status = 10;
+
+  // Error message if observation failed.
+  optional string error = 11;
+}
+
+// GetContentTraceResponse contains Langfuse traces for a content item.
+message GetContentTraceResponse {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // List of traces associated with this content item.
+  repeated LangfuseTrace traces = 2;
+
+  // URL to view traces in the Langfuse UI.
+  string langfuse_url = 3;
+}
+
+// =============================================================================
+// Assertions Messages
+// =============================================================================
+
+// GetAssertionsRequest retrieves assertions for a content item.
+message GetAssertionsRequest {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // Optional filter by assertion type (e.g., "risk", "action_item", "decision").
+  optional string assertion_type = 2;
+}
+
+// Assertion represents a single extracted assertion.
+message Assertion {
+  // Unique identifier for this assertion.
+  int64 id = 1;
+
+  // Type of assertion (e.g., "risk", "action_item", "decision", "commitment").
+  string assertion_type = 2;
+
+  // Description of the assertion.
+  string description = 3;
+
+  // Original text quote from the source that triggered extraction.
+  optional string source_quote = 4;
+
+  // Confidence score (0.0 to 1.0).
+  float confidence = 5;
+
+  // Model identifier used for extraction (e.g., "gpt-4", "claude-3").
+  optional string extraction_model = 6;
+
+  // Timestamp when this assertion was created.
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// GetAssertionsResponse contains retrieved assertions.
+message GetAssertionsResponse {
+  // Unique identifier of the content item.
+  string content_id = 1;
+
+  // List of assertions for this content item.
+  repeated Assertion assertions = 2;
+
+  // Total count of assertions (useful if filtering is applied).
+  int32 total_count = 3;
+}
+
+// =============================================================================
+// Purge Messages
+// =============================================================================
+
+// PurgeContentItemRequest hard-deletes a content item.
+message PurgeContentItemRequest {
+  // Unique identifier of the content item to purge.
+  string content_id = 1;
+
+  // Reason for purging (for audit trail).
+  string reason = 2;
+
+  // Must be true to confirm hard delete.
+  bool confirm = 3;
+}
+
+// PurgeContentItemResponse returns the result of purging a content item.
+message PurgeContentItemResponse {
+  // Whether the purge was successful.
+  bool success = 1;
+
+  // Status message.
+  string message = 2;
+
+  // The content_id that was purged.
+  string content_id = 3;
+}
+
+// PurgeContentItemsRequest bulk hard-deletes content items.
+message PurgeContentItemsRequest {
+  // Tenant identifier for filtering.
+  string tenant_id = 1;
+
+  // Optional filter by source type.
+  optional string source_type = 2;
+
+  // Reason for purging (for audit trail).
+  string reason = 3;
+
+  // Must be true to confirm bulk hard delete.
+  bool confirm = 4;
+
+  // Maximum number of items to purge (safety limit, default 100).
+  int32 limit = 5;
+}
+
+// PurgeContentItemsResponse returns the result of bulk purge.
+message PurgeContentItemsResponse {
+  // Number of items purged.
+  int32 purged_count = 1;
+
+  // List of purged content item IDs.
+  repeated string content_ids = 2;
+
+  // Status message.
+  string message = 3;
+}
+
+// =============================================================================
+// Clear Error Messages
+// =============================================================================
+
+// ClearErrorRequest clears error fields from a content item.
+message ClearErrorRequest {
+  // Unique identifier of the content item.
+  string content_id = 1;
+}
+
+// ClearErrorResponse returns the result of clearing error fields.
+message ClearErrorResponse {
+  // Whether the operation was successful.
+  bool success = 1;
+
+  // The content_id that was updated.
+  string content_id = 2;
+
+  // Status message.
+  string message = 3;
+}

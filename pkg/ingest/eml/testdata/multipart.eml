@@ -1,0 +1,31 @@
+From: Alice Brown <alice@example.com>
+To: Bob Wilson <bob@example.com>, Carol White <carol@example.com>
+Cc: Dave Green <dave@example.com>
+Subject: Multipart Email Test
+Date: Tue, 16 Jan 2024 14:45:30 +0000
+Message-ID: <multipart456@example.com>
+In-Reply-To: <original789@example.com>
+References: <original789@example.com> <reply012@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="----=_Part_123456"
+
+------=_Part_123456
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+This is the plain text version of the email.
+
+It has multiple lines.
+
+------=_Part_123456
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+<html>
+<body>
+<p>This is the <strong>HTML</strong> version of the email.</p>
+<p>It has multiple lines.</p>
+</body>
+</html>
+
+------=_Part_123456--

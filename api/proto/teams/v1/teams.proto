@@ -1,0 +1,228 @@
+// Teams Service Protobuf Definitions
+// Provides gRPC service for team management with member assignments
+
+syntax = "proto3";
+
+package penfold.teams.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/teams/v1;teamsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// TeamsService provides gRPC endpoints for team management.
+service TeamsService {
+  // CreateTeam creates a new team.
+  rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
+
+  // GetTeam retrieves a team by ID or name.
+  rpc GetTeam(GetTeamRequest) returns (GetTeamResponse);
+
+  // ListTeams lists teams with optional filtering.
+  rpc ListTeams(ListTeamsRequest) returns (ListTeamsResponse);
+
+  // DeleteTeam deletes a team by ID.
+  rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse);
+
+  // Member management
+  // AddTeamMember adds a person to a team.
+  rpc AddTeamMember(AddTeamMemberRequest) returns (AddTeamMemberResponse);
+
+  // RemoveTeamMember removes a member from a team.
+  rpc RemoveTeamMember(RemoveTeamMemberRequest) returns (RemoveTeamMemberResponse);
+
+  // ListTeamMembers lists members for a team.
+  rpc ListTeamMembers(ListTeamMembersRequest) returns (ListTeamMembersResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// Team represents a team of people.
+message Team {
+  // Unique team identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Team name.
+  string name = 3;
+
+  // Team description.
+  string description = 4;
+
+  // When the team was created.
+  google.protobuf.Timestamp created_at = 5;
+
+  // When the team was last updated.
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// TeamInput represents input for creating or updating a team.
+message TeamInput {
+  // Team name (required).
+  string name = 1;
+
+  // Team description (optional).
+  string description = 2;
+}
+
+// TeamFilter contains filtering options for team queries.
+message TeamFilter {
+  // Tenant ID (required).
+  string tenant_id = 1;
+
+  // Search by name (partial match).
+  string name_search = 2;
+
+  // Maximum number of results.
+  int32 limit = 3;
+
+  // Pagination offset.
+  int32 offset = 4;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// CreateTeamRequest creates a new team.
+message CreateTeamRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Team input.
+  TeamInput input = 2;
+}
+
+// CreateTeamResponse returns the created team.
+message CreateTeamResponse {
+  // The created team.
+  Team team = 1;
+}
+
+// GetTeamRequest retrieves a team.
+message GetTeamRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Team ID or name.
+  string identifier = 2;
+}
+
+// GetTeamResponse returns the team.
+message GetTeamResponse {
+  // The team.
+  Team team = 1;
+}
+
+// DeleteTeamRequest deletes a team.
+message DeleteTeamRequest {
+  // Team ID to delete.
+  int64 id = 1;
+}
+
+// DeleteTeamResponse confirms deletion.
+message DeleteTeamResponse {
+  // Whether the deletion was successful.
+  bool success = 1;
+}
+
+// ListTeamsRequest lists teams.
+message ListTeamsRequest {
+  // Filter options.
+  TeamFilter filter = 1;
+}
+
+// ListTeamsResponse returns matching teams.
+message ListTeamsResponse {
+  // The matching teams.
+  repeated Team teams = 1;
+
+  // Total count of matching teams.
+  int64 total_count = 2;
+}
+
+// =============================================================================
+// Member Management Messages
+// =============================================================================
+
+// TeamMember represents membership in a team.
+message TeamMember {
+  // Unique identifier.
+  int64 id = 1;
+
+  // Team ID this member belongs to.
+  int64 team_id = 2;
+
+  // Person ID.
+  int64 person_id = 3;
+
+  // Role in the team (e.g., "member", "lead", "manager").
+  string role = 4;
+
+  // When the member joined.
+  google.protobuf.Timestamp joined_at = 5;
+
+  // Person name (populated on read operations).
+  string person_name = 6;
+
+  // Person email (populated on read operations).
+  string person_email = 7;
+}
+
+// AddTeamMemberRequest adds a person to a team.
+message AddTeamMemberRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Team ID or name.
+  string team_identifier = 2;
+
+  // Person ID or email.
+  string person_identifier = 3;
+
+  // Role in the team (default: "member").
+  string role = 4;
+}
+
+// AddTeamMemberResponse returns the created membership.
+message AddTeamMemberResponse {
+  // The created team member.
+  TeamMember member = 1;
+}
+
+// RemoveTeamMemberRequest removes a member from a team.
+message RemoveTeamMemberRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Team member ID to remove.
+  int64 member_id = 2;
+}
+
+// RemoveTeamMemberResponse confirms removal.
+message RemoveTeamMemberResponse {
+  // Whether the removal was successful.
+  bool success = 1;
+}
+
+// ListTeamMembersRequest lists members for a team.
+message ListTeamMembersRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Team ID or name.
+  string team_identifier = 2;
+}
+
+// ListTeamMembersResponse returns the team members.
+message ListTeamMembersResponse {
+  // The team members.
+  repeated TeamMember members = 1;
+}

@@ -1,0 +1,31 @@
+From: Sender Name <sender@example.com>
+To: Recipient Name <recipient@example.com>
+Subject: Email with Attachment
+Date: Wed, 17 Jan 2024 09:00:00 -0800
+Message-ID: <attachment789@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="----=_MixedBoundary"
+
+------=_MixedBoundary
+Content-Type: multipart/alternative; boundary="----=_AltBoundary"
+
+------=_AltBoundary
+Content-Type: text/plain; charset=utf-8
+
+Please find the attached document.
+
+------=_AltBoundary
+Content-Type: text/html; charset=utf-8
+
+<html><body><p>Please find the attached document.</p></body></html>
+
+------=_AltBoundary--
+
+------=_MixedBoundary
+Content-Type: text/plain; name="document.txt"
+Content-Disposition: attachment; filename="document.txt"
+Content-Transfer-Encoding: base64
+
+VGhpcyBpcyB0aGUgY29udGVudCBvZiB0aGUgYXR0YWNoZWQgZG9jdW1lbnQu
+
+------=_MixedBoundary--

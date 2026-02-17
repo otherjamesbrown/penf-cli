@@ -1,0 +1,350 @@
+// Mentions Service Protobuf Definitions
+// Provides gRPC service for unified mention resolution across entity types
+
+syntax = "proto3";
+
+package penfold.mentions.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/mentions/v1;mentionsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// MentionsService provides gRPC endpoints for mention resolution.
+// Handles resolving text mentions to canonical entities (persons, terms,
+// products, companies, projects) with context-aware ranking.
+service MentionsService {
+  // ListMentions returns mentions filtered by status, type, etc.
+  rpc ListMentions(ListMentionsRequest) returns (ListMentionsResponse);
+
+  // GetMention retrieves a single mention by ID.
+  rpc GetMention(GetMentionRequest) returns (GetMentionResponse);
+
+  // GetMentionContext returns full context for Claude-native batch processing.
+  // Includes pending mentions with candidates, existing patterns, and stats.
+  rpc GetMentionContext(GetMentionContextRequest) returns (GetMentionContextResponse);
+
+  // ResolveMention resolves a single mention to an entity.
+  rpc ResolveMention(ResolveMentionRequest) returns (ResolveMentionResponse);
+
+  // BatchResolveMentions resolves multiple mentions in one operation.
+  rpc BatchResolveMentions(BatchResolveMentionsRequest) returns (BatchResolveMentionsResponse);
+
+  // DismissMention marks a mention as dismissed (not a valid entity).
+  rpc DismissMention(DismissMentionRequest) returns (DismissMentionResponse);
+
+  // ListPatterns returns existing resolution patterns.
+  rpc ListPatterns(ListPatternsRequest) returns (ListPatternsResponse);
+
+  // CreatePattern creates a new resolution pattern.
+  rpc CreatePattern(CreatePatternRequest) returns (CreatePatternResponse);
+
+  // GetMentionStats retrieves statistics about mentions.
+  rpc GetMentionStats(GetMentionStatsRequest) returns (GetMentionStatsResponse);
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+// EntityType indicates what kind of entity is mentioned.
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_PERSON = 1;
+  ENTITY_TYPE_TERM = 2;
+  ENTITY_TYPE_PRODUCT = 3;
+  ENTITY_TYPE_COMPANY = 4;
+  ENTITY_TYPE_PROJECT = 5;
+}
+
+// MentionStatus indicates the resolution state.
+enum MentionStatus {
+  MENTION_STATUS_UNSPECIFIED = 0;
+  MENTION_STATUS_PENDING = 1;
+  MENTION_STATUS_AUTO_RESOLVED = 2;
+  MENTION_STATUS_USER_RESOLVED = 3;
+  MENTION_STATUS_DISMISSED = 4;
+}
+
+// ResolutionSource indicates how a resolution was determined.
+enum ResolutionSource {
+  RESOLUTION_SOURCE_UNSPECIFIED = 0;
+  RESOLUTION_SOURCE_EXACT_MATCH = 1;
+  RESOLUTION_SOURCE_ALIAS = 2;
+  RESOLUTION_SOURCE_FUZZY = 3;
+  RESOLUTION_SOURCE_PROJECT_CONTEXT = 4;
+  RESOLUTION_SOURCE_PRIOR_LINK = 5;
+  RESOLUTION_SOURCE_USER_CONFIRMED = 6;
+  RESOLUTION_SOURCE_PATTERN = 7;
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// Mention represents a text mention extracted from content.
+message Mention {
+  int64 id = 1;
+  int64 content_id = 2;
+  string content_type = 3;
+
+  // What was mentioned
+  EntityType entity_type = 4;
+  string mentioned_text = 5;
+  int32 position = 6;
+  string context_snippet = 7;
+
+  // Resolution
+  MentionStatus status = 8;
+  int64 resolved_entity_id = 9;
+  string resolved_entity_name = 10;
+  float resolution_confidence = 11;
+  ResolutionSource resolution_source = 12;
+
+  // For terms: expansion
+  string resolved_expansion = 13;
+
+  // Candidates (populated by GetMentionContext)
+  repeated Candidate candidates = 14;
+
+  // Project context
+  int64 project_context_id = 15;
+
+  // Timestamps
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp resolved_at = 17;
+  string resolved_by = 18;
+}
+
+// Candidate represents a potential resolution for a mention.
+message Candidate {
+  int64 entity_id = 1;
+  string entity_name = 2;
+  EntityType entity_type = 3;
+  float score = 4;
+  string match_reason = 5;
+
+  // Prior link information
+  int32 prior_links = 6;
+
+  // Project context
+  string project_role = 7;
+
+  // For terms: linked entity
+  LinkedEntity linked_entity = 8;
+}
+
+// LinkedEntity represents a canonical entity linked to a term.
+message LinkedEntity {
+  string type = 1;
+  int64 id = 2;
+  string name = 3;
+}
+
+// Pattern represents a resolution pattern for auto-resolution.
+message Pattern {
+  int64 id = 1;
+  EntityType entity_type = 2;
+  string pattern_text = 3;
+
+  // Resolution target
+  int64 resolved_entity_id = 4;
+  string resolved_entity_name = 5;
+  string resolved_expansion = 6;
+
+  // Scope
+  int64 project_id = 7;
+  bool is_permanent = 8;
+
+  // Usage tracking
+  int32 times_seen = 9;
+  int32 times_linked = 10;
+  google.protobuf.Timestamp last_seen_at = 11;
+
+  // Source
+  string source = 12;
+
+  google.protobuf.Timestamp created_at = 13;
+}
+
+// MentionStats provides statistics about mentions.
+message MentionStats {
+  int32 total_pending = 1;
+  int32 total_resolved = 2;
+  int32 total_dismissed = 3;
+  int32 patterns_count = 4;
+  map<string, int32> by_status = 5;
+  map<string, int32> by_entity_type = 6;
+  map<string, int32> by_content_type = 7;
+  int32 resolved_today = 8;
+  int32 auto_resolved_today = 9;
+}
+
+// WorkflowGuidance provides decision-making guidance for Claude.
+message WorkflowGuidance {
+  repeated WorkflowAction actions = 1;
+  repeated string auto_resolve_patterns = 2;
+  repeated string needs_review = 3;
+  string batch_resolve_command = 4;
+}
+
+// WorkflowAction describes an available action.
+message WorkflowAction {
+  string name = 1;
+  string command = 2;
+  string description = 3;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// ListMentionsRequest retrieves mentions.
+message ListMentionsRequest {
+  MentionStatus status = 1;
+  EntityType entity_type = 2;
+  int64 content_id = 3;
+  int64 project_id = 4;
+  string content_type = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+  bool include_candidates = 8;
+}
+
+message ListMentionsResponse {
+  repeated Mention mentions = 1;
+  int32 total_count = 2;
+}
+
+// GetMentionRequest retrieves a single mention.
+message GetMentionRequest {
+  int64 id = 1;
+  bool include_candidates = 2;
+}
+
+message GetMentionResponse {
+  Mention mention = 1;
+}
+
+// GetMentionContextRequest gets full context for batch processing.
+message GetMentionContextRequest {
+  MentionStatus status = 1;
+  EntityType entity_type = 2;
+  int32 limit = 3;
+  bool include_candidates = 4;
+  int32 patterns_limit = 5;
+}
+
+message GetMentionContextResponse {
+  repeated Mention mentions = 1;
+  repeated Pattern patterns = 2;
+  MentionStats stats = 3;
+  WorkflowGuidance workflow = 4;
+}
+
+// ResolveMentionRequest resolves a single mention.
+message ResolveMentionRequest {
+  int64 mention_id = 1;
+  int64 entity_id = 2;
+  EntityType entity_type = 3;
+  float confidence = 4;
+  bool create_pattern = 5;
+  string resolved_by = 6;
+}
+
+message ResolveMentionResponse {
+  bool resolved = 1;
+  Mention mention = 2;
+  bool pattern_created = 3;
+}
+
+// BatchResolveMentionsRequest resolves multiple mentions.
+message BatchResolveMentionsRequest {
+  repeated MentionResolution resolutions = 1;
+  repeated NewPattern new_patterns = 2;
+  repeated MentionDismissal dismissals = 3;
+}
+
+// MentionResolution represents a single resolution in a batch.
+message MentionResolution {
+  int64 mention_id = 1;
+  int64 entity_id = 2;
+  EntityType entity_type = 3;
+  float confidence = 4;
+  bool create_pattern = 5;
+}
+
+// NewPattern represents a new pattern to create.
+message NewPattern {
+  string mention_text = 1;
+  int64 entity_id = 2;
+  EntityType entity_type = 3;
+  int64 project_id = 4;
+  bool is_permanent = 5;
+}
+
+// MentionDismissal represents dismissing a mention.
+message MentionDismissal {
+  int64 mention_id = 1;
+  string reason = 2;
+}
+
+message BatchResolveMentionsResponse {
+  int32 resolved = 1;
+  int32 patterns_created = 2;
+  int32 dismissed = 3;
+  repeated string errors = 4;
+}
+
+// DismissMentionRequest dismisses a mention.
+message DismissMentionRequest {
+  int64 mention_id = 1;
+  string reason = 2;
+  string dismissed_by = 3;
+}
+
+message DismissMentionResponse {
+  bool dismissed = 1;
+}
+
+// ListPatternsRequest retrieves patterns.
+message ListPatternsRequest {
+  EntityType entity_type = 1;
+  int64 project_id = 2;
+  string search = 3;
+  int32 limit = 4;
+  int32 offset = 5;
+}
+
+message ListPatternsResponse {
+  repeated Pattern patterns = 1;
+  int32 total_count = 2;
+}
+
+// CreatePatternRequest creates a new pattern.
+message CreatePatternRequest {
+  string pattern_text = 1;
+  int64 entity_id = 2;
+  EntityType entity_type = 3;
+  int64 project_id = 4;
+  bool is_permanent = 5;
+  string source = 6;
+}
+
+message CreatePatternResponse {
+  bool created = 1;
+  Pattern pattern = 2;
+}
+
+// GetMentionStatsRequest retrieves statistics.
+message GetMentionStatsRequest {
+  EntityType entity_type = 1;
+  int64 project_id = 2;
+}
+
+message GetMentionStatsResponse {
+  MentionStats stats = 1;
+}

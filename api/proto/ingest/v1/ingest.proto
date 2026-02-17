@@ -1,0 +1,956 @@
+// Ingest Service Protobuf Definitions
+// Provides gRPC service for content ingestion (emails, meetings, attachments)
+
+syntax = "proto3";
+
+package penfold.ingest.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/ingest/v1;ingestv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// IngestService provides gRPC endpoints for content ingestion.
+service IngestService {
+  // IngestEmail ingests a single email with duplicate detection.
+  rpc IngestEmail(IngestEmailRequest) returns (IngestEmailResponse);
+
+  // IngestAttachment stores an attachment with parent link.
+  rpc IngestAttachment(IngestAttachmentRequest) returns (IngestAttachmentResponse);
+
+  // IngestMeeting ingests a full meeting with transcript and chat sources.
+  rpc IngestMeeting(IngestMeetingRequest) returns (IngestMeetingResponse);
+
+  // CreateIngestJob creates a batch ingestion job record.
+  rpc CreateIngestJob(CreateIngestJobRequest) returns (CreateIngestJobResponse);
+
+  // UpdateJobProgress updates job progress counts.
+  rpc UpdateJobProgress(UpdateJobProgressRequest) returns (UpdateJobProgressResponse);
+
+  // CompleteIngestJob marks a job as complete.
+  rpc CompleteIngestJob(CompleteIngestJobRequest) returns (CompleteIngestJobResponse);
+
+  // GetIngestJob retrieves job status by ID.
+  rpc GetIngestJob(GetIngestJobRequest) returns (GetIngestJobResponse);
+
+  // GetRemainingFiles retrieves unprocessed files for job resume.
+  rpc GetRemainingFiles(GetRemainingFilesRequest) returns (GetRemainingFilesResponse);
+
+  // RecordIngestError records a failed file during ingestion.
+  rpc RecordIngestError(RecordIngestErrorRequest) returns (RecordIngestErrorResponse);
+
+  // CreateSeries creates a new meeting series.
+  rpc CreateSeries(CreateSeriesRequest) returns (CreateSeriesResponse);
+
+  // ListSeries retrieves all meeting series.
+  rpc ListSeries(ListSeriesRequest) returns (ListSeriesResponse);
+
+  // GetSeries retrieves a series by ID with its meetings.
+  rpc GetSeries(GetSeriesRequest) returns (GetSeriesResponse);
+
+  // DeleteSeries deletes a series and orphans its meetings.
+  rpc DeleteSeries(DeleteSeriesRequest) returns (DeleteSeriesResponse);
+
+  // SetMeetingSeries assigns a meeting to a series.
+  rpc SetMeetingSeries(SetMeetingSeriesRequest) returns (SetMeetingSeriesResponse);
+
+  // UnsetMeetingSeries removes a meeting from its series.
+  rpc UnsetMeetingSeries(UnsetMeetingSeriesRequest) returns (UnsetMeetingSeriesResponse);
+
+  // UpdateMeeting updates meeting metadata.
+  rpc UpdateMeeting(UpdateMeetingRequest) returns (UpdateMeetingResponse);
+
+  // UpdateContent updates content metadata.
+  rpc UpdateContent(UpdateContentRequest) returns (UpdateContentResponse);
+
+  // ListMeetings retrieves meetings with optional series filter.
+  rpc ListMeetings(ListMeetingsRequest) returns (ListMeetingsResponse);
+
+  // GetMeetingRecap retrieves a meeting recap with summary and key points.
+  rpc GetMeetingRecap(GetMeetingRecapRequest) returns (GetMeetingRecapResponse);
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+// ProcessingStatus represents the processing state of ingested content.
+enum ProcessingStatus {
+  PROCESSING_STATUS_UNSPECIFIED = 0;
+  PROCESSING_STATUS_PENDING = 1;
+  PROCESSING_STATUS_PROCESSING = 2;
+  PROCESSING_STATUS_COMPLETED = 3;
+  PROCESSING_STATUS_FAILED = 4;
+  PROCESSING_STATUS_SKIPPED = 5;
+}
+
+// ErrorType represents the category of ingestion error.
+enum ErrorType {
+  ERROR_TYPE_UNSPECIFIED = 0;
+  ERROR_TYPE_PARSE_ERROR = 1;
+  ERROR_TYPE_DUPLICATE = 2;
+  ERROR_TYPE_VALIDATION = 3;
+  ERROR_TYPE_STORAGE = 4;
+  ERROR_TYPE_NETWORK = 5;
+  ERROR_TYPE_RATE_LIMIT = 6;
+  ERROR_TYPE_AUTH = 7;
+  ERROR_TYPE_UNKNOWN = 8;
+}
+
+// Platform represents the source platform for content.
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_GMAIL = 1;
+  PLATFORM_OUTLOOK = 2;
+  PLATFORM_SLACK = 3;
+  PLATFORM_TEAMS = 4;
+  PLATFORM_ZOOM = 5;
+  PLATFORM_GOOGLE_MEET = 6;
+  PLATFORM_CALENDAR = 7;
+  PLATFORM_DRIVE = 8;
+  PLATFORM_LOCAL = 9;
+}
+
+// DuplicateReason explains why content was flagged as duplicate.
+enum DuplicateReason {
+  DUPLICATE_REASON_UNSPECIFIED = 0;
+  DUPLICATE_REASON_MESSAGE_ID = 1;
+  DUPLICATE_REASON_CONTENT_HASH = 2;
+  DUPLICATE_REASON_BOTH = 3;
+}
+
+// JobStatus represents the overall status of an ingestion job.
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_CREATED = 1;
+  JOB_STATUS_RUNNING = 2;
+  JOB_STATUS_COMPLETED = 3;
+  JOB_STATUS_FAILED = 4;
+  JOB_STATUS_CANCELLED = 5;
+  JOB_STATUS_PAUSED = 6;
+}
+
+// =============================================================================
+// Core Messages - Email
+// =============================================================================
+
+// EmailAddress represents a parsed email address.
+message EmailAddress {
+  // Display name (e.g., "John Doe").
+  string name = 1;
+
+  // Email address (e.g., "john@example.com").
+  string address = 2;
+}
+
+// AttachmentMetadata represents metadata about an email attachment.
+message AttachmentMetadata {
+  // Filename of the attachment.
+  string filename = 1;
+
+  // MIME type of the attachment.
+  string mime_type = 2;
+
+  // Size in bytes.
+  int64 size_bytes = 3;
+
+  // Content hash for deduplication.
+  string content_hash = 4;
+
+  // Storage path if already stored.
+  string storage_path = 5;
+}
+
+// IngestEmailRequest ingests a single email.
+message IngestEmailRequest {
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 1;
+
+  // Unique message ID from the email system (e.g., Message-ID header).
+  string message_id = 2;
+
+  // SHA-256 hash of canonical content for deduplication.
+  string content_hash = 3;
+
+  // Sender email address.
+  EmailAddress from = 4;
+
+  // Primary recipients.
+  repeated EmailAddress to = 5;
+
+  // CC recipients.
+  repeated EmailAddress cc = 6;
+
+  // BCC recipients (if available).
+  repeated EmailAddress bcc = 7;
+
+  // Email subject line.
+  string subject = 8;
+
+  // Plain text body.
+  string body_plain = 9;
+
+  // HTML body (optional).
+  string body_html = 10;
+
+  // Attachment metadata (content stored separately).
+  repeated AttachmentMetadata attachments = 11;
+
+  // Source system identifier (e.g., "gmail", "outlook").
+  string source_system = 12;
+
+  // Source-specific tag or folder.
+  string source_tag = 13;
+
+  // Labels/folders applied to this email.
+  repeated string labels = 14;
+
+  // When the email was sent.
+  google.protobuf.Timestamp sent_at = 15;
+
+  // When the email was received.
+  google.protobuf.Timestamp received_at = 16;
+
+  // Thread ID for conversation grouping.
+  string thread_id = 17;
+
+  // In-Reply-To header for threading.
+  string in_reply_to = 18;
+
+  // References header for threading.
+  repeated string references = 19;
+
+  // Raw email headers (for debugging/extensibility).
+  map<string, string> headers = 20;
+
+  // Ingestion job ID (for batch tracking).
+  string job_id = 21;
+
+  // Content ID for unified tracing across CLI, Gateway, and Worker.
+  string content_id = 22;
+}
+
+// IngestEmailResponse returns the result of email ingestion.
+message IngestEmailResponse {
+  // Internal source ID assigned to this email.
+  string source_id = 1;
+
+  // Whether this was detected as a duplicate.
+  bool was_duplicate = 2;
+
+  // Reason for duplicate detection (if applicable).
+  DuplicateReason duplicate_reason = 3;
+
+  // ID of the existing source if duplicate.
+  string existing_source_id = 4;
+
+  // Processing status.
+  ProcessingStatus status = 5;
+
+  // Content ID echoed back to confirm what was processed.
+  string content_id = 6;
+}
+
+// =============================================================================
+// Core Messages - Attachment
+// =============================================================================
+
+// IngestAttachmentRequest stores an attachment with parent link.
+message IngestAttachmentRequest {
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 1;
+
+  // Parent source ID (email or meeting this attachment belongs to).
+  string parent_source_id = 2;
+
+  // Attachment metadata.
+  AttachmentMetadata metadata = 3;
+
+  // Raw content bytes.
+  bytes content = 4;
+
+  // Ingestion job ID (for batch tracking).
+  string job_id = 5;
+
+  // Content ID for unified tracing across CLI, Gateway, and Worker.
+  string content_id = 6;
+}
+
+// IngestAttachmentResponse returns the result of attachment ingestion.
+message IngestAttachmentResponse {
+  // Internal attachment ID.
+  string attachment_id = 1;
+
+  // Storage path where content was saved.
+  string storage_path = 2;
+
+  // Whether this was detected as a duplicate.
+  bool was_duplicate = 3;
+
+  // Processing status.
+  ProcessingStatus status = 4;
+
+  // Content ID echoed back to confirm what was processed.
+  string content_id = 5;
+}
+
+// =============================================================================
+// Core Messages - Meeting
+// =============================================================================
+
+// MeetingParticipant represents a meeting attendee.
+message MeetingParticipant {
+  // Display name.
+  string name = 1;
+
+  // Email address.
+  string email = 2;
+
+  // Whether they were the organizer.
+  bool is_organizer = 3;
+
+  // Whether they attended.
+  bool attended = 4;
+
+  // Duration attended in seconds.
+  int64 duration_seconds = 5;
+}
+
+// TranscriptSegment represents a portion of meeting transcript.
+message TranscriptSegment {
+  // Speaker name or identifier.
+  string speaker = 1;
+
+  // Transcript text.
+  string text = 2;
+
+  // Start time offset in seconds from meeting start.
+  double start_seconds = 3;
+
+  // End time offset in seconds.
+  double end_seconds = 4;
+
+  // Confidence score (0.0 to 1.0).
+  float confidence = 5;
+}
+
+// ChatMessage represents a chat message from a meeting.
+message ChatMessage {
+  // Sender name or identifier.
+  string sender = 1;
+
+  // Message text.
+  string text = 2;
+
+  // Timestamp of the message.
+  google.protobuf.Timestamp timestamp = 3;
+
+  // Whether this was a private message.
+  bool is_private = 4;
+
+  // Recipient if private message.
+  string recipient = 5;
+}
+
+// IngestMeetingRequest ingests a full meeting with transcript and chat.
+message IngestMeetingRequest {
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 1;
+
+  // External meeting ID from the platform.
+  string external_meeting_id = 2;
+
+  // Meeting title/subject.
+  string title = 3;
+
+  // Meeting description.
+  string description = 4;
+
+  // Source platform.
+  Platform platform = 5;
+
+  // Meeting organizer.
+  MeetingParticipant organizer = 6;
+
+  // All participants.
+  repeated MeetingParticipant participants = 7;
+
+  // Scheduled start time.
+  google.protobuf.Timestamp scheduled_start = 8;
+
+  // Scheduled end time.
+  google.protobuf.Timestamp scheduled_end = 9;
+
+  // Actual start time.
+  google.protobuf.Timestamp actual_start = 10;
+
+  // Actual end time.
+  google.protobuf.Timestamp actual_end = 11;
+
+  // Transcript segments.
+  repeated TranscriptSegment transcript = 12;
+
+  // Chat messages.
+  repeated ChatMessage chat_messages = 13;
+
+  // Attachment metadata (recordings, shared files).
+  repeated AttachmentMetadata attachments = 14;
+
+  // Meeting URL.
+  string meeting_url = 15;
+
+  // Calendar event ID (for linking).
+  string calendar_event_id = 16;
+
+  // Labels/tags.
+  repeated string labels = 17;
+
+  // Ingestion job ID (for batch tracking).
+  string job_id = 18;
+
+  // Content ID for unified tracing across CLI, Gateway, and Worker.
+  string content_id = 19;
+
+  // Optional: assign to series (creates if not exists).
+  string series_name = 20;
+
+  // Optional: override detected title.
+  string title_override = 21;
+
+  // Optional: override detected date (YYYY-MM-DD).
+  string date_override = 22;
+}
+
+// IngestMeetingResponse returns the result of meeting ingestion.
+message IngestMeetingResponse {
+  // Internal source ID assigned to this meeting.
+  string source_id = 1;
+
+  // Whether this was detected as a duplicate.
+  bool was_duplicate = 2;
+
+  // ID of the existing source if duplicate.
+  string existing_source_id = 3;
+
+  // Processing status.
+  ProcessingStatus status = 4;
+
+  // Number of transcript segments processed.
+  int32 transcript_segments_count = 5;
+
+  // Number of chat messages processed.
+  int32 chat_messages_count = 6;
+
+  // Content ID echoed back to confirm what was processed.
+  string content_id = 7;
+
+  // Series ID if assigned.
+  string series_id = 8;
+
+  // True if series was auto-created.
+  bool series_created = 9;
+}
+
+// =============================================================================
+// Core Messages - Meeting Series
+// =============================================================================
+
+// MeetingSeries represents a collection of related meetings.
+message MeetingSeries {
+  // Series ID.
+  string id = 1;
+
+  // Series name.
+  string name = 2;
+
+  // Series description.
+  string description = 3;
+
+  // Project ID.
+  string project_id = 4;
+
+  // When the series was created.
+  string created_at = 5;
+
+  // When the series was last updated.
+  string updated_at = 6;
+
+  // Number of meetings in this series.
+  int32 meeting_count = 7;
+}
+
+// MeetingInfo represents summary information about a meeting.
+message MeetingInfo {
+  // Meeting ID.
+  string id = 1;
+
+  // Meeting title.
+  string title = 2;
+
+  // Meeting date.
+  string date = 3;
+
+  // Source platform.
+  string platform = 4;
+}
+
+// CreateSeriesRequest creates a new meeting series.
+message CreateSeriesRequest {
+  // Series name.
+  string name = 1;
+
+  // Series description.
+  string description = 2;
+}
+
+// CreateSeriesResponse returns the created series.
+message CreateSeriesResponse {
+  // The created series.
+  MeetingSeries series = 1;
+
+  // Whether the series was newly created or already existed.
+  bool created = 2;
+}
+
+// ListSeriesRequest retrieves all meeting series.
+message ListSeriesRequest {}
+
+// ListSeriesResponse returns all series.
+message ListSeriesResponse {
+  // All series.
+  repeated MeetingSeries series = 1;
+}
+
+// GetSeriesRequest retrieves a series by ID.
+message GetSeriesRequest {
+  // Series ID.
+  string id = 1;
+}
+
+// GetSeriesResponse returns the series with its meetings.
+message GetSeriesResponse {
+  // The series.
+  MeetingSeries series = 1;
+
+  // Meetings in this series.
+  repeated MeetingInfo meetings = 2;
+}
+
+// DeleteSeriesRequest deletes a series.
+message DeleteSeriesRequest {
+  // Series ID.
+  string id = 1;
+}
+
+// DeleteSeriesResponse returns the result of deletion.
+message DeleteSeriesResponse {
+  // Whether the series was deleted.
+  bool deleted = 1;
+
+  // Number of meetings orphaned (series_id set to null).
+  int32 orphaned_meetings = 2;
+}
+
+// SetMeetingSeriesRequest assigns a meeting to a series.
+message SetMeetingSeriesRequest {
+  // Meeting ID.
+  string meeting_id = 1;
+
+  // Series name (creates if not exists).
+  string series_name = 2;
+}
+
+// SetMeetingSeriesResponse returns the result of assignment.
+message SetMeetingSeriesResponse {
+  // Whether the meeting was updated.
+  bool updated = 1;
+
+  // Series ID assigned.
+  string series_id = 2;
+
+  // Whether the series was auto-created.
+  bool series_created = 3;
+}
+
+// UnsetMeetingSeriesRequest removes a meeting from its series.
+message UnsetMeetingSeriesRequest {
+  // Meeting ID.
+  string meeting_id = 1;
+}
+
+// UnsetMeetingSeriesResponse returns the result of removal.
+message UnsetMeetingSeriesResponse {
+  // Whether the meeting was updated.
+  bool updated = 1;
+}
+
+// UpdateMeetingRequest updates meeting metadata.
+message UpdateMeetingRequest {
+  // Meeting ID (content_id from sources table).
+  string meeting_id = 1;
+
+  // Optional: new title.
+  optional string title = 2;
+
+  // Optional: new date (YYYY-MM-DD or RFC3339).
+  optional string date = 3;
+
+  // Optional: series name (creates if not exists).
+  optional string series_name = 4;
+
+  // Optional: description/notes.
+  optional string description = 5;
+}
+
+// UpdateMeetingResponse returns the updated meeting.
+message UpdateMeetingResponse {
+  // Updated meeting info.
+  MeetingInfo meeting = 1;
+
+  // Series ID if assigned.
+  string series_id = 2;
+
+  // True if series was auto-created.
+  bool series_created = 3;
+}
+
+// UpdateContentRequest updates content metadata.
+message UpdateContentRequest {
+  // Content ID.
+  string content_id = 1;
+
+  // Optional: new title.
+  optional string title = 2;
+
+  // Optional: tags (replaces existing).
+  repeated string tags = 3;
+
+  // Optional: category.
+  optional string category = 4;
+}
+
+// UpdateContentResponse returns the updated content.
+message UpdateContentResponse {
+  // Content ID.
+  string content_id = 1;
+
+  // Updated title.
+  string title = 2;
+
+  // Updated tags.
+  repeated string tags = 3;
+
+  // Updated category.
+  string category = 4;
+}
+
+// ListMeetingsRequest retrieves meetings with optional series filter.
+message ListMeetingsRequest {
+  // Optional: Filter by series name.
+  string series_name = 1;
+
+  // Optional: Limit number of results (default: 50).
+  int32 limit = 2;
+
+  // Optional: Filter meetings since this timestamp.
+  google.protobuf.Timestamp since = 3;
+
+  // Optional: Filter by participant email (meetings this person attended).
+  string participant_email = 4;
+
+  // Optional: Exclude meetings with this participant.
+  string exclude_participant_email = 5;
+
+  // Optional: Only include meetings with assertion changes.
+  bool has_changes = 6;
+
+  // Optional: Filter to meetings linked to these project IDs.
+  repeated int64 project_ids = 7;
+}
+
+// ListMeetingsResponse returns matching meetings.
+message ListMeetingsResponse {
+  // Matching meetings.
+  repeated MeetingInfo meetings = 1;
+}
+
+// MeetingRecap represents a meeting summary with extracted key points.
+message MeetingRecap {
+  // Meeting information.
+  MeetingInfo meeting = 1;
+
+  // Summary of the meeting.
+  string summary = 2;
+
+  // Key decisions made.
+  repeated string key_decisions = 3;
+
+  // Action items identified.
+  repeated string action_items = 4;
+
+  // Risks flagged.
+  repeated string risks = 5;
+
+  // Number of participants.
+  int32 participant_count = 6;
+}
+
+// GetMeetingRecapRequest retrieves a meeting recap.
+message GetMeetingRecapRequest {
+  // Optional: Filter by series name (with most_recent).
+  string series_name = 1;
+
+  // Optional: Get specific meeting by source ID.
+  string source_id = 2;
+
+  // Optional: Get most recent in series.
+  bool most_recent = 3;
+}
+
+// GetMeetingRecapResponse returns the meeting recap.
+message GetMeetingRecapResponse {
+  // Meeting recap.
+  MeetingRecap recap = 1;
+}
+
+// =============================================================================
+// Core Messages - Job Management
+// =============================================================================
+
+// IngestJob represents a batch ingestion job.
+message IngestJob {
+  // Job ID.
+  string id = 1;
+
+  // Tenant ID.
+  string tenant_id = 2;
+
+  // Job name/description.
+  string name = 3;
+
+  // Source platform.
+  Platform platform = 4;
+
+  // Job status.
+  JobStatus status = 5;
+
+  // Total files to process.
+  int64 total_files = 6;
+
+  // Files processed successfully.
+  int64 processed_count = 7;
+
+  // Files that failed.
+  int64 failed_count = 8;
+
+  // Files skipped (duplicates, etc.).
+  int64 skipped_count = 9;
+
+  // When the job was created.
+  google.protobuf.Timestamp created_at = 10;
+
+  // When the job started processing.
+  google.protobuf.Timestamp started_at = 11;
+
+  // When the job completed.
+  google.protobuf.Timestamp completed_at = 12;
+
+  // Error message if job failed.
+  string error_message = 13;
+
+  // Source path or identifier.
+  string source_path = 14;
+
+  // Job metadata.
+  map<string, string> metadata = 15;
+}
+
+// RemainingFile represents a file that still needs processing.
+message RemainingFile {
+  // File path or identifier.
+  string file_path = 1;
+
+  // File size in bytes.
+  int64 size_bytes = 2;
+
+  // Last modification time.
+  google.protobuf.Timestamp modified_at = 3;
+
+  // Number of previous attempts.
+  int32 attempt_count = 4;
+
+  // Last error if previously failed.
+  string last_error = 5;
+}
+
+// IngestError represents a recorded ingestion error.
+message IngestError {
+  // Error ID.
+  string id = 1;
+
+  // Job ID.
+  string job_id = 2;
+
+  // File path or identifier that failed.
+  string file_path = 3;
+
+  // Error type.
+  ErrorType error_type = 4;
+
+  // Error message.
+  string error_message = 5;
+
+  // Stack trace (if available).
+  string stack_trace = 6;
+
+  // When the error occurred.
+  google.protobuf.Timestamp occurred_at = 7;
+
+  // Number of retry attempts.
+  int32 retry_count = 8;
+
+  // Whether this error is retryable.
+  bool is_retryable = 9;
+}
+
+// =============================================================================
+// Request/Response Messages - Job Management
+// =============================================================================
+
+// CreateIngestJobRequest creates a new ingestion job.
+message CreateIngestJobRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Job name/description.
+  string name = 2;
+
+  // Source platform.
+  Platform platform = 3;
+
+  // Total files to process.
+  int64 total_files = 4;
+
+  // Source path or identifier.
+  string source_path = 5;
+
+  // Job metadata.
+  map<string, string> metadata = 6;
+}
+
+// CreateIngestJobResponse returns the created job.
+message CreateIngestJobResponse {
+  // The created job.
+  IngestJob job = 1;
+}
+
+// UpdateJobProgressRequest updates job progress counters.
+message UpdateJobProgressRequest {
+  // Job ID.
+  string job_id = 1;
+
+  // Increment processed count by this amount.
+  int64 processed_delta = 2;
+
+  // Increment failed count by this amount.
+  int64 failed_delta = 3;
+
+  // Increment skipped count by this amount.
+  int64 skipped_delta = 4;
+}
+
+// UpdateJobProgressResponse returns the updated job.
+message UpdateJobProgressResponse {
+  // The updated job.
+  IngestJob job = 1;
+}
+
+// CompleteIngestJobRequest marks a job as complete.
+message CompleteIngestJobRequest {
+  // Job ID.
+  string job_id = 1;
+
+  // Whether the job completed successfully.
+  bool success = 2;
+
+  // Error message if job failed.
+  string error_message = 3;
+}
+
+// CompleteIngestJobResponse returns the completed job.
+message CompleteIngestJobResponse {
+  // The completed job.
+  IngestJob job = 1;
+}
+
+// GetIngestJobRequest retrieves a job by ID.
+message GetIngestJobRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Job ID.
+  string job_id = 2;
+}
+
+// GetIngestJobResponse returns the job.
+message GetIngestJobResponse {
+  // The job.
+  IngestJob job = 1;
+}
+
+// GetRemainingFilesRequest retrieves unprocessed files for job resume.
+message GetRemainingFilesRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Job ID.
+  string job_id = 2;
+
+  // Maximum number of files to return.
+  int32 limit = 3;
+
+  // Pagination offset.
+  int32 offset = 4;
+}
+
+// GetRemainingFilesResponse returns unprocessed files.
+message GetRemainingFilesResponse {
+  // Remaining files to process.
+  repeated RemainingFile files = 1;
+
+  // Total count of remaining files.
+  int64 total_count = 2;
+}
+
+// RecordIngestErrorRequest records an ingestion error.
+message RecordIngestErrorRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Job ID.
+  string job_id = 2;
+
+  // File path or identifier that failed.
+  string file_path = 3;
+
+  // Error type.
+  ErrorType error_type = 4;
+
+  // Error message.
+  string error_message = 5;
+
+  // Stack trace (if available).
+  string stack_trace = 6;
+
+  // Whether this error is retryable.
+  bool is_retryable = 7;
+}
+
+// RecordIngestErrorResponse returns the recorded error.
+message RecordIngestErrorResponse {
+  // The recorded error.
+  IngestError error = 1;
+}

@@ -1,0 +1,88 @@
+// Threads Service Protobuf Definitions
+// Provides gRPC service for email thread queries
+
+syntax = "proto3";
+
+package penfold.threads.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/threads/v1;threadsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// ThreadsService provides gRPC endpoints for querying email threads.
+service ThreadsService {
+  // List threads with pagination
+  rpc ListThreads(ListThreadsRequest) returns (ListThreadsResponse);
+
+  // Get a single thread with all messages
+  rpc GetThread(GetThreadRequest) returns (GetThreadResponse);
+}
+
+// =============================================================================
+// List Threads Messages
+// =============================================================================
+
+// ListThreadsRequest requests a paginated list of threads.
+message ListThreadsRequest {
+  string tenant_id = 1;
+  int32 limit = 2;   // Max results
+  int32 offset = 3;  // Pagination offset
+}
+
+// ListThreadsResponse returns matching threads.
+message ListThreadsResponse {
+  repeated ThreadSummary threads = 1;
+  int64 total_count = 2;  // Total matching threads (for pagination)
+}
+
+// ThreadSummary represents a thread in the list view.
+message ThreadSummary {
+  int64 id = 1;
+  string subject = 2;
+  int32 message_count = 3;
+  google.protobuf.Timestamp first_message_at = 4;
+  google.protobuf.Timestamp last_message_at = 5;
+  repeated int64 participant_ids = 6;
+  optional string summary = 7;  // Thread summary (if available)
+  int64 latest_source_id = 8;
+  string root_message_id = 9;   // Message-ID of the thread root
+}
+
+// =============================================================================
+// Get Thread Messages
+// =============================================================================
+
+// GetThreadRequest requests a single thread with all messages.
+message GetThreadRequest {
+  string tenant_id = 1;
+  int64 thread_id = 2;
+}
+
+// GetThreadResponse returns a thread with all messages.
+message GetThreadResponse {
+  int64 id = 1;
+  string subject = 2;
+  int32 message_count = 3;
+  google.protobuf.Timestamp first_message_at = 4;
+  google.protobuf.Timestamp last_message_at = 5;
+  repeated int64 participant_ids = 6;
+  optional string summary = 7;
+  repeated ThreadMessage messages = 8;
+}
+
+// ThreadMessage represents a message in a thread.
+message ThreadMessage {
+  int64 source_id = 1;
+  string message_id = 2;
+  int32 position_in_thread = 3;
+  google.protobuf.Timestamp message_date = 4;
+  string from_email = 5;
+  string from_name = 6;
+  string subject = 7;
+  string body_preview = 8;
+  bool is_reply = 9;
+}

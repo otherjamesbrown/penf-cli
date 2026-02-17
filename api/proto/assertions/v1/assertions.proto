@@ -1,0 +1,129 @@
+// Assertions Service Protobuf Definitions
+// Provides gRPC service for cross-content assertion queries
+
+syntax = "proto3";
+
+package penfold.assertions.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/assertions/v1;assertionsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// AssertionsService provides gRPC endpoints for querying assertions across all content.
+service AssertionsService {
+  // List assertions with optional filters (type, date range, attribution, project)
+  rpc ListAssertions(ListAssertionsRequest) returns (ListAssertionsResponse);
+
+  // Search assertions by keyword in description and source_quote
+  rpc SearchAssertions(SearchAssertionsRequest) returns (SearchAssertionsResponse);
+
+  // Get aggregate summary statistics for assertions
+  rpc GetAssertionSummary(GetAssertionSummaryRequest) returns (AssertionSummaryResponse);
+}
+
+// =============================================================================
+// List Assertions Messages
+// =============================================================================
+
+// ListAssertionsRequest lists assertions with filters.
+message ListAssertionsRequest {
+  string tenant_id = 1;
+  optional string assertion_type = 2;  // Filter by type (e.g., "decision", "risk", "action")
+  optional google.protobuf.Timestamp since = 3;  // Filter by content date >= since
+  optional google.protobuf.Timestamp until = 4;  // Filter by content date <= until
+  optional string attributed_to = 5;  // Filter by person name (fuzzy match)
+  optional int64 project_id = 6;  // Filter by project
+  int32 limit = 7;   // Max results (default 50, max 500)
+  int32 offset = 8;  // Pagination offset
+  bool show_source = 9;  // Include source context in response
+}
+
+// ListAssertionsResponse returns matching assertions.
+message ListAssertionsResponse {
+  repeated AssertionDetail assertions = 1;
+  int64 total_count = 2;  // Total matching assertions (for pagination)
+}
+
+// =============================================================================
+// Search Assertions Messages
+// =============================================================================
+
+// SearchAssertionsRequest searches assertions by keyword.
+message SearchAssertionsRequest {
+  string tenant_id = 1;
+  string query = 2;  // Keyword to search in description and source_quote
+  optional string assertion_type = 3;  // Filter by type
+  optional google.protobuf.Timestamp since = 4;  // Filter by content date
+  optional google.protobuf.Timestamp until = 5;
+  int32 limit = 6;   // Max results (default 50, max 500)
+  int32 offset = 7;
+  bool show_source = 8;
+}
+
+// SearchAssertionsResponse returns matching assertions.
+message SearchAssertionsResponse {
+  repeated AssertionDetail assertions = 1;
+  int64 total_count = 2;
+}
+
+// =============================================================================
+// Summary Messages
+// =============================================================================
+
+// GetAssertionSummaryRequest requests aggregate statistics.
+message GetAssertionSummaryRequest {
+  string tenant_id = 1;
+  optional google.protobuf.Timestamp since = 2;  // Stats since this date
+  optional google.protobuf.Timestamp until = 3;  // Stats until this date
+  string group_by = 4;  // Group by: "type", "project", "person" (default: "type")
+}
+
+// AssertionSummaryResponse returns aggregate statistics.
+message AssertionSummaryResponse {
+  repeated SummaryEntry entries = 1;
+  int64 total_assertions = 2;
+}
+
+// SummaryEntry represents aggregated assertion statistics.
+message SummaryEntry {
+  string key = 1;  // Type name, project name, or person name (depending on group_by)
+  int64 count = 2;  // Total count
+  int64 this_week = 3;  // Count from last 7 days
+  int64 last_week = 4;  // Count from 7-14 days ago
+}
+
+// =============================================================================
+// Shared Messages
+// =============================================================================
+
+// AssertionDetail represents a single assertion with context.
+message AssertionDetail {
+  int64 id = 1;
+  string assertion_type = 2;
+  string description = 3;
+  optional string source_quote = 4;
+  float confidence = 5;
+  repeated Attribution attributed_to = 6;
+  optional SourceContext source = 7;  // Only populated if show_source=true
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// Attribution represents a person attributed to an assertion.
+message Attribution {
+  string entity_id = 1;
+  string name = 2;
+  string role = 3;  // "owner", "assignee", "decision_maker", "mentioned"
+}
+
+// SourceContext provides metadata about the assertion's source.
+message SourceContext {
+  string content_id = 1;
+  string source_type = 2;  // "email", "slack", "document", "meeting"
+  optional string subject = 3;
+  optional google.protobuf.Timestamp date = 4;
+  optional string from = 5;  // Sender/author name
+}

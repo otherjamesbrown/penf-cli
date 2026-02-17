@@ -1,0 +1,322 @@
+// Project Service Protobuf Definitions
+// Provides gRPC service for project management with keywords and Jira integration
+
+syntax = "proto3";
+
+package penfold.project.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/project/v1;projectv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// ProjectService provides gRPC endpoints for project management.
+service ProjectService {
+  // CreateProject creates a new project.
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+
+  // GetProject retrieves a project by ID or name.
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+
+  // UpdateProject updates an existing project.
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
+
+  // DeleteProject deletes a project by ID.
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+
+  // ListProjects lists projects with optional filtering.
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+
+  // GetProjectContext retrieves comprehensive project context for drill-down.
+  rpc GetProjectContext(GetProjectContextRequest) returns (GetProjectContextResponse);
+
+  // Member management
+  // ListProjectMembers lists members (people and teams) for a project.
+  rpc ListProjectMembers(ListProjectMembersRequest) returns (ListProjectMembersResponse);
+
+  // AddProjectMember adds a person or team to a project.
+  rpc AddProjectMember(AddProjectMemberRequest) returns (AddProjectMemberResponse);
+
+  // RemoveProjectMember removes a member from a project.
+  rpc RemoveProjectMember(RemoveProjectMemberRequest) returns (RemoveProjectMemberResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// Project represents a business project with keywords and Jira integration.
+message Project {
+  // Unique project identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Project name.
+  string name = 3;
+
+  // Project description.
+  string description = 4;
+
+  // Keywords for matching content to this project.
+  repeated string keywords = 5;
+
+  // Jira project keys linked to this project.
+  repeated string jira_projects = 6;
+
+  // When the project was created.
+  google.protobuf.Timestamp created_at = 7;
+
+  // When the project was last updated.
+  google.protobuf.Timestamp updated_at = 8;
+
+  // Project status: "active" or "archived".
+  string status = 9;
+}
+
+// ProjectInput represents input for creating or updating a project.
+message ProjectInput {
+  // Project name (required).
+  string name = 1;
+
+  // Project description (optional).
+  string description = 2;
+
+  // Keywords for matching content to this project.
+  repeated string keywords = 3;
+
+  // Jira project keys linked to this project.
+  repeated string jira_projects = 4;
+}
+
+// ProjectFilter contains filtering options for project queries.
+message ProjectFilter {
+  // Tenant ID (required).
+  string tenant_id = 1;
+
+  // Search by name (partial match).
+  string name_search = 2;
+
+  // Filter by keyword (projects containing this keyword).
+  string keyword = 3;
+
+  // Filter by Jira project key.
+  string jira_project = 4;
+
+  // Maximum number of results.
+  int32 limit = 5;
+
+  // Pagination offset.
+  int32 offset = 6;
+
+  // Filter by project status (e.g., "active", "archived").
+  string status = 7;
+
+  // Sort order: "name", "activity", "created" (default: "name").
+  string sort_by = 8;
+
+  // Always include projects with these names (overrides status filter).
+  repeated string always_include_names = 9;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// CreateProjectRequest creates a new project.
+message CreateProjectRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Project input.
+  ProjectInput input = 2;
+}
+
+// CreateProjectResponse returns the created project.
+message CreateProjectResponse {
+  // The created project.
+  Project project = 1;
+}
+
+// GetProjectRequest retrieves a project.
+message GetProjectRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Project ID or name.
+  string identifier = 2;
+}
+
+// GetProjectResponse returns the project.
+message GetProjectResponse {
+  // The project.
+  Project project = 1;
+}
+
+// UpdateProjectRequest updates an existing project.
+message UpdateProjectRequest {
+  // Project ID to update.
+  int64 id = 1;
+
+  // Updated project input.
+  ProjectInput input = 2;
+}
+
+// UpdateProjectResponse returns the updated project.
+message UpdateProjectResponse {
+  // The updated project.
+  Project project = 1;
+}
+
+// DeleteProjectRequest deletes a project.
+message DeleteProjectRequest {
+  // Project ID to delete.
+  int64 id = 1;
+}
+
+// DeleteProjectResponse confirms deletion.
+message DeleteProjectResponse {
+  // Whether the deletion was successful.
+  bool success = 1;
+}
+
+// ListProjectsRequest lists projects.
+message ListProjectsRequest {
+  // Filter options.
+  ProjectFilter filter = 1;
+}
+
+// ListProjectsResponse returns matching projects.
+message ListProjectsResponse {
+  // The matching projects.
+  repeated Project projects = 1;
+
+  // Total count of matching projects.
+  int64 total_count = 2;
+}
+
+// =============================================================================
+// Member Management Messages
+// =============================================================================
+
+// ProjectMember represents membership in a project (person or team).
+message ProjectMember {
+  // Unique identifier.
+  int64 id = 1;
+
+  // Project ID this member belongs to.
+  int64 project_id = 2;
+
+  // Person ID (mutually exclusive with team_id).
+  optional int64 person_id = 3;
+
+  // Team ID (mutually exclusive with person_id).
+  optional int64 team_id = 4;
+
+  // Role in the project (e.g., "contributor", "lead", "sponsor").
+  string role = 5;
+
+  // When the member was added.
+  google.protobuf.Timestamp added_at = 6;
+
+  // Person name (populated on read operations if person_id is set).
+  string person_name = 7;
+
+  // Person email (populated on read operations if person_id is set).
+  string person_email = 8;
+
+  // Team name (populated on read operations if team_id is set).
+  string team_name = 9;
+}
+
+// ListProjectMembersRequest lists members for a project.
+message ListProjectMembersRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Project ID, or name.
+  string project_identifier = 2;
+}
+
+// ListProjectMembersResponse returns the project members.
+message ListProjectMembersResponse {
+  // The project members.
+  repeated ProjectMember members = 1;
+}
+
+// AddProjectMemberRequest adds a person or team to a project.
+message AddProjectMemberRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Project ID or name.
+  string project_identifier = 2;
+
+  // Person ID or email (mutually exclusive with team_identifier).
+  string person_identifier = 3;
+
+  // Team ID or name (mutually exclusive with person_identifier).
+  string team_identifier = 4;
+
+  // Role in the project (default: "contributor").
+  string role = 5;
+}
+
+// AddProjectMemberResponse returns the created membership.
+message AddProjectMemberResponse {
+  // The created project member.
+  ProjectMember member = 1;
+}
+
+// RemoveProjectMemberRequest removes a member from a project.
+message RemoveProjectMemberRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Project member ID to remove.
+  int64 member_id = 2;
+}
+
+// RemoveProjectMemberResponse confirms removal.
+message RemoveProjectMemberResponse {
+  // Whether the removal was successful.
+  bool success = 1;
+}
+
+// =============================================================================
+// Project Context Messages
+// =============================================================================
+
+// GetProjectContextRequest requests comprehensive project context.
+message GetProjectContextRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Project name or ID.
+  string name = 2;
+}
+
+// GetProjectContextResponse returns comprehensive project drill-down data.
+message GetProjectContextResponse {
+  // The project.
+  Project project = 1;
+
+  // Number of recent meetings associated with this project.
+  int32 recent_meeting_count = 2;
+
+  // Number of open action items.
+  int32 open_action_count = 3;
+
+  // Number of identified risks.
+  int32 risk_count = 4;
+
+  // Recent decisions (summary text).
+  repeated string recent_decisions = 5;
+
+  // Last activity timestamp (ISO 8601).
+  string last_activity = 6;
+}

@@ -1,0 +1,359 @@
+// Glossary Service Protobuf Definitions
+// Provides gRPC service for managing terminology and query expansion
+
+syntax = "proto3";
+
+package penfold.glossary.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/glossary/v1;glossaryv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// GlossaryService provides gRPC endpoints for managing glossary terms.
+// Terms are used for query expansion during search to improve recall.
+service GlossaryService {
+  // AddTerm adds a new term to the glossary.
+  rpc AddTerm(AddTermRequest) returns (AddTermResponse);
+
+  // GetTerm retrieves a term by ID or term string.
+  rpc GetTerm(GetTermRequest) returns (GetTermResponse);
+
+  // ListTerms returns a filtered list of glossary terms.
+  rpc ListTerms(ListTermsRequest) returns (ListTermsResponse);
+
+  // UpdateTerm updates an existing glossary term.
+  rpc UpdateTerm(UpdateTermRequest) returns (UpdateTermResponse);
+
+  // DeleteTerm removes a term from the glossary.
+  rpc DeleteTerm(DeleteTermRequest) returns (DeleteTermResponse);
+
+  // ExpandQuery expands a search query using glossary terms.
+  rpc ExpandQuery(ExpandQueryRequest) returns (ExpandQueryResponse);
+
+  // LookupTerm looks up a specific term and returns its expansion.
+  rpc LookupTerm(LookupTermRequest) returns (LookupTermResponse);
+
+  // LinkTerm links a glossary term to an entity (product, project, company).
+  rpc LinkTerm(LinkTermRequest) returns (LinkTermResponse);
+
+  // UnlinkTerm removes the entity link from a glossary term.
+  rpc UnlinkTerm(UnlinkTermRequest) returns (UnlinkTermResponse);
+
+  // ListLinkedTerms returns all terms linked to entities.
+  rpc ListLinkedTerms(ListLinkedTermsRequest) returns (ListLinkedTermsResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// LinkedEntity represents a product, project, or company that a term links to.
+message LinkedEntity {
+  // Entity type: product, project, company.
+  string entity_type = 1;
+
+  // Entity ID.
+  int64 entity_id = 2;
+
+  // Entity name (populated on read).
+  string entity_name = 3;
+}
+
+// Term represents a glossary entry.
+message Term {
+  // Unique identifier.
+  int64 id = 1;
+
+  // The term/acronym (e.g., "TER").
+  string term = 2;
+
+  // Full expansion (e.g., "Technical Execution Review").
+  string expansion = 3;
+
+  // Optional longer definition.
+  string definition = 4;
+
+  // Context tags (e.g., ["MTC", "meetings"]).
+  repeated string context = 5;
+
+  // Alternative forms/aliases.
+  repeated string aliases = 6;
+
+  // Whether to use this term for query expansion.
+  bool expand_in_search = 7;
+
+  // Source of the term (e.g., "manual", "review_queue").
+  string source = 8;
+
+  // When the term was created.
+  google.protobuf.Timestamp created_at = 9;
+
+  // When the term was last updated.
+  google.protobuf.Timestamp updated_at = 10;
+
+  // Linked entity (if term represents a product/project/company).
+  LinkedEntity linked_entity = 11;
+}
+
+// ExpansionResult represents a term expansion found in a query.
+message ExpansionResult {
+  // The original term found in the query.
+  string original_term = 1;
+
+  // The expanded form.
+  string expansion = 2;
+
+  // Any aliases for this term.
+  repeated string aliases = 3;
+
+  // Definition if available.
+  string definition = 4;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// AddTermRequest adds a new term to the glossary.
+message AddTermRequest {
+  // The term/acronym to add.
+  string term = 1;
+
+  // Full expansion of the term.
+  string expansion = 2;
+
+  // Optional definition.
+  string definition = 3;
+
+  // Context tags.
+  repeated string context = 4;
+
+  // Alternative forms/aliases.
+  repeated string aliases = 5;
+
+  // Whether to use for query expansion (default: true).
+  bool expand_in_search = 6;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 7;
+}
+
+// AddTermResponse confirms the term was added.
+message AddTermResponse {
+  // The created term.
+  Term term = 1;
+}
+
+// GetTermRequest retrieves a term by ID or name.
+message GetTermRequest {
+  // Get by ID.
+  int64 id = 1;
+
+  // Or get by term string (case-insensitive).
+  string term = 2;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 3;
+}
+
+// GetTermResponse contains the requested term.
+message GetTermResponse {
+  // The term, or null if not found.
+  Term term = 1;
+}
+
+// ListTermsRequest retrieves a filtered list of terms.
+message ListTermsRequest {
+  // Filter by term (exact match).
+  string term = 1;
+
+  // Search across term, expansion, and definition.
+  string search = 2;
+
+  // Filter by context tags.
+  repeated string context = 3;
+
+  // Filter by source.
+  string source = 4;
+
+  // Only return terms used for query expansion.
+  bool expand_only = 5;
+
+  // Maximum results (default: 50).
+  int32 limit = 6;
+
+  // Pagination offset.
+  int32 offset = 7;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 8;
+}
+
+// ListTermsResponse contains the list of terms.
+message ListTermsResponse {
+  // The matching terms.
+  repeated Term terms = 1;
+
+  // Total count of matching terms.
+  int64 total_count = 2;
+}
+
+// UpdateTermRequest updates an existing term.
+message UpdateTermRequest {
+  // ID of the term to update.
+  int64 id = 1;
+
+  // New expansion (optional).
+  optional string expansion = 2;
+
+  // New definition (optional).
+  optional string definition = 3;
+
+  // New context tags (replaces existing).
+  repeated string context = 4;
+
+  // New aliases (replaces existing).
+  repeated string aliases = 5;
+
+  // Update expand_in_search flag.
+  optional bool expand_in_search = 6;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 7;
+}
+
+// UpdateTermResponse confirms the update.
+message UpdateTermResponse {
+  // The updated term.
+  Term term = 1;
+}
+
+// DeleteTermRequest removes a term.
+message DeleteTermRequest {
+  // ID of the term to delete.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 2;
+}
+
+// DeleteTermResponse confirms deletion.
+message DeleteTermResponse {
+  // Whether the term was deleted.
+  bool deleted = 1;
+}
+
+// ExpandQueryRequest expands a search query using glossary terms.
+message ExpandQueryRequest {
+  // The original query to expand.
+  string query = 1;
+
+  // Only use terms matching these context tags.
+  repeated string context = 2;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 3;
+}
+
+// ExpandQueryResponse contains the expanded query.
+message ExpandQueryResponse {
+  // The original query.
+  string original_query = 1;
+
+  // The expanded query with OR clauses.
+  string expanded_query = 2;
+
+  // Terms that were expanded.
+  repeated ExpansionResult expanded_terms = 3;
+}
+
+// LookupTermRequest looks up a specific term.
+message LookupTermRequest {
+  // The term to look up.
+  string term = 1;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 2;
+}
+
+// LookupTermResponse contains the lookup result.
+message LookupTermResponse {
+  // Whether the term was found.
+  bool found = 1;
+
+  // The expansion result if found.
+  ExpansionResult result = 2;
+}
+
+// LinkTermRequest links a term to an entity.
+message LinkTermRequest {
+  // Term ID to link (one of term_id or term_str required).
+  int64 term_id = 1;
+
+  // Term string to link (alternative to term_id).
+  string term_str = 2;
+
+  // Entity type: product, project, company.
+  string entity_type = 3;
+
+  // Entity ID.
+  int64 entity_id = 4;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 5;
+}
+
+// LinkTermResponse confirms the link was created.
+message LinkTermResponse {
+  // The updated term with linked entity.
+  Term term = 1;
+}
+
+// UnlinkTermRequest removes an entity link from a term.
+message UnlinkTermRequest {
+  // Term ID to unlink (one of term_id or term_str required).
+  int64 term_id = 1;
+
+  // Term string to unlink (alternative to term_id).
+  string term_str = 2;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 3;
+}
+
+// UnlinkTermResponse confirms the link was removed.
+message UnlinkTermResponse {
+  // The updated term without linked entity.
+  Term term = 1;
+}
+
+// ListLinkedTermsRequest retrieves terms linked to entities.
+message ListLinkedTermsRequest {
+  // Filter by entity type (optional).
+  string entity_type = 1;
+
+  // Filter by entity ID (optional).
+  int64 entity_id = 2;
+
+  // Maximum results (default: 100).
+  int32 limit = 3;
+
+  // Pagination offset.
+  int32 offset = 4;
+
+  // Tenant ID for multi-tenant isolation.
+  string tenant_id = 5;
+}
+
+// ListLinkedTermsResponse contains linked terms.
+message ListLinkedTermsResponse {
+  // Terms with entity links.
+  repeated Term terms = 1;
+
+  // Total count of linked terms.
+  int64 total_count = 2;
+}

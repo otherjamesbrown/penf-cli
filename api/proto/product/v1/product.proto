@@ -1,0 +1,1073 @@
+// Product Service Protobuf Definitions
+// Provides gRPC service for product management with hierarchy and aliases
+
+syntax = "proto3";
+
+package penfold.product.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/product/v1;productv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// ProductService provides gRPC endpoints for product management.
+service ProductService {
+  // CreateProduct creates a new product.
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+
+  // GetProduct retrieves a product by ID or name/alias.
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+
+  // UpdateProduct updates an existing product.
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+
+  // DeleteProduct deletes a product by ID.
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse);
+
+  // ListProducts lists products with optional filtering.
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+
+  // GetHierarchy retrieves the product hierarchy tree.
+  rpc GetHierarchy(GetHierarchyRequest) returns (GetHierarchyResponse);
+
+  // AddAlias adds an alias to a product.
+  rpc AddAlias(AddAliasRequest) returns (AliasResponse);
+
+  // RemoveAlias removes an alias from a product.
+  rpc RemoveAlias(RemoveAliasRequest) returns (AliasResponse);
+
+  // ListAliases lists all aliases for a product.
+  rpc ListAliases(ListAliasesRequest) returns (ListAliasesResponse);
+
+  // Timeline/Event management
+  // ListProductEvents lists events for a product with optional filtering.
+  rpc ListProductEvents(ListProductEventsRequest) returns (ListProductEventsResponse);
+
+  // CreateProductEvent creates a new timeline event for a product.
+  rpc CreateProductEvent(CreateProductEventRequest) returns (CreateProductEventResponse);
+
+  // GetProductEvent retrieves a specific event by ID.
+  rpc GetProductEvent(GetProductEventRequest) returns (GetProductEventResponse);
+
+  // DeleteProductEvent deletes an event by ID.
+  rpc DeleteProductEvent(DeleteProductEventRequest) returns (DeleteProductEventResponse);
+
+  // LinkProductEvent links an event to another entity.
+  rpc LinkProductEvent(LinkProductEventRequest) returns (LinkProductEventResponse);
+
+  // GetEventContext retrieves events around a specific point in time.
+  rpc GetEventContext(GetEventContextRequest) returns (GetEventContextResponse);
+
+  // Team management
+  // ListProductTeams lists teams associated with a product.
+  rpc ListProductTeams(ListProductTeamsRequest) returns (ListProductTeamsResponse);
+
+  // AddProductTeam associates a team with a product.
+  rpc AddProductTeam(AddProductTeamRequest) returns (AddProductTeamResponse);
+
+  // RemoveProductTeam removes a team association from a product.
+  rpc RemoveProductTeam(RemoveProductTeamRequest) returns (RemoveProductTeamResponse);
+
+  // Role management
+  // ListProductTeamRoles lists roles for a product team.
+  rpc ListProductTeamRoles(ListProductTeamRolesRequest) returns (ListProductTeamRolesResponse);
+
+  // AddProductTeamRole assigns a role to a person in a product team.
+  rpc AddProductTeamRole(AddProductTeamRoleRequest) returns (AddProductTeamRoleResponse);
+
+  // EndProductTeamRole ends an active role assignment.
+  rpc EndProductTeamRole(EndProductTeamRoleRequest) returns (EndProductTeamRoleResponse);
+
+  // GetProductTeamRole retrieves a specific role assignment.
+  rpc GetProductTeamRole(GetProductTeamRoleRequest) returns (GetProductTeamRoleResponse);
+
+  // FindByRole finds people by role across products.
+  rpc FindByRole(FindByRoleRequest) returns (FindByRoleResponse);
+
+  // ListProductPeople lists all people associated with a product through teams.
+  rpc ListProductPeople(ListProductPeopleRequest) returns (ListProductPeopleResponse);
+
+  // Natural language query for products.
+  rpc QueryProducts(QueryProductsRequest) returns (QueryProductsResponse);
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+// ProductType represents the type/level of a product in the hierarchy.
+enum ProductType {
+  PRODUCT_TYPE_UNSPECIFIED = 0;
+  PRODUCT_TYPE_PRODUCT = 1;
+  PRODUCT_TYPE_SUB_PRODUCT = 2;
+  PRODUCT_TYPE_FEATURE = 3;
+}
+
+// ProductStatus represents the lifecycle status of a product.
+enum ProductStatus {
+  PRODUCT_STATUS_UNSPECIFIED = 0;
+  PRODUCT_STATUS_ACTIVE = 1;
+  PRODUCT_STATUS_BETA = 2;
+  PRODUCT_STATUS_SUNSET = 3;
+  PRODUCT_STATUS_DEPRECATED = 4;
+}
+
+// EventType represents the type of timeline event.
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_DECISION = 1;
+  EVENT_TYPE_MILESTONE = 2;
+  EVENT_TYPE_RISK = 3;
+  EVENT_TYPE_RELEASE = 4;
+  EVENT_TYPE_COMPETITOR = 5;
+  EVENT_TYPE_ORG_CHANGE = 6;
+  EVENT_TYPE_MARKET = 7;
+  EVENT_TYPE_NOTE = 8;
+}
+
+// EventVisibility indicates whether an event is internal or external.
+enum EventVisibility {
+  EVENT_VISIBILITY_UNSPECIFIED = 0;
+  EVENT_VISIBILITY_INTERNAL = 1;
+  EVENT_VISIBILITY_EXTERNAL = 2;
+}
+
+// EventSourceType indicates how an event was created.
+enum EventSourceType {
+  EVENT_SOURCE_TYPE_UNSPECIFIED = 0;
+  EVENT_SOURCE_TYPE_MANUAL = 1;
+  EVENT_SOURCE_TYPE_EMAIL = 2;
+  EVENT_SOURCE_TYPE_MEETING = 3;
+  EVENT_SOURCE_TYPE_DOCUMENT = 4;
+}
+
+// LinkType indicates the relationship between an event and a linked entity.
+enum LinkType {
+  LINK_TYPE_UNSPECIFIED = 0;
+  LINK_TYPE_SOURCE = 1;
+  LINK_TYPE_REFERENCE = 2;
+  LINK_TYPE_FOLLOW_UP = 3;
+}
+
+// QueryType indicates the type of query being executed.
+enum QueryType {
+  QUERY_TYPE_UNSPECIFIED = 0;
+  QUERY_TYPE_SEARCH = 1;
+  QUERY_TYPE_ROLE = 2;
+  QUERY_TYPE_TEAM = 3;
+  QUERY_TYPE_TIMELINE = 4;
+  QUERY_TYPE_HIERARCHY = 5;
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// PersonRoleInfo represents a person's role information for query results.
+// This is different from ProductTeamRole - it's a flattened view for query responses.
+message PersonRoleInfo {
+  int64 person_id = 1;
+  string person_name = 2;
+  string person_email = 3;
+  string role = 4;
+  string scope = 5;
+  string team_name = 6;
+  string team_context = 7;
+  string product_name = 8;
+}
+
+// Product represents a business product with hierarchy support.
+message Product {
+  // Unique product identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Product name.
+  string name = 3;
+
+  // Product description.
+  string description = 4;
+
+  // Parent product ID (for hierarchy).
+  optional int64 parent_id = 5;
+
+  // Product type in the hierarchy.
+  ProductType product_type = 6;
+
+  // Product lifecycle status.
+  ProductStatus status = 7;
+
+  // Keywords for searching.
+  repeated string keywords = 8;
+
+  // When the product was created.
+  google.protobuf.Timestamp created_at = 9;
+
+  // When the product was last updated.
+  google.protobuf.Timestamp updated_at = 10;
+
+  // Parent product name (populated on read operations).
+  string parent_name = 11;
+
+  // Aliases for this product (populated on read operations).
+  repeated string aliases = 12;
+}
+
+// ProductInput represents input for creating or updating a product.
+message ProductInput {
+  // Product name (required).
+  string name = 1;
+
+  // Product description (optional).
+  string description = 2;
+
+  // Parent product name or ID (optional).
+  string parent = 3;
+
+  // Product type (default: PRODUCT).
+  ProductType product_type = 4;
+
+  // Product status (default: ACTIVE).
+  ProductStatus status = 5;
+
+  // Keywords for searching.
+  repeated string keywords = 6;
+}
+
+// ProductWithHierarchy represents a product with its hierarchy depth and path.
+message ProductWithHierarchy {
+  // The product.
+  Product product = 1;
+
+  // Depth in the hierarchy (0 = root).
+  int32 depth = 2;
+
+  // Full path to this product (e.g., "LKE > Managed Databases > PostgreSQL").
+  string path = 3;
+}
+
+// ProductAlias represents an alternative name for a product.
+message ProductAlias {
+  // Alias ID.
+  int64 id = 1;
+
+  // Product ID this alias belongs to.
+  int64 product_id = 2;
+
+  // The alias string.
+  string alias = 3;
+
+  // When the alias was created.
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// ProductFilter contains filtering options for product queries.
+message ProductFilter {
+  // Tenant ID (required).
+  string tenant_id = 1;
+
+  // Filter by parent product name or ID.
+  string parent = 2;
+
+  // Filter by product type.
+  ProductType product_type = 3;
+
+  // Filter by status.
+  ProductStatus status = 4;
+
+  // Search by name.
+  string name_search = 5;
+
+  // Maximum number of results.
+  int32 limit = 6;
+
+  // Pagination offset.
+  int32 offset = 7;
+
+  // List all products (not just top-level).
+  bool include_all = 8;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// CreateProductRequest creates a new product.
+message CreateProductRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product input.
+  ProductInput input = 2;
+}
+
+// CreateProductResponse returns the created product.
+message CreateProductResponse {
+  // The created product.
+  Product product = 1;
+}
+
+// GetProductRequest retrieves a product.
+message GetProductRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string identifier = 2;
+}
+
+// GetProductResponse returns the product.
+message GetProductResponse {
+  // The product.
+  Product product = 1;
+}
+
+// UpdateProductRequest updates an existing product.
+message UpdateProductRequest {
+  // Product ID to update.
+  int64 id = 1;
+
+  // Updated product input.
+  ProductInput input = 2;
+}
+
+// UpdateProductResponse returns the updated product.
+message UpdateProductResponse {
+  // The updated product.
+  Product product = 1;
+}
+
+// DeleteProductRequest deletes a product.
+message DeleteProductRequest {
+  // Product ID to delete.
+  int64 id = 1;
+}
+
+// DeleteProductResponse confirms deletion.
+message DeleteProductResponse {
+  // Whether the deletion was successful.
+  bool success = 1;
+}
+
+// ListProductsRequest lists products.
+message ListProductsRequest {
+  // Filter options.
+  ProductFilter filter = 1;
+}
+
+// ListProductsResponse returns matching products.
+message ListProductsResponse {
+  // The matching products.
+  repeated Product products = 1;
+
+  // Total count of matching products.
+  int64 total_count = 2;
+}
+
+// GetHierarchyRequest retrieves product hierarchy.
+message GetHierarchyRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias to start from.
+  string identifier = 2;
+}
+
+// GetHierarchyResponse returns the hierarchy tree.
+message GetHierarchyResponse {
+  // Products in hierarchy order (depth-first).
+  repeated ProductWithHierarchy hierarchy = 1;
+}
+
+// AddAliasRequest adds an alias to a product.
+message AddAliasRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string identifier = 2;
+
+  // The alias to add.
+  string alias = 3;
+}
+
+// RemoveAliasRequest removes an alias from a product.
+message RemoveAliasRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string identifier = 2;
+
+  // The alias to remove.
+  string alias = 3;
+}
+
+// AliasResponse confirms alias operation.
+message AliasResponse {
+  // Whether the operation was successful.
+  bool success = 1;
+
+  // The product name.
+  string product_name = 2;
+
+  // The alias involved.
+  string alias = 3;
+}
+
+// ListAliasesRequest lists aliases for a product.
+message ListAliasesRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string identifier = 2;
+}
+
+// ListAliasesResponse returns the aliases.
+message ListAliasesResponse {
+  // The product name.
+  string product_name = 1;
+
+  // The aliases.
+  repeated ProductAlias aliases = 2;
+}
+
+// =============================================================================
+// Event Messages
+// =============================================================================
+
+// ProductEvent represents a timeline entry for a product.
+message ProductEvent {
+  // Unique event identifier.
+  int64 id = 1;
+
+  // UUID for external reference.
+  string event_uuid = 2;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 3;
+
+  // Product ID this event belongs to.
+  int64 product_id = 4;
+
+  // Type of event.
+  EventType event_type = 5;
+
+  // Visibility of the event.
+  EventVisibility visibility = 6;
+
+  // How the event was created.
+  EventSourceType source_type = 7;
+
+  // Event title.
+  string title = 8;
+
+  // Event description.
+  string description = 9;
+
+  // When the event occurred.
+  google.protobuf.Timestamp occurred_at = 10;
+
+  // Who recorded this event.
+  string recorded_by = 11;
+
+  // Additional metadata as JSON.
+  string metadata_json = 12;
+
+  // When the event was created.
+  google.protobuf.Timestamp created_at = 13;
+
+  // When the event was last updated.
+  google.protobuf.Timestamp updated_at = 14;
+
+  // Product name (populated on read operations).
+  string product_name = 15;
+
+  // Links to other entities (populated on read operations).
+  repeated ProductEventLink links = 16;
+}
+
+// ProductEventInput represents input for creating an event.
+message ProductEventInput {
+  // Type of event (required).
+  EventType event_type = 1;
+
+  // Visibility of the event (default: internal).
+  EventVisibility visibility = 2;
+
+  // How the event was created (default: manual).
+  EventSourceType source_type = 3;
+
+  // Event title (required).
+  string title = 4;
+
+  // Event description (optional).
+  string description = 5;
+
+  // When the event occurred (required).
+  google.protobuf.Timestamp occurred_at = 6;
+
+  // Who recorded this event (optional).
+  string recorded_by = 7;
+
+  // Additional metadata as JSON (optional).
+  string metadata_json = 8;
+}
+
+// ProductEventLink links an event to other entities.
+message ProductEventLink {
+  // Link identifier.
+  int64 id = 1;
+
+  // Event ID this link belongs to.
+  int64 event_id = 2;
+
+  // Type of linked entity (meeting, email, document, etc.).
+  string linked_entity_type = 3;
+
+  // ID of the linked entity.
+  int64 linked_entity_id = 4;
+
+  // Type of link relationship.
+  LinkType link_type = 5;
+
+  // When the link was created.
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// EventFilter contains filtering options for event queries.
+message EventFilter {
+  // Tenant ID (required).
+  string tenant_id = 1;
+
+  // Filter by product ID (optional).
+  optional int64 product_id = 2;
+
+  // Filter by event types (optional).
+  repeated EventType event_types = 3;
+
+  // Filter by visibility (optional).
+  EventVisibility visibility = 4;
+
+  // Filter events since this time (optional).
+  google.protobuf.Timestamp since = 5;
+
+  // Filter events until this time (optional).
+  google.protobuf.Timestamp until = 6;
+
+  // Maximum number of results.
+  int32 limit = 7;
+
+  // Pagination offset.
+  int32 offset = 8;
+}
+
+// ContextWindow represents events around a specific point in time.
+message ContextWindow {
+  // The center time of the window.
+  google.protobuf.Timestamp center_time = 1;
+
+  // Start of the context window.
+  google.protobuf.Timestamp window_start = 2;
+
+  // End of the context window.
+  google.protobuf.Timestamp window_end = 3;
+
+  // The event at the center (if any).
+  ProductEvent center_event = 4;
+
+  // Events before the center time.
+  repeated ProductEvent events_before = 5;
+
+  // Events after the center time.
+  repeated ProductEvent events_after = 6;
+}
+
+// =============================================================================
+// Event Request/Response Messages
+// =============================================================================
+
+// ListProductEventsRequest lists events for a product.
+message ListProductEventsRequest {
+  // Filter options.
+  EventFilter filter = 1;
+}
+
+// ListProductEventsResponse returns matching events.
+message ListProductEventsResponse {
+  // The matching events.
+  repeated ProductEvent events = 1;
+
+  // Total count of matching events.
+  int64 total_count = 2;
+}
+
+// CreateProductEventRequest creates a new event.
+message CreateProductEventRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string product_identifier = 2;
+
+  // Event input.
+  ProductEventInput input = 3;
+}
+
+// CreateProductEventResponse returns the created event.
+message CreateProductEventResponse {
+  // The created event.
+  ProductEvent event = 1;
+}
+
+// GetProductEventRequest retrieves an event.
+message GetProductEventRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Event ID or UUID.
+  string identifier = 2;
+}
+
+// GetProductEventResponse returns the event.
+message GetProductEventResponse {
+  // The event.
+  ProductEvent event = 1;
+}
+
+// DeleteProductEventRequest deletes an event.
+message DeleteProductEventRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Event ID or UUID.
+  string identifier = 2;
+}
+
+// DeleteProductEventResponse confirms deletion.
+message DeleteProductEventResponse {
+  // Whether the deletion was successful.
+  bool success = 1;
+}
+
+// LinkProductEventRequest links an event to another entity.
+message LinkProductEventRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Event ID or UUID.
+  string event_identifier = 2;
+
+  // Type of entity to link (meeting, email, document, etc.).
+  string linked_entity_type = 3;
+
+  // ID of the entity to link.
+  int64 linked_entity_id = 4;
+
+  // Type of link relationship.
+  LinkType link_type = 5;
+}
+
+// LinkProductEventResponse returns the created link.
+message LinkProductEventResponse {
+  // The created link.
+  ProductEventLink link = 1;
+}
+
+// GetEventContextRequest retrieves events around a point in time.
+message GetEventContextRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string product_identifier = 2;
+
+  // Center time for the context window.
+  google.protobuf.Timestamp center_time = 3;
+
+  // Optional: specific event ID or UUID to center on.
+  string event_identifier = 4;
+
+  // Number of events before the center time (default: 5).
+  int32 events_before_count = 5;
+
+  // Number of events after the center time (default: 5).
+  int32 events_after_count = 6;
+}
+
+// GetEventContextResponse returns the context window.
+message GetEventContextResponse {
+  // The context window with surrounding events.
+  ContextWindow context = 1;
+}
+
+// =============================================================================
+// Team Management Messages
+// =============================================================================
+
+// ProductTeam represents an association between a product and a team.
+message ProductTeam {
+  // Unique identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Product ID this team is associated with.
+  int64 product_id = 3;
+
+  // Team ID from the entities system.
+  int64 team_id = 4;
+
+  // Context describes the team's relationship (e.g., "Core Team", "DRI Team").
+  string context = 5;
+
+  // Team name (populated on read operations).
+  string team_name = 6;
+
+  // Product name (populated on read operations).
+  string product_name = 7;
+
+  // When the association was created.
+  google.protobuf.Timestamp created_at = 8;
+
+  // When the association was last updated.
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// ProductTeamRole represents a scoped role assignment.
+// A person has a role in the context of a product through a team.
+message ProductTeamRole {
+  // Unique identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Product team ID this role belongs to.
+  int64 product_team_id = 3;
+
+  // Person ID from the entities system.
+  int64 person_id = 4;
+
+  // Role name (e.g., "DRI", "Manager", "Lead").
+  string role = 5;
+
+  // Optional scope within the role (e.g., "Networking", "Database").
+  string scope = 6;
+
+  // Whether this role assignment is currently active.
+  bool is_active = 7;
+
+  // When this role started.
+  google.protobuf.Timestamp started_at = 8;
+
+  // When this role ended (if not active).
+  google.protobuf.Timestamp ended_at = 9;
+
+  // Person name (populated on read operations).
+  string person_name = 10;
+
+  // Person email (populated on read operations).
+  string person_email = 11;
+
+  // Team name (populated on read operations).
+  string team_name = 12;
+
+  // Product name (populated on read operations).
+  string product_name = 13;
+
+  // Team context (populated on read operations).
+  string team_context = 14;
+
+  // When the record was created.
+  google.protobuf.Timestamp created_at = 15;
+
+  // When the record was last updated.
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+// Team represents a team from the entities system.
+message Team {
+  // Unique identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Team name.
+  string name = 3;
+
+  // Team description.
+  string description = 4;
+
+  // When the team was created.
+  google.protobuf.Timestamp created_at = 5;
+
+  // When the team was last updated.
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// Person represents a person from the entities system.
+message Person {
+  // Unique identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Canonical name.
+  string canonical_name = 3;
+
+  // Primary email address.
+  string primary_email = 4;
+
+  // Job title.
+  string title = 5;
+
+  // Department.
+  string department = 6;
+
+  // Company.
+  string company = 7;
+
+  // Whether this is an internal person.
+  bool is_internal = 8;
+}
+
+// =============================================================================
+// Team Management Request/Response Messages
+// =============================================================================
+
+// ListProductTeamsRequest lists teams for a product.
+message ListProductTeamsRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string product_identifier = 2;
+}
+
+// ListProductTeamsResponse returns the product teams.
+message ListProductTeamsResponse {
+  // The product teams.
+  repeated ProductTeam teams = 1;
+}
+
+// AddProductTeamRequest associates a team with a product.
+message AddProductTeamRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string product_identifier = 2;
+
+  // Team ID or name.
+  string team_identifier = 3;
+
+  // Context describing the relationship (e.g., "Core Team", "DRI Team").
+  string context = 4;
+}
+
+// AddProductTeamResponse returns the created association.
+message AddProductTeamResponse {
+  // The created product team.
+  ProductTeam product_team = 1;
+}
+
+// RemoveProductTeamRequest removes a team association.
+message RemoveProductTeamRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product team ID to remove.
+  int64 product_team_id = 2;
+}
+
+// RemoveProductTeamResponse confirms removal.
+message RemoveProductTeamResponse {
+  // Whether the removal was successful.
+  bool success = 1;
+}
+
+// =============================================================================
+// Role Management Request/Response Messages
+// =============================================================================
+
+// ListProductTeamRolesRequest lists roles for a product team.
+message ListProductTeamRolesRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product team ID.
+  int64 product_team_id = 2;
+
+  // Only return active roles.
+  bool active_only = 3;
+}
+
+// ListProductTeamRolesResponse returns the roles.
+message ListProductTeamRolesResponse {
+  // The roles.
+  repeated ProductTeamRole roles = 1;
+}
+
+// AddProductTeamRoleRequest assigns a role to a person.
+message AddProductTeamRoleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product team ID.
+  int64 product_team_id = 2;
+
+  // Person ID or email.
+  string person_identifier = 3;
+
+  // Role name (e.g., "DRI", "Manager", "Lead").
+  string role = 4;
+
+  // Optional scope within the role (e.g., "Networking", "Database").
+  string scope = 5;
+
+  // When this role started (defaults to now).
+  google.protobuf.Timestamp started_at = 6;
+}
+
+// AddProductTeamRoleResponse returns the created role.
+message AddProductTeamRoleResponse {
+  // The created role.
+  ProductTeamRole role = 1;
+}
+
+// EndProductTeamRoleRequest ends an active role.
+message EndProductTeamRoleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Role ID to end.
+  int64 role_id = 2;
+
+  // When the role ended (defaults to now).
+  google.protobuf.Timestamp ended_at = 3;
+}
+
+// EndProductTeamRoleResponse confirms the role was ended.
+message EndProductTeamRoleResponse {
+  // The updated role.
+  ProductTeamRole role = 1;
+}
+
+// GetProductTeamRoleRequest retrieves a specific role.
+message GetProductTeamRoleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Role ID.
+  int64 role_id = 2;
+}
+
+// GetProductTeamRoleResponse returns the role.
+message GetProductTeamRoleResponse {
+  // The role.
+  ProductTeamRole role = 1;
+}
+
+// FindByRoleRequest finds people by role across products.
+message FindByRoleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Role to search for (e.g., "DRI", "Manager").
+  string role = 2;
+
+  // Optional: filter by product (ID, name, or alias).
+  string product_identifier = 3;
+
+  // Optional: filter by team (ID or name).
+  string team_identifier = 4;
+
+  // Optional: filter by scope.
+  string scope = 5;
+
+  // Only return active roles (default: true).
+  bool active_only = 6;
+}
+
+// FindByRoleResponse returns matching roles.
+message FindByRoleResponse {
+  // The matching roles.
+  repeated ProductTeamRole roles = 1;
+}
+
+// ListProductPeopleRequest lists people associated with a product.
+message ListProductPeopleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Product ID, name, or alias.
+  string product_identifier = 2;
+
+  // Only return people with active roles.
+  bool active_only = 3;
+}
+
+// ProductPersonSummary represents a person's involvement with a product.
+message ProductPersonSummary {
+  // The person.
+  Person person = 1;
+
+  // Teams this person belongs to for this product.
+  repeated string team_names = 2;
+
+  // Roles this person has for this product.
+  repeated ProductTeamRole roles = 3;
+}
+
+// ListProductPeopleResponse returns people associated with a product.
+message ListProductPeopleResponse {
+  // People with their team and role information.
+  repeated ProductPersonSummary people = 1;
+}
+
+// =============================================================================
+// Query Messages
+// =============================================================================
+
+// QueryProductsRequest is a natural language query for products.
+message QueryProductsRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Natural language query.
+  string query = 2;
+}
+
+// QueryProductsResponse returns results based on query type.
+message QueryProductsResponse {
+  // Type of query that was executed.
+  QueryType type = 1;
+
+  // Human-readable summary of the results.
+  string message = 2;
+
+  // Results based on query type - for search results.
+  repeated Product products = 3;
+
+  // Results based on query type - for role queries.
+  repeated PersonRoleInfo persons = 4;
+
+  // Results based on query type - for team queries.
+  repeated ProductTeam teams = 5;
+
+  // Results based on query type - for timeline queries.
+  repeated ProductEvent events = 6;
+
+  // Results based on query type - for hierarchy queries.
+  repeated ProductWithHierarchy hierarchy = 7;
+}
