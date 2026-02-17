@@ -86,6 +86,9 @@ service PipelineService {
 
   // DiffPipelineRuns compares two pipeline runs for a source to show what changed.
   rpc DiffPipelineRuns(DiffPipelineRunsRequest) returns (DiffPipelineRunsResponse);
+
+  // GetStageConfig retrieves unified per-stage configuration (model + timeout).
+  rpc GetStageConfig(GetStageConfigRequest) returns (GetStageConfigResponse);
 }
 
 // =============================================================================
@@ -985,4 +988,41 @@ message StageDiff {
 message DiffPipelineRunsResponse {
   // List of differences found.
   repeated StageDiff diffs = 1;
+}
+
+// =============================================================================
+// Per-Stage Configuration Messages
+// =============================================================================
+
+// GetStageConfigRequest requests unified per-stage configuration.
+message GetStageConfigRequest {
+  // Optional: filter by specific stage (empty = all stages).
+  string stage = 1;
+}
+
+// StageConfigEntry represents unified model + timeout config for a pipeline stage.
+message StageConfigEntry {
+  // Stage identifier (e.g., "triage", "extract_entities").
+  string stage = 1;
+
+  // Model ID configured for this stage.
+  string model = 2;
+
+  // StartToClose timeout as duration string (e.g., "120s").
+  string timeout = 3;
+
+  // Heartbeat timeout as duration string (e.g., "30s").
+  string heartbeat = 4;
+
+  // Source of model config: "db", "env", "default".
+  string model_source = 5;
+
+  // Source of timeout config: "db", "default".
+  string timeout_source = 6;
+}
+
+// GetStageConfigResponse contains per-stage configuration entries.
+message GetStageConfigResponse {
+  // Configuration for each pipeline stage.
+  repeated StageConfigEntry stages = 1;
 }

@@ -46,6 +46,7 @@ const (
 	PipelineService_InspectStage_FullMethodName        = "/penfold.pipeline.v1.PipelineService/InspectStage"
 	PipelineService_DiffStageRuns_FullMethodName       = "/penfold.pipeline.v1.PipelineService/DiffStageRuns"
 	PipelineService_DiffPipelineRuns_FullMethodName    = "/penfold.pipeline.v1.PipelineService/DiffPipelineRuns"
+	PipelineService_GetStageConfig_FullMethodName      = "/penfold.pipeline.v1.PipelineService/GetStageConfig"
 )
 
 // PipelineServiceClient is the client API for PipelineService service.
@@ -102,6 +103,8 @@ type PipelineServiceClient interface {
 	DiffStageRuns(ctx context.Context, in *DiffStageRunsRequest, opts ...grpc.CallOption) (*DiffStageRunsResponse, error)
 	// DiffPipelineRuns compares two pipeline runs for a source to show what changed.
 	DiffPipelineRuns(ctx context.Context, in *DiffPipelineRunsRequest, opts ...grpc.CallOption) (*DiffPipelineRunsResponse, error)
+	// GetStageConfig retrieves unified per-stage configuration (model + timeout).
+	GetStageConfig(ctx context.Context, in *GetStageConfigRequest, opts ...grpc.CallOption) (*GetStageConfigResponse, error)
 }
 
 type pipelineServiceClient struct {
@@ -352,6 +355,16 @@ func (c *pipelineServiceClient) DiffPipelineRuns(ctx context.Context, in *DiffPi
 	return out, nil
 }
 
+func (c *pipelineServiceClient) GetStageConfig(ctx context.Context, in *GetStageConfigRequest, opts ...grpc.CallOption) (*GetStageConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetStageConfigResponse)
+	err := c.cc.Invoke(ctx, PipelineService_GetStageConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PipelineServiceServer is the server API for PipelineService service.
 // All implementations must embed UnimplementedPipelineServiceServer
 // for forward compatibility.
@@ -406,6 +419,8 @@ type PipelineServiceServer interface {
 	DiffStageRuns(context.Context, *DiffStageRunsRequest) (*DiffStageRunsResponse, error)
 	// DiffPipelineRuns compares two pipeline runs for a source to show what changed.
 	DiffPipelineRuns(context.Context, *DiffPipelineRunsRequest) (*DiffPipelineRunsResponse, error)
+	// GetStageConfig retrieves unified per-stage configuration (model + timeout).
+	GetStageConfig(context.Context, *GetStageConfigRequest) (*GetStageConfigResponse, error)
 	mustEmbedUnimplementedPipelineServiceServer()
 }
 
@@ -487,6 +502,9 @@ func (UnimplementedPipelineServiceServer) DiffStageRuns(context.Context, *DiffSt
 }
 func (UnimplementedPipelineServiceServer) DiffPipelineRuns(context.Context, *DiffPipelineRunsRequest) (*DiffPipelineRunsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DiffPipelineRuns not implemented")
+}
+func (UnimplementedPipelineServiceServer) GetStageConfig(context.Context, *GetStageConfigRequest) (*GetStageConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStageConfig not implemented")
 }
 func (UnimplementedPipelineServiceServer) mustEmbedUnimplementedPipelineServiceServer() {}
 func (UnimplementedPipelineServiceServer) testEmbeddedByValue()                         {}
@@ -941,6 +959,24 @@ func _PipelineService_DiffPipelineRuns_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PipelineService_GetStageConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStageConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).GetStageConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_GetStageConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).GetStageConfig(ctx, req.(*GetStageConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PipelineService_ServiceDesc is the grpc.ServiceDesc for PipelineService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1043,6 +1079,10 @@ var PipelineService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DiffPipelineRuns",
 			Handler:    _PipelineService_DiffPipelineRuns_Handler,
+		},
+		{
+			MethodName: "GetStageConfig",
+			Handler:    _PipelineService_GetStageConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

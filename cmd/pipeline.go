@@ -92,6 +92,7 @@ Related Commands:
 	cmd.AddCommand(newPipelineErrorsCmd(pipelineDeps))
 	cmd.AddCommand(newPipelineInspectCmd(pipelineDeps))
 	cmd.AddCommand(newPipelineDiffCmd(pipelineDeps))
+	cmd.AddCommand(newPipelineStageCmd(pipelineDeps))
 
 	return cmd
 }
