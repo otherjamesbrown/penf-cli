@@ -13,8 +13,8 @@ func TestNewReprocessCommand(t *testing.T) {
 		t.Fatal("NewReprocessCommand() returned nil")
 	}
 
-	if cmd.Use != "reprocess" {
-		t.Errorf("NewReprocessCommand().Use = %q, want %q", cmd.Use, "reprocess")
+	if cmd.Use != "reprocess <content-id>" {
+		t.Errorf("NewReprocessCommand().Use = %q, want %q", cmd.Use, "reprocess <content-id>")
 	}
 }
 
