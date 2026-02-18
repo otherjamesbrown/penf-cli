@@ -1,65 +1,39 @@
 # Pickup
 
-Restore working state after context clear. Supports parallel sessions with optional tags.
+Resume from a handoff shard. Read it, restore context, close it.
 
 ## Arguments: $ARGUMENTS
 
-Optional: Tag to restore (e.g., `A`, `penfv`). Omit to choose from recent handoffs.
+Ignored.
 
 ## Instructions
 
-### Step 1: Load Session
+### Step 1: Find Handoff Shards
 
 ```bash
-cxp session show
+cxp shard list --type handoff --status open
 ```
 
-### Step 2: Find the Right Checkpoint
+**If none found:** "No handoff to pick up." Stop.
 
-Parse the session output for lines starting with `[handoff...]`.
+**If one found:** Load it directly.
 
-**If a tag was provided** (`$ARGUMENTS` is not empty):
-- Find the LATEST checkpoint matching `[handoff:TAG]`
-- Restore from it directly
+**If multiple found:** List them with titles and ages, ask James which one. Wait for answer before continuing.
 
-**If no tag was provided:**
-- Extract all recent `[handoff...]` entries (tagged and untagged)
-- If only ONE recent handoff exists: show it and ask "This one?" before restoring
-- If MULTIPLE exist: list them with timestamps and one-line summaries, ask which one
-
-Display format for the list:
-```
-Recent handoffs:
-  14:30 [A] penfv tab rendering
-  14:25 [B] email threading
-  13:00     glossary cleanup
-Which one?
-```
-
-Wait for James to pick before continuing.
-
-### Step 2.5: Load Playbook
-
-If you haven't already read your playbook this session, do it now before continuing:
+### Step 2: Read and Restore
 
 ```bash
-cxp knowledge show penfold-playbook
+cxp shard show <shard-id>
 ```
 
-### Step 3: Restore Context
+Extract the working state: what we're doing, what's done, what's next.
 
-From the matched checkpoint, extract:
+### Step 3: Close the Handoff Shard
 
-1. **What we're working on** - Penfold feature/issue
-2. **What's done** - Already completed
-3. **Current state** - What's working/broken
-4. **Next step** - My immediate action
-5. **Key context** - Decisions, blockers
-
-Also load relevant memories:
+It's been consumed. Close it so it doesn't show up again.
 
 ```bash
-cxp memory search "status"
+cxp shard close <shard-id>
 ```
 
 ### Step 4: Process Inbox
@@ -72,23 +46,12 @@ If there are unread messages:
 1. Read **resolutions** first — these close out work items
 2. Read **pre-deploy reviews** — need sign-off
 3. Skim acks/progress for anything unexpected
-4. Mark all as read
 
-**Flag to James** anything that needs a decision or changed something unexpected.
+**Flag to James** anything that needs a decision.
 
 If inbox is empty, move on silently.
 
-### Step 5: Quick Health Check
-
-```bash
-penf status
-penf health
-ssh dev02 'nomad status'
-```
-
-**Flag immediately** if any Nomad job is not `running`.
-
-### Step 6: Resume Quietly
+### Step 5: Resume Quietly
 
 **Don't explain to James.** He knows what we're doing.
 
@@ -98,16 +61,13 @@ Good:
 Bad:
 > "I've loaded the checkpoint. We were working on X. The state is Y..."
 
-### Step 7: Flag Changes Only
-
 Only speak up if something changed since the handoff:
 
-> "Picked up. Note: 2 new messages from mycroft — threading Wave 1 deployed. Continue?"
+> "Picked up. Note: 2 messages from mycroft — timeout bug fixed. Continue?"
 
 ## Key Principles
 
-- **Ask if ambiguous** - No tag = show options, don't guess
-- **Silent load** - Don't narrate the restore process
-- **Quick confirmation** - Signal readiness in one line
-- **Flag actual changes** - In Penfold state, not CP bookkeeping
-- **Health check** - Catch crashes early, especially cost-burning ones
+- **Read and close** — handoff shards are temporary memory, consumed on pickup
+- **Silent load** — don't narrate the restore process
+- **Quick confirmation** — signal readiness in one line
+- **Flag actual changes** — inbox items, not bookkeeping
