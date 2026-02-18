@@ -7,10 +7,30 @@
 
 set -euo pipefail
 
-# Try the proper inject command first (requires Phase 1)
-if cxp session inject --tag main 2>/dev/null; then
+# Session context: inject + board + focus shard details
+cxp session inject --tag main 2>/dev/null && {
+  echo ""
+  cxp session board 2>/dev/null || true
+
+  # Load playbook
+  echo ""
+  echo "# Playbook #"
+  echo ""
+  cxp knowledge show penfold-playbook 2>/dev/null || true
+
+  # Fetch full content of focus shards
+  FOCUS_IDS=$(cxp session board -o json 2>/dev/null | jq -r '.focus[]?.id // empty' 2>/dev/null)
+  if [ -n "$FOCUS_IDS" ]; then
+    echo ""
+    echo "# Focus Shard Details #"
+    for id in $FOCUS_IDS; do
+      echo ""
+      cxp shard show "$id" 2>/dev/null || true
+    done
+  fi
+
   exit 0
-fi
+}
 
 # Fallback: basic session info with existing commands
 SESSION_JSON=$(cxp session show -o json 2>/dev/null) || true
