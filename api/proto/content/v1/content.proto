@@ -160,6 +160,9 @@ message ContentItem {
 
   // Human-readable explanation of why content was rejected or failed.
   optional string failure_reason = 16;
+
+  // Langfuse trace ID for observability (populated after pipeline processing).
+  optional string langfuse_trace_id = 17;
 }
 
 // ProcessingState represents the overall processing state of a content item.

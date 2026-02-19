@@ -386,6 +386,12 @@ func outputContentItemText(item *contentv1.ContentItem, status *contentv1.Proces
 	fmt.Printf("  \033[1mTenant ID:\033[0m    %s\n", item.TenantId)
 	fmt.Printf("  \033[1mState:\033[0m        %s\n", formatProcessingState(item.State))
 
+	// Show Langfuse trace ID if available
+	if item.LangfuseTraceId != nil && *item.LangfuseTraceId != "" {
+		fmt.Printf("  \033[1mTrace ID:\033[0m     %s\n", *item.LangfuseTraceId)
+		fmt.Printf("  \033[1mLangfuse:\033[0m     http://dev02.brown.chat:3000/project/penfold-ai/traces/%s\n", *item.LangfuseTraceId)
+	}
+
 	// Show failure info for rejected/failed items
 	if item.FailureCategory != nil && *item.FailureCategory != "" {
 		fmt.Printf("  \033[1m\033[31mError Code:\033[0m   %s\n", *item.FailureCategory)
