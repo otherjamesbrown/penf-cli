@@ -136,6 +136,10 @@ message SearchResponse {
 
   // Token for fetching the next page of results
   string next_page_token = 4;
+
+  // Human-readable description of glossary expansion applied (empty if no expansion)
+  // Example: "36QDD expanded via Juniper Border Routers (3 aliases)"
+  string expansion_info = 5;
 }
 
 // SearchResult represents a single search result with relevance information.

@@ -170,9 +170,10 @@ type SearchResult struct {
 
 // SearchResponse represents the response from a search operation.
 type SearchResponse struct {
-	Results     []SearchResult
-	TotalCount  int64
-	QueryTimeMs float64
+	Results       []SearchResult
+	TotalCount    int64
+	QueryTimeMs   float64
+	ExpansionInfo string
 }
 
 // Search performs a hybrid search combining full-text and vector similarity.
@@ -372,8 +373,9 @@ func (c *SearchClient) convertSearchResponse(resp *searchv1.SearchResponse) *Sea
 	}
 
 	return &SearchResponse{
-		Results:     results,
-		TotalCount:  resp.TotalCount,
-		QueryTimeMs: resp.QueryTimeMs,
+		Results:       results,
+		TotalCount:    resp.TotalCount,
+		QueryTimeMs:   resp.QueryTimeMs,
+		ExpansionInfo: resp.ExpansionInfo,
 	}
 }

@@ -66,8 +66,9 @@ type SearchResponse struct {
 	QueryTimeMs float64        `json:"query_time_ms" yaml:"query_time_ms"`
 	Limit       int            `json:"limit" yaml:"limit"`
 	Offset      int            `json:"offset" yaml:"offset"`
-	Filters     SearchFilters  `json:"filters,omitempty" yaml:"filters,omitempty"`
-	SearchedAt  time.Time      `json:"searched_at" yaml:"searched_at"`
+	Filters       SearchFilters `json:"filters,omitempty" yaml:"filters,omitempty"`
+	SearchedAt    time.Time     `json:"searched_at" yaml:"searched_at"`
+	ExpansionInfo string        `json:"expansion_info,omitempty" yaml:"expansion_info,omitempty"`
 }
 
 // SearchFilters contains the active filters for a search.
@@ -408,15 +409,16 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 
 	// Build response.
 	response := SearchResponse{
-		Query:       queryStr,
-		Mode:        mode,
-		Results:     results,
-		TotalCount:  searchResp.TotalCount,
-		QueryTimeMs: queryTime,
-		Limit:       searchLimit,
-		Offset:      searchOffset,
-		Filters:     filters,
-		SearchedAt:  time.Now(),
+		Query:         queryStr,
+		Mode:          mode,
+		Results:       results,
+		TotalCount:    searchResp.TotalCount,
+		QueryTimeMs:   queryTime,
+		Limit:         searchLimit,
+		Offset:        searchOffset,
+		Filters:       filters,
+		SearchedAt:    time.Now(),
+		ExpansionInfo: searchResp.ExpansionInfo,
 	}
 
 	// Output results.
@@ -544,6 +546,11 @@ func outputSearchResultsText(response SearchResponse, verbose bool) error {
 	fmt.Printf("Search: %s\n", response.Query)
 	fmt.Printf("Mode: %s | Results: %d of %d | Time: %.1fms\n",
 		response.Mode, len(response.Results), response.TotalCount, response.QueryTimeMs)
+
+	// Show glossary expansion info.
+	if response.ExpansionInfo != "" {
+		fmt.Printf("\033[36mExpanded:\033[0m %s\n", response.ExpansionInfo)
+	}
 
 	// Show active filters.
 	if len(response.Filters.ContentTypes) > 0 {
@@ -912,15 +919,16 @@ func runAdvancedSearch(ctx context.Context, deps *SearchCommandDeps, queryStr st
 
 	// Build response.
 	response := SearchResponse{
-		Query:       queryStr,
-		Mode:        mode,
-		Results:     results,
-		TotalCount:  searchResp.TotalCount,
-		QueryTimeMs: queryTime,
-		Limit:       searchLimit,
-		Offset:      searchOffset,
-		Filters:     filters,
-		SearchedAt:  time.Now(),
+		Query:         queryStr,
+		Mode:          mode,
+		Results:       results,
+		TotalCount:    searchResp.TotalCount,
+		QueryTimeMs:   queryTime,
+		Limit:         searchLimit,
+		Offset:        searchOffset,
+		Filters:       filters,
+		SearchedAt:    time.Now(),
+		ExpansionInfo: searchResp.ExpansionInfo,
 	}
 
 	// Output results.

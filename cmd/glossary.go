@@ -509,13 +509,19 @@ func runGlossaryShow(ctx context.Context, deps *GlossaryCommandDeps, termStr str
 		return fmt.Errorf("term not found: %s", termStr)
 	}
 
-	// For detailed view, get the full term
+	// Use canonical term name from LookupTerm (handles alias resolution)
+	canonicalTerm := resp.Result.OriginalTerm
 	termResp, err := client.GetTerm(ctx, &glossaryv1.GetTermRequest{
 		TenantId: tenantID,
-		Term:     termStr,
+		Term:     canonicalTerm,
 	})
 	if err != nil {
 		return fmt.Errorf("getting term details: %w", err)
+	}
+
+	// Show alias resolution note if the input was an alias
+	if !strings.EqualFold(termStr, canonicalTerm) {
+		fmt.Printf("  \033[36mResolved:\033[0m %q → %s (via alias)\n\n", termStr, canonicalTerm)
 	}
 
 	format := cfg.OutputFormat
