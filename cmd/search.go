@@ -429,7 +429,7 @@ func convertSearchResults(results []client.SearchResult, verbose bool) []SearchR
 	for i, r := range results {
 		result := SearchResult{
 			ID:          r.DocumentID,
-			Title:       getTitle(r.Title, r.ContentType),
+			Title:       getTitle(r.Title, r.ContentType, r.Metadata),
 			ContentType: r.ContentType,
 			Source:      r.SourceID,
 			Snippet:     r.Snippet,
@@ -449,8 +449,28 @@ func convertSearchResults(results []client.SearchResult, verbose bool) []SearchR
 	return converted
 }
 
-// getTitle returns the title or a default based on content type.
-func getTitle(title *string, contentType string) string {
+// isMIMEType returns true if the string looks like a MIME type (e.g., "message/rfc822").
+func isMIMEType(s string) bool {
+	// MIME types are short, have no spaces, and contain exactly one slash.
+	if len(s) > 60 || strings.Contains(s, " ") {
+		return false
+	}
+	parts := strings.SplitN(s, "/", 3)
+	return len(parts) == 2 && parts[0] != "" && parts[1] != ""
+}
+
+// getTitle returns the best available title for a search result.
+// It checks the title field, falls back to metadata subject, then to a default.
+func getTitle(title *string, contentType string, metadata map[string]string) string {
+	// Use the title if it's a real title (not a MIME type like "message/rfc822").
+	if title != nil && *title != "" && !isMIMEType(*title) {
+		return *title
+	}
+	// Fall back to metadata subject (common for email content).
+	if subject, ok := metadata["subject"]; ok && subject != "" {
+		return subject
+	}
+	// Use the original title if present, even if it's a MIME type.
 	if title != nil && *title != "" {
 		return *title
 	}

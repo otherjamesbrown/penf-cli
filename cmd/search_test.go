@@ -627,6 +627,133 @@ func TestFormatSnippet(t *testing.T) {
 	}
 }
 
+func TestIsMIMEType(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"message/rfc822", true},
+		{"text/plain", true},
+		{"application/pdf", true},
+		{"image/png", true},
+		{"multipart/mixed", true},
+		{"", false},
+		{"Regular Title", false},
+		{"Re: Meeting Notes", false},
+		{"Q4 Budget Review", false},
+		{"Immediate CLIC Action Required", false},
+		{"a/b/c", false}, // Two slashes.
+		{"/leading", false},
+		{"trailing/", false},
+	}
+
+	for _, tt := range tests {
+		result := isMIMEType(tt.input)
+		if result != tt.expected {
+			t.Errorf("isMIMEType(%q) = %v, want %v", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestGetTitle(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
+
+	tests := []struct {
+		name        string
+		title       *string
+		contentType string
+		metadata    map[string]string
+		expected    string
+	}{
+		{
+			name:        "normal title",
+			title:       strPtr("Q4 Budget Review"),
+			contentType: "email",
+			metadata:    nil,
+			expected:    "Q4 Budget Review",
+		},
+		{
+			name:        "nil title with subject metadata",
+			title:       nil,
+			contentType: "email",
+			metadata:    map[string]string{"subject": "Meeting Notes"},
+			expected:    "Meeting Notes",
+		},
+		{
+			name:        "nil title no metadata",
+			title:       nil,
+			contentType: "email",
+			metadata:    nil,
+			expected:    "Untitled email",
+		},
+		{
+			name:        "empty title with subject metadata",
+			title:       strPtr(""),
+			contentType: "email",
+			metadata:    map[string]string{"subject": "Meeting Notes"},
+			expected:    "Meeting Notes",
+		},
+		{
+			name:        "MIME type title with subject metadata",
+			title:       strPtr("message/rfc822"),
+			contentType: "email",
+			metadata:    map[string]string{"subject": "Re: Juniper Router Issues"},
+			expected:    "Re: Juniper Router Issues",
+		},
+		{
+			name:        "MIME type title without subject metadata",
+			title:       strPtr("message/rfc822"),
+			contentType: "email",
+			metadata:    nil,
+			expected:    "message/rfc822",
+		},
+		{
+			name:        "text/plain MIME type with subject",
+			title:       strPtr("text/plain"),
+			contentType: "email",
+			metadata:    map[string]string{"subject": "Plain Text Email"},
+			expected:    "Plain Text Email",
+		},
+		{
+			name:        "non-email content type no title",
+			title:       nil,
+			contentType: "document",
+			metadata:    nil,
+			expected:    "Untitled document",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getTitle(tt.title, tt.contentType, tt.metadata)
+			if result != tt.expected {
+				t.Errorf("getTitle() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestConvertSearchResults_MIMETypeTitle(t *testing.T) {
+	subjectTitle := "message/rfc822"
+	results := []client.SearchResult{
+		{
+			DocumentID:  "doc-1",
+			ContentType: "email",
+			Title:       &subjectTitle,
+			Metadata:    map[string]string{"subject": "Re: Important Meeting"},
+		},
+	}
+
+	converted := convertSearchResults(results, false)
+
+	if len(converted) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(converted))
+	}
+	if converted[0].Title != "Re: Important Meeting" {
+		t.Errorf("expected title %q, got %q", "Re: Important Meeting", converted[0].Title)
+	}
+}
+
 func TestGetScoreColor(t *testing.T) {
 	tests := []struct {
 		score    float64
