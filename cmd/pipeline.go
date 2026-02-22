@@ -935,17 +935,26 @@ func min(a, b int) int {
 
 func parseProcessingStage(stage string) (contentv1.ProcessingStage, error) {
 	switch stage {
-	case "embeddings", "embed":
+	case "parse":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_PARSE, nil
+	case "segment":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_SEGMENT, nil
+	case "triage":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_TRIAGE, nil
+	case "extract_ner", "ner":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT_NER, nil
+	case "extract_semantic", "semantic":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT_SEMANTIC, nil
+	case "resolve":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_RESOLVE, nil
+	case "analyze":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_ANALYZE, nil
+	case "persist":
+		return contentv1.ProcessingStage_PROCESSING_STAGE_PERSIST, nil
+	case "embed", "embeddings":
 		return contentv1.ProcessingStage_PROCESSING_STAGE_EMBED, nil
-	case "entities", "extract":
-		return contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT, nil
-	case "summary", "summarize":
-		return contentv1.ProcessingStage_PROCESSING_STAGE_SUMMARIZE, nil
-	case "keywords":
-		// Note: Keywords might be part of EXTRACT stage - adjust if needed
-		return contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT, nil
 	default:
-		return contentv1.ProcessingStage_PROCESSING_STAGE_UNSPECIFIED, fmt.Errorf("invalid stage: %s (must be: embeddings, entities, keywords, summary)", stage)
+		return contentv1.ProcessingStage_PROCESSING_STAGE_UNSPECIFIED, fmt.Errorf("invalid stage: %s (must be: parse, segment, triage, extract_ner, extract_semantic, resolve, analyze, persist, embed)", stage)
 	}
 }
 
@@ -964,12 +973,6 @@ func outputReprocessHuman(resp *contentv1.ReprocessContentResponse) error {
 
 	if resp.Status != nil {
 		fmt.Printf("\nStatus: %s\n", resp.Status.State.String())
-		if resp.Status.CurrentStage != nil {
-			fmt.Printf("Current Stage: %s\n", resp.Status.CurrentStage.String())
-		}
-		if resp.Status.ProgressPercent > 0 {
-			fmt.Printf("Progress: %d%%\n", resp.Status.ProgressPercent)
-		}
 	}
 
 	fmt.Println("\nUse 'penf pipeline job <job-id>' to check progress")

@@ -60,11 +60,15 @@ Content items represent units of content from various sources (email, documents,
 meetings, Slack) that have been ingested and processed through the AI pipeline.
 
 Each content item goes through multiple processing stages:
-  - FETCH: Fetching raw content from the source system
   - PARSE: Parsing and normalizing content structure
+  - SEGMENT: Segmenting content into chunks
+  - TRIAGE: Triaging content for relevance and routing
+  - EXTRACT_NER: Extracting named entities
+  - EXTRACT_SEMANTIC: Extracting semantic meaning
+  - RESOLVE: Resolving entity references
+  - ANALYZE: Analyzing and synthesizing insights
+  - PERSIST: Persisting processed results
   - EMBED: Generating vector embeddings for semantic search
-  - SUMMARIZE: Generating AI summaries
-  - EXTRACT: Extracting entities, assertions, and structured data
 
 Processing states:
   - PENDING: Queued for processing
@@ -505,55 +509,83 @@ func outputContentItemText(item *contentv1.ContentItem, status *contentv1.Proces
 	if status != nil {
 		fmt.Println()
 		fmt.Println("  \033[1mProcessing Status:\033[0m")
-		fmt.Printf("    Job ID:       %s\n", status.JobId)
-		fmt.Printf("    State:        %s\n", formatProcessingState(status.State))
-		fmt.Printf("    Progress:     %d%%\n", status.ProgressPercent)
+		fmt.Printf("    State:          %s\n", formatProcessingState(status.State))
+		fmt.Printf("    Source ID:      %d\n", status.SourceId)
 
-		if status.CurrentStage != nil {
-			fmt.Printf("    Current Stage: %s\n", formatProcessingStage(*status.CurrentStage))
+		// Triage info
+		if status.ContentContribution != "" {
+			fmt.Printf("    Contribution:   %s\n", status.ContentContribution)
+		}
+		if status.ContributionReason != "" {
+			fmt.Printf("    Reason:         %s\n", status.ContributionReason)
+		}
+		if status.TriageCategory != "" {
+			fmt.Printf("    Category:       %s\n", status.TriageCategory)
+		}
+		if status.TriageImportance != "" {
+			fmt.Printf("    Importance:     %s\n", status.TriageImportance)
 		}
 
-		// Show completed stages with checkmarks
-		if len(status.StagesCompleted) > 0 {
+		// Per-stage results
+		if len(status.Stages) > 0 {
 			fmt.Println()
 			fmt.Println("    \033[1mStages:\033[0m")
-			allStages := []contentv1.ProcessingStage{
-				contentv1.ProcessingStage_PROCESSING_STAGE_FETCH,
-				contentv1.ProcessingStage_PROCESSING_STAGE_PARSE,
-				contentv1.ProcessingStage_PROCESSING_STAGE_EMBED,
-				contentv1.ProcessingStage_PROCESSING_STAGE_SUMMARIZE,
-				contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT,
-			}
-
-			for _, stage := range allStages {
-				completed := stageCompleted(stage, status.StagesCompleted)
-				checkmark := " "
-				if completed {
-					checkmark = "\033[32m✓\033[0m"
+			fmt.Println("    STAGE              STATUS     DURATION  MODEL            TOKENS")
+			fmt.Println("    -----              ------     --------  -----            ------")
+			for _, sr := range status.Stages {
+				stageName := formatProcessingStage(sr.Stage)
+				stageStatus := formatStageStatus(sr.Status)
+				durationStr := "-"
+				if sr.DurationMs != nil {
+					d := time.Duration(*sr.DurationMs) * time.Millisecond
+					if d < time.Second {
+						durationStr = fmt.Sprintf("%dms", *sr.DurationMs)
+					} else {
+						durationStr = fmt.Sprintf("%.1fs", d.Seconds())
+					}
 				}
-				fmt.Printf("      %s %s\n", checkmark, formatProcessingStage(stage))
+				modelStr := "-"
+				if sr.ModelId != nil && *sr.ModelId != "" {
+					modelStr = truncate(*sr.ModelId, 16)
+				}
+				tokenStr := "-"
+				if sr.InputTokens != nil && sr.OutputTokens != nil {
+					tokenStr = fmt.Sprintf("%d/%d", *sr.InputTokens, *sr.OutputTokens)
+				}
+				fmt.Printf("    %-18s %-10s %-9s %-16s %s\n", stageName, stageStatus, durationStr, modelStr, tokenStr)
+
+				// Show skip reason or error
+				if sr.SkipReason != nil && *sr.SkipReason != "" {
+					fmt.Printf("      \033[90mskip: %s\033[0m\n", *sr.SkipReason)
+				}
+				if sr.ErrorMessage != nil && *sr.ErrorMessage != "" {
+					fmt.Printf("      \033[31merror: %s\033[0m\n", *sr.ErrorMessage)
+				}
 			}
 		}
 
-		// Show errors if any
-		if len(status.Errors) > 0 {
-			fmt.Println()
-			fmt.Println("    \033[1mErrors:\033[0m")
-			for _, err := range status.Errors {
-				fmt.Printf("      \033[31m[%s]\033[0m %s: %s\n",
-					formatProcessingStage(err.Stage),
-					err.Code,
-					err.Message)
-				if err.RetryCount > 0 {
-					fmt.Printf("        (retries: %d)\n", err.RetryCount)
-				}
+		// Token totals
+		if status.TotalInputTokens != nil || status.TotalOutputTokens != nil {
+			inTok := int32(0)
+			outTok := int32(0)
+			if status.TotalInputTokens != nil {
+				inTok = *status.TotalInputTokens
 			}
+			if status.TotalOutputTokens != nil {
+				outTok = *status.TotalOutputTokens
+			}
+			fmt.Printf("\n    Tokens:         %s in / %s out\n", formatNumber(int64(inTok)), formatNumber(int64(outTok)))
 		}
 
 		// Duration
-		if status.DurationMs != nil {
-			duration := time.Duration(*status.DurationMs) * time.Millisecond
-			fmt.Printf("\n    Duration:     %s\n", duration)
+		if status.TotalDurationMs != nil {
+			duration := time.Duration(*status.TotalDurationMs) * time.Millisecond
+			fmt.Printf("    Duration:       %s\n", duration)
+		}
+
+		// Langfuse trace
+		if status.LangfuseTraceId != nil && *status.LangfuseTraceId != "" {
+			fmt.Printf("    Trace ID:       %s\n", *status.LangfuseTraceId)
 		}
 	}
 
@@ -620,20 +652,43 @@ func formatProcessingState(state contentv1.ProcessingState) string {
 
 func formatProcessingStage(stage contentv1.ProcessingStage) string {
 	switch stage {
-	case contentv1.ProcessingStage_PROCESSING_STAGE_FETCH:
-		return "FETCH"
 	case contentv1.ProcessingStage_PROCESSING_STAGE_PARSE:
 		return "PARSE"
+	case contentv1.ProcessingStage_PROCESSING_STAGE_SEGMENT:
+		return "SEGMENT"
+	case contentv1.ProcessingStage_PROCESSING_STAGE_TRIAGE:
+		return "TRIAGE"
+	case contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT_NER:
+		return "EXTRACT_NER"
+	case contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT_SEMANTIC:
+		return "EXTRACT_SEMANTIC"
+	case contentv1.ProcessingStage_PROCESSING_STAGE_RESOLVE:
+		return "RESOLVE"
+	case contentv1.ProcessingStage_PROCESSING_STAGE_ANALYZE:
+		return "ANALYZE"
+	case contentv1.ProcessingStage_PROCESSING_STAGE_PERSIST:
+		return "PERSIST"
 	case contentv1.ProcessingStage_PROCESSING_STAGE_EMBED:
 		return "EMBED"
-	case contentv1.ProcessingStage_PROCESSING_STAGE_SUMMARIZE:
-		return "SUMMARIZE"
-	case contentv1.ProcessingStage_PROCESSING_STAGE_EXTRACT:
-		return "EXTRACT"
-	case contentv1.ProcessingStage_PROCESSING_STAGE_COMPLETE:
-		return "COMPLETE"
 	default:
 		return "UNSPECIFIED"
+	}
+}
+
+func formatStageStatus(status contentv1.StageStatus) string {
+	switch status {
+	case contentv1.StageStatus_STAGE_STATUS_PENDING:
+		return "\033[33mPENDING\033[0m"
+	case contentv1.StageStatus_STAGE_STATUS_RUNNING:
+		return "\033[36mRUNNING\033[0m"
+	case contentv1.StageStatus_STAGE_STATUS_COMPLETED:
+		return "\033[32mDONE\033[0m"
+	case contentv1.StageStatus_STAGE_STATUS_FAILED:
+		return "\033[31mFAILED\033[0m"
+	case contentv1.StageStatus_STAGE_STATUS_SKIPPED:
+		return "\033[90mSKIPPED\033[0m"
+	default:
+		return "-"
 	}
 }
 
@@ -646,15 +701,6 @@ func getSubjectFromMetadata(metadata map[string]string) string {
 		}
 	}
 	return ""
-}
-
-func stageCompleted(stage contentv1.ProcessingStage, completed []contentv1.ProcessingStage) bool {
-	for _, s := range completed {
-		if s == stage {
-			return true
-		}
-	}
-	return false
 }
 
 func truncateContentBody(text string, maxLen int) string {

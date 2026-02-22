@@ -124,6 +124,10 @@ message EmbeddingRequest {
   // Optional content ID for Langfuse tag attribute.
   // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
   optional string content_id = 5;
+
+  // Optional pipeline span ID for proper parent-child hierarchy.
+  // 16-char hex span ID from the root pipeline span.
+  optional string pipeline_span_id = 6;
 }
 
 // EmbeddingResponse contains the generated vector embedding.
@@ -197,6 +201,9 @@ message SummaryRequest {
   // Optional content ID for Langfuse tag attribute.
   // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
   optional string content_id = 8;
+
+  // Optional pipeline span ID for proper parent-child hierarchy.
+  optional string pipeline_span_id = 9;
 }
 
 // SummaryResponse contains the generated summary and key points.
@@ -255,6 +262,9 @@ message AssertionRequest {
   // Optional content ID for Langfuse tag attribute.
   // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
   optional string content_id = 7;
+
+  // Optional pipeline span ID for proper parent-child hierarchy.
+  optional string pipeline_span_id = 8;
 }
 
 // Assertion represents a structured fact or claim extracted from content.
@@ -333,6 +343,9 @@ message ClassifyContentRequest {
   // Optional content ID for Langfuse tag attribute.
   // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
   optional string content_id = 8;
+
+  // Optional pipeline span ID for proper parent-child hierarchy.
+  optional string pipeline_span_id = 9;
 }
 
 // Classification represents a single category assignment.
@@ -392,6 +405,9 @@ message TriageContentRequest {
   // Optional content ID for Langfuse tag attribute.
   // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
   optional string content_id = 8;
+
+  // Optional pipeline span ID for proper parent-child hierarchy.
+  optional string pipeline_span_id = 9;
 }
 
 // TriageContentResponse contains the triage classification results.
@@ -458,6 +474,9 @@ message ExtractEntitiesRequest {
   // Optional content ID for Langfuse tag attribute.
   // Expected format: <type:2>-<base62:8> (11 chars), e.g., "em-abc12XYZ".
   optional string content_id = 7;
+
+  // Optional pipeline span ID for proper parent-child hierarchy.
+  optional string pipeline_span_id = 8;
 }
 
 // PersonEntity represents a person extracted from content.
@@ -547,6 +566,9 @@ message DeepAnalyzeRequest {
   // Optional pipeline trace ID for grouping related operations.
   // When set, this span will be a child of the pipeline trace.
   optional string pipeline_trace_id = 16;
+
+  // Optional pipeline span ID for proper parent-child hierarchy.
+  optional string pipeline_span_id = 17;
 }
 
 // DeepAnalyzeResponse contains the Stage 4 analysis results.

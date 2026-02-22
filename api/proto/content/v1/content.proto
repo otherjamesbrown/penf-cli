@@ -84,23 +84,83 @@ enum ProcessingStage {
   // Default value. Should not be used explicitly.
   PROCESSING_STAGE_UNSPECIFIED = 0;
 
-  // Fetching raw content from the source system.
-  PROCESSING_STAGE_FETCH = 1;
-
   // Parsing and normalizing content structure.
-  PROCESSING_STAGE_PARSE = 2;
+  PROCESSING_STAGE_PARSE = 1;
+
+  // Segmenting content into chunks.
+  PROCESSING_STAGE_SEGMENT = 2;
+
+  // Triaging content for relevance and routing.
+  PROCESSING_STAGE_TRIAGE = 3;
+
+  // Extracting named entities from content.
+  PROCESSING_STAGE_EXTRACT_NER = 4;
+
+  // Extracting semantic meaning from content.
+  PROCESSING_STAGE_EXTRACT_SEMANTIC = 5;
+
+  // Resolving entity references and relationships.
+  PROCESSING_STAGE_RESOLVE = 6;
+
+  // Analyzing and synthesizing content insights.
+  PROCESSING_STAGE_ANALYZE = 7;
+
+  // Persisting processed results to storage.
+  PROCESSING_STAGE_PERSIST = 8;
 
   // Generating vector embeddings for semantic search.
-  PROCESSING_STAGE_EMBED = 3;
+  PROCESSING_STAGE_EMBED = 9;
+}
 
-  // Generating AI summaries of content.
-  PROCESSING_STAGE_SUMMARIZE = 4;
+// StageStatus represents the status of a single pipeline stage.
+enum StageStatus {
+  // Default value. Should not be used explicitly.
+  STAGE_STATUS_UNSPECIFIED = 0;
 
-  // Extracting entities, assertions, and structured data.
-  PROCESSING_STAGE_EXTRACT = 5;
+  // Stage is queued but not yet started.
+  STAGE_STATUS_PENDING = 1;
 
-  // All processing stages completed successfully.
-  PROCESSING_STAGE_COMPLETE = 6;
+  // Stage is currently executing.
+  STAGE_STATUS_RUNNING = 2;
+
+  // Stage completed successfully.
+  STAGE_STATUS_COMPLETED = 3;
+
+  // Stage failed with an error.
+  STAGE_STATUS_FAILED = 4;
+
+  // Stage was skipped (e.g., not applicable for this content type).
+  STAGE_STATUS_SKIPPED = 5;
+}
+
+// StageResult contains the result details for a single pipeline stage.
+message StageResult {
+  // The pipeline stage this result refers to.
+  ProcessingStage stage = 1;
+
+  // Status of this stage.
+  StageStatus status = 2;
+
+  // Duration of this stage in milliseconds.
+  optional int64 duration_ms = 3;
+
+  // Model identifier used in this stage (if applicable).
+  optional string model_id = 4;
+
+  // Reason the stage was skipped (if status is SKIPPED).
+  optional string skip_reason = 5;
+
+  // Machine-readable error code (if status is FAILED).
+  optional string error_code = 6;
+
+  // Human-readable error message (if status is FAILED).
+  optional string error_message = 7;
+
+  // Number of input tokens consumed (for LLM stages).
+  optional int32 input_tokens = 8;
+
+  // Number of output tokens produced (for LLM stages).
+  optional int32 output_tokens = 9;
 }
 
 // =============================================================================
@@ -258,32 +318,44 @@ message ProcessingStatus {
   // Unique identifier of the content item.
   string content_id = 1;
 
-  // Processing job identifier.
-  string job_id = 2;
+  // Source identifier in the pipeline system.
+  int64 source_id = 2;
 
   // Overall processing state.
   ProcessingState state = 3;
 
-  // List of processing stages that have completed successfully.
-  repeated ProcessingStage stages_completed = 4;
+  // Per-stage processing results (latest run per stage).
+  repeated StageResult stages = 4;
 
-  // Current stage being processed (if state is IN_PROGRESS).
-  optional ProcessingStage current_stage = 5;
+  // Content contribution classification from triage (e.g., "adds_value", "noise").
+  string content_contribution = 5;
 
-  // List of errors encountered during processing.
-  repeated ProcessingError errors = 6;
+  // Reason for the content contribution classification.
+  string contribution_reason = 6;
 
-  // Timestamp when processing started.
-  optional google.protobuf.Timestamp started_at = 7;
+  // Triage category assigned to this content.
+  string triage_category = 7;
 
-  // Timestamp when processing completed or failed.
-  optional google.protobuf.Timestamp finished_at = 8;
+  // Triage importance level assigned to this content.
+  string triage_importance = 8;
 
-  // Processing duration in milliseconds.
-  optional int64 duration_ms = 9;
+  // Timestamp when pipeline processing started.
+  optional google.protobuf.Timestamp started_at = 9;
 
-  // Percentage of processing complete (0-100).
-  int32 progress_percent = 10;
+  // Timestamp when pipeline processing finished.
+  optional google.protobuf.Timestamp finished_at = 10;
+
+  // Total pipeline duration in milliseconds (sum of all stages).
+  optional int64 total_duration_ms = 11;
+
+  // Langfuse trace ID for observability.
+  optional string langfuse_trace_id = 12;
+
+  // Total input tokens consumed across all LLM stages.
+  optional int32 total_input_tokens = 13;
+
+  // Total output tokens produced across all LLM stages.
+  optional int32 total_output_tokens = 14;
 }
 
 // ProcessingError represents an error that occurred during processing.
