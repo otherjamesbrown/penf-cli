@@ -40,6 +40,16 @@ func DefaultGlossaryDeps() *GlossaryCommandDeps {
 	}
 }
 
+func getTenantIDForGlossary(deps *GlossaryCommandDeps) string {
+	if envTenant := os.Getenv("PENF_TENANT_ID"); envTenant != "" {
+		return envTenant
+	}
+	if deps.Config != nil && deps.Config.TenantID != "" {
+		return deps.Config.TenantID
+	}
+	return "00000001-0000-0000-0000-000000000001"
+}
+
 // NewGlossaryCommand creates the root glossary command with all subcommands.
 func NewGlossaryCommand(deps *GlossaryCommandDeps) *cobra.Command {
 	if deps == nil {
@@ -412,7 +422,7 @@ func runGlossaryAdd(ctx context.Context, deps *GlossaryCommandDeps, term, expans
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	req := &glossaryv1.AddTermRequest{
 		TenantId:       tenantID,
@@ -460,7 +470,7 @@ func runGlossaryList(ctx context.Context, deps *GlossaryCommandDeps) error {
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	req := &glossaryv1.ListTermsRequest{
 		TenantId:   tenantID,
@@ -496,7 +506,7 @@ func runGlossaryShow(ctx context.Context, deps *GlossaryCommandDeps, termStr str
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	resp, err := client.LookupTerm(ctx, &glossaryv1.LookupTermRequest{
 		TenantId: tenantID,
@@ -546,7 +556,7 @@ func runGlossarySearch(ctx context.Context, deps *GlossaryCommandDeps, query str
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	req := &glossaryv1.ListTermsRequest{
 		TenantId: tenantID,
@@ -581,7 +591,7 @@ func runGlossaryRemove(ctx context.Context, deps *GlossaryCommandDeps, termStr s
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	var termID int64
 	var term *glossaryv1.Term
@@ -643,7 +653,7 @@ func runGlossaryExpand(ctx context.Context, deps *GlossaryCommandDeps, query str
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	resp, err := client.ExpandQuery(ctx, &glossaryv1.ExpandQueryRequest{
 		TenantId: tenantID,
@@ -675,7 +685,7 @@ func runGlossaryAlias(ctx context.Context, deps *GlossaryCommandDeps, termStr, n
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	// First, look up the existing term
 	termResp, err := client.GetTerm(ctx, &glossaryv1.GetTermRequest{
@@ -733,7 +743,7 @@ func runGlossaryLink(ctx context.Context, deps *GlossaryCommandDeps, termStr, en
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	resp, err := client.LinkTerm(ctx, &glossaryv1.LinkTermRequest{
 		TenantId:   tenantID,
@@ -768,7 +778,7 @@ func runGlossaryUnlink(ctx context.Context, deps *GlossaryCommandDeps, termStr s
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	resp, err := client.UnlinkTerm(ctx, &glossaryv1.UnlinkTermRequest{
 		TenantId: tenantID,
@@ -798,7 +808,7 @@ func runGlossaryLinked(ctx context.Context, deps *GlossaryCommandDeps) error {
 	defer conn.Close()
 
 	client := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
+	tenantID := getTenantIDForGlossary(deps)
 
 	resp, err := client.ListLinkedTerms(ctx, &glossaryv1.ListLinkedTermsRequest{
 		TenantId:   tenantID,
