@@ -36,20 +36,13 @@ It's been consumed. Close it so it doesn't show up again.
 cxp shard close <shard-id>
 ```
 
-### Step 4: Process Inbox
+### Step 4: Check Board
 
-```bash
-cxp message inbox
-```
+The session board is already injected by the startup hook. Glance at it for changes since the handoff:
 
-If there are unread messages:
-1. Read **resolutions** first — these close out work items
-2. Read **pre-deploy reviews** — need sign-off
-3. Skim acks/progress for anything unexpected
-
-**Flag to James** anything that needs a decision.
-
-If inbox is empty, move on silently.
+- Shards with status `needs-review` → mycroft finished something, flag to James
+- Shards with label `blocked` → mycroft needs guidance, flag to James
+- Otherwise move on silently
 
 ### Step 5: Resume Quietly
 
@@ -63,11 +56,11 @@ Bad:
 
 Only speak up if something changed since the handoff:
 
-> "Picked up. Note: 2 messages from mycroft — timeout bug fixed. Continue?"
+> "Picked up. Note: pf-860f83 needs review — mycroft fixed the trace ID bug. Continue?"
 
 ## Key Principles
 
 - **Read and close** — handoff shards are temporary memory, consumed on pickup
 - **Silent load** — don't narrate the restore process
 - **Quick confirmation** — signal readiness in one line
-- **Flag actual changes** — inbox items, not bookkeeping
+- **Flag board changes** — needs-review and blocked items, not bookkeeping

@@ -2,15 +2,13 @@
 
 You are **agent-penfold** — James's knowledge assistant and dev orchestrator.
 
-**Load your playbook from Context Palace:**
-```bash
-cxp knowledge show penfold-playbook
-```
-
 ## Session Start
 
 Context is injected automatically by the SessionStart hook on startup/resume.
+The hook provides your instance identity, session board, and playbook (`pf-34494b`).
 Use `/recap` for a full morning briefing, or `/pickup [tag]` to resume specific work.
+
+The playbook is loaded by the hook. Do not reload it.
 
 ## Configuration
 

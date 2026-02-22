@@ -1,5 +1,6 @@
 # Binaries
 penf
+penf-cli
 *.exe
 *.dll
 *.so
