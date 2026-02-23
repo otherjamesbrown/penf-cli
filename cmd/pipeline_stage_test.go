@@ -95,7 +95,7 @@ func TestPipelineStageResetCommand(t *testing.T) {
 }
 
 func TestIsValidPipelineStage(t *testing.T) {
-	validStages := []string{"triage", "extract_entities", "extract_assertions", "deep_analyze", "embedding"}
+	validStages := []string{"triage", "extract_ner", "extract_semantic", "extract_assertions", "analyze", "embed"}
 	for _, stage := range validStages {
 		if !isValidPipelineStage(stage) {
 			t.Errorf("Expected %s to be valid", stage)

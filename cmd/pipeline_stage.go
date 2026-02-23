@@ -13,13 +13,14 @@ import (
 	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
 )
 
-// Known pipeline stages for validation.
+// Known pipeline stages for validation (canonical names matching backend).
 var knownPipelineStages = []string{
 	"triage",
-	"extract_entities",
+	"extract_ner",
+	"extract_semantic",
 	"extract_assertions",
-	"deep_analyze",
-	"embedding",
+	"analyze",
+	"embed",
 }
 
 func newPipelineStageCmd(deps *PipelineCommandDeps) *cobra.Command {
@@ -96,7 +97,7 @@ func newPipelineStageSetCmd(deps *PipelineCommandDeps) *cobra.Command {
 		Short: "Set model and/or timeout for a pipeline stage",
 		Long: `Update the model and/or timeout configuration for a specific pipeline stage.
 
-Stages: triage, extract_entities, extract_assertions, deep_analyze, embedding
+Stages: triage, extract_ner, extract_semantic, extract_assertions, analyze, embed
 
 When setting --timeout, the heartbeat defaults to timeout/4 unless explicitly
 specified with --heartbeat.
@@ -105,8 +106,8 @@ Examples:
   # Set model for triage
   penf pipeline stage set triage --model qwen2.5:7b
 
-  # Set timeout for extract_entities
-  penf pipeline stage set extract_entities --timeout 60s
+  # Set timeout for extract_ner
+  penf pipeline stage set extract_ner --timeout 60s
 
   # Set model and timeout together
   penf pipeline stage set triage --model qwen2.5:7b --timeout 60s
@@ -351,17 +352,19 @@ func runPipelineStageReset(ctx context.Context, deps *PipelineCommandDeps, stage
 	// Look up defaults from the current config response
 	defaults := map[string]string{
 		"triage":             "120s",
-		"extract_entities":   "120s",
+		"extract_ner":        "120s",
+		"extract_semantic":   "120s",
 		"extract_assertions": "120s",
-		"deep_analyze":       "600s",
-		"embedding":          "120s",
+		"analyze":            "600s",
+		"embed":              "120s",
 	}
 	heartbeatDefaults := map[string]string{
 		"triage":             "30s",
-		"extract_entities":   "30s",
+		"extract_ner":        "30s",
+		"extract_semantic":   "30s",
 		"extract_assertions": "30s",
-		"deep_analyze":       "300s",
-		"embedding":          "30s",
+		"analyze":            "300s",
+		"embed":              "30s",
 	}
 
 	defaultValues := []string{
