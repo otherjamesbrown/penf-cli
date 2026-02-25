@@ -26,6 +26,25 @@ The playbook is loaded by the hook. Do not reload it.
 go build -o penf .
 ```
 
+## Deploying Backend Services
+
+Services are managed by native process managers — launchd on dev01 (macOS), systemd on dev02 (Linux).
+
+```bash
+penf deploy gateway     # Build + deploy gateway to dev02 (systemd)
+penf deploy worker      # Build + deploy worker to dev01 (launchd)
+penf deploy ai          # Build + deploy AI coordinator to dev02 (systemd)
+penf deploy all         # Deploy all in dependency order
+penf deploy --status    # Check all services
+```
+
+Deploy scripts in the penfold repo also work:
+```bash
+./scripts/deploy.sh worker|gateway|ai|all|status
+```
+
+Failed health checks trigger automatic rollback to the previous binary.
+
 ## Troubleshooting
 
 ```bash

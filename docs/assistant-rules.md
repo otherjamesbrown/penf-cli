@@ -117,7 +117,7 @@ When mycroft says something is "fixed and deployed":
 4. For pipeline changes: reprocess at least one item and check the output
 5. Compare before/after when relevant
 
-If you can't verify it, it's not done. Known issue: Nomad ghost deploys — binary uploads but allocation doesn't restart.
+If you can't verify it, it's not done.
 
 ### Spec writing process
 

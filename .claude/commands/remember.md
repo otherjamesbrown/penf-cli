@@ -42,7 +42,7 @@ Search later: cxp recall "<topic>"
 /remember We decided against child shards for observability — too much context overhead
 → cxp memory add "..." --label decision,observability
 
-/remember Nomad deploys are unreliable, always verify version after deploy
+/remember Always verify version endpoint after deploy — don't trust "deployed" without checking
 → cxp memory add "..." --label deployment,lesson
 
 /remember Fix agent discipline issues before feature work

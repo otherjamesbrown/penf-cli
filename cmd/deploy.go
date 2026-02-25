@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,54 +20,54 @@ import (
 
 // serviceConfig defines the build and deploy configuration for a service.
 type serviceConfig struct {
-	Name       string
-	GOOS       string
-	GOARCH     string
-	BuildDir   string
-	BinaryName string
-	Host       string
-	HostEnvVar string
-	BinaryPath string
-	NomadJob   string
-	NomadName  string
+	Name           string
+	GOOS           string
+	GOARCH         string
+	BuildDir       string
+	BinaryName     string
+	Host           string
+	HostEnvVar     string
+	BinaryPath     string
+	ProcessManager string // "launchd" or "systemd"
+	ServiceLabel   string // launchd label or systemd unit name
 }
 
 var services = map[string]serviceConfig{
 	"gateway": {
-		Name:       "gateway",
-		GOOS:       "linux",
-		GOARCH:     "amd64",
-		BuildDir:   "services/gateway",
-		BinaryName: "gateway-linux",
-		Host:       "dev02",
-		HostEnvVar: "GATEWAY_HOST",
-		BinaryPath: "/opt/penfold/bin/penfold-gateway",
-		NomadJob:   "deploy/nomad/gateway.nomad.hcl",
-		NomadName:  "penfold-gateway",
+		Name:           "gateway",
+		GOOS:           "linux",
+		GOARCH:         "amd64",
+		BuildDir:       "services/gateway",
+		BinaryName:     "gateway-linux",
+		Host:           "dev02",
+		HostEnvVar:     "GATEWAY_HOST",
+		BinaryPath:     "/opt/penfold/bin/penfold-gateway",
+		ProcessManager: "systemd",
+		ServiceLabel:   "penfold-gateway",
 	},
 	"worker": {
-		Name:       "worker",
-		GOOS:       "darwin",
-		GOARCH:     "arm64",
-		BuildDir:   "services/worker",
-		BinaryName: "worker-darwin-arm64",
-		Host:       "dev01",
-		HostEnvVar: "WORKER_HOST",
-		BinaryPath: "/opt/penfold/bin/penfold-worker",
-		NomadJob:   "deploy/nomad/worker.nomad.hcl",
-		NomadName:  "penfold-worker",
+		Name:           "worker",
+		GOOS:           "darwin",
+		GOARCH:         "arm64",
+		BuildDir:       "services/worker",
+		BinaryName:     "worker-darwin-arm64",
+		Host:           "dev01",
+		HostEnvVar:     "WORKER_HOST",
+		BinaryPath:     "/opt/penfold/bin/penfold-worker",
+		ProcessManager: "launchd",
+		ServiceLabel:   "system/com.penfold.worker",
 	},
 	"ai": {
-		Name:       "ai-coordinator",
-		GOOS:       "linux",
-		GOARCH:     "amd64",
-		BuildDir:   "services/ai",
-		BinaryName: "ai-coordinator-linux",
-		Host:       "dev02",
-		HostEnvVar: "AI_HOST",
-		BinaryPath: "/opt/penfold/bin/penfold-ai-coordinator",
-		NomadJob:   "deploy/nomad/ai-coordinator.nomad.hcl",
-		NomadName:  "penfold-ai-coordinator",
+		Name:           "ai-coordinator",
+		GOOS:           "linux",
+		GOARCH:         "amd64",
+		BuildDir:       "services/ai",
+		BinaryName:     "ai-coordinator-linux",
+		Host:           "dev02",
+		HostEnvVar:     "AI_HOST",
+		BinaryPath:     "/opt/penfold/bin/penfold-ai-coordinator",
+		ProcessManager: "systemd",
+		ServiceLabel:   "penfold-ai-coordinator",
 	},
 }
 
@@ -89,25 +90,23 @@ var (
 func NewDeployCommand() *cobra.Command {
 	deployCmd := &cobra.Command{
 		Use:   "deploy [gateway|worker|ai|all]",
-		Short: "Build, upload, and deploy services via Nomad",
-		Long: `Build, upload, and deploy Penfold services using Nomad.
+		Short: "Build, upload, and deploy services",
+		Long: `Build, upload, and deploy Penfold services.
 
-Each service is cross-compiled, uploaded via SCP, and deployed using
-'nomad job run'. Nomad handles health checks, canary promotion, and
-auto-revert on failure.
+Each service is cross-compiled, uploaded via SCP, and restarted using
+the host's native process manager (launchd on macOS, systemd on Linux).
 
 Examples:
-  penf deploy gateway      Build and deploy gateway to dev02
-  penf deploy worker       Build and deploy worker to dev01
-  penf deploy ai           Build and deploy AI coordinator to dev02
+  penf deploy gateway      Build and deploy gateway to dev02 (systemd)
+  penf deploy worker       Build and deploy worker to dev01 (launchd)
+  penf deploy ai           Build and deploy AI coordinator to dev02 (systemd)
   penf deploy all          Deploy all services in order
-  penf deploy --status     Show Nomad job status for all services
+  penf deploy --status     Show service status
 
 Subcommands:
   penf deploy history      Show deployment history
 
 Environment:
-  NOMAD_ADDR       Nomad server address (default: http://dev02.brown.chat:4646)
   GATEWAY_HOST     Gateway host (default: dev02)
   WORKER_HOST      Worker host (default: dev01)
   AI_HOST          AI coordinator host (default: dev02)`,
@@ -131,7 +130,7 @@ Environment:
 		},
 	}
 
-	deployCmd.Flags().BoolVar(&deployStatus, "status", false, "Show Nomad job status for all services")
+	deployCmd.Flags().BoolVar(&deployStatus, "status", false, "Show service status for all services")
 
 	// Add history subcommand.
 	historyCmd := &cobra.Command{
@@ -197,11 +196,107 @@ Environment:
 	return deployCmd
 }
 
-func nomadAddr() string {
-	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
-		return addr
+// restartService restarts a service via SSH using the host's native process manager.
+func restartService(host string, svc serviceConfig) error {
+	var cmd string
+	switch svc.ProcessManager {
+	case "launchd":
+		cmd = fmt.Sprintf("sudo launchctl kickstart -k %s", svc.ServiceLabel)
+	case "systemd":
+		cmd = fmt.Sprintf("sudo systemctl restart %s", svc.ServiceLabel)
+	default:
+		return fmt.Errorf("unknown process manager: %s", svc.ProcessManager)
 	}
-	return "http://dev02.brown.chat:4646"
+	return runCmd("ssh", host, cmd)
+}
+
+// getServiceStatus checks service status via SSH using the host's native process manager.
+func getServiceStatus(host string, svc serviceConfig) string {
+	var args []string
+	switch svc.ProcessManager {
+	case "launchd":
+		args = []string{host, fmt.Sprintf("sudo launchctl print %s 2>/dev/null | grep 'state' | awk '{print $NF}'", svc.ServiceLabel)}
+	case "systemd":
+		args = []string{host, fmt.Sprintf("systemctl is-active %s 2>/dev/null", svc.ServiceLabel)}
+	default:
+		return "unknown"
+	}
+	cmd := exec.Command("ssh", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return "not running"
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// serviceHTTPPort returns the HTTP port for a service's health/version endpoints.
+func serviceHTTPPort(svc serviceConfig) (int, error) {
+	switch svc.Name {
+	case "gateway":
+		return 8080, nil
+	case "worker":
+		return 8085, nil
+	case "ai-coordinator":
+		return 8090, nil
+	default:
+		return 0, fmt.Errorf("unknown service: %s", svc.Name)
+	}
+}
+
+// waitForServiceHealthy polls the service's health endpoint until it responds,
+// then verifies the running binary matches the expected commit.
+func waitForServiceHealthy(host string, svc serviceConfig, expectedCommit string, timeoutSecs int) error {
+	port, err := serviceHTTPPort(svc)
+	if err != nil {
+		return err
+	}
+	healthURL := fmt.Sprintf("http://%s:%d/health", host, port)
+	versionURL := fmt.Sprintf("http://%s:%d/version", host, port)
+
+	// Wait for healthy
+	for i := 0; i < timeoutSecs; i++ {
+		cmd := exec.Command("curl", "-sf", "-o", "/dev/null", "-w", "%{http_code}", healthURL)
+		out, err := cmd.Output()
+		if err == nil && strings.TrimSpace(string(out)) == "200" {
+			fmt.Printf("  %s is healthy\n", svc.Name)
+
+			// Verify the running commit matches what we just deployed
+			if expectedCommit != "" && expectedCommit != "unknown" {
+				vcmd := exec.Command("curl", "-sf", versionURL)
+				vout, verr := vcmd.Output()
+				if verr == nil {
+					// Parse {"commit":"abc1234",...} from version endpoint
+					var versionInfo struct {
+						Commit string `json:"commit"`
+					}
+					if jsonErr := json.Unmarshal(vout, &versionInfo); jsonErr == nil {
+						if versionInfo.Commit == expectedCommit {
+							fmt.Printf("  Verified: running commit %s\n", expectedCommit)
+						} else {
+							return fmt.Errorf("version mismatch: expected commit %s, running %s", expectedCommit, versionInfo.Commit)
+						}
+					}
+				}
+			}
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return fmt.Errorf("%s failed to become healthy within %ds", svc.Name, timeoutSecs)
+}
+
+// backupBinary creates a .prev backup of the current binary on the remote host.
+func backupBinary(host, binaryPath string) error {
+	return runCmd("ssh", host, fmt.Sprintf("[ -f %s ] && cp %s %s.prev || true", binaryPath, binaryPath, binaryPath))
+}
+
+// rollbackBinary restores the .prev backup and restarts the service.
+func rollbackBinary(host string, svc serviceConfig) error {
+	fmt.Printf("  Rolling back %s...\n", svc.Name)
+	if err := runCmd("ssh", host, fmt.Sprintf("[ -f %s.prev ] && mv %s.prev %s", svc.BinaryPath, svc.BinaryPath, svc.BinaryPath)); err != nil {
+		return fmt.Errorf("rollback failed: %w", err)
+	}
+	return restartService(host, svc)
 }
 
 func projectRoot() (string, error) {
@@ -236,39 +331,32 @@ func runCmd(name string, args ...string) error {
 	return cmd.Run()
 }
 
-func runCmdEnv(env []string, name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(), env...)
-	return cmd.Run()
-}
-
-func buildLDFlags() (string, error) {
+// buildLDFlags returns ldflags for the penfold server binaries and the embedded commit hash.
+func buildLDFlags() (ldflags string, commit string, err error) {
 	// Get version from git
 	verCmd := exec.Command("git", "describe", "--tags", "--always", "--dirty")
-	verOut, err := verCmd.Output()
+	verOut, verErr := verCmd.Output()
 	ver := "dev"
-	if err == nil {
+	if verErr == nil {
 		ver = strings.TrimSpace(string(verOut))
 	}
 
 	// Get commit from git
 	cmtCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
-	cmtOut, err := cmtCmd.Output()
+	cmtOut, cmtErr := cmtCmd.Output()
 	cmt := "unknown"
-	if err == nil {
+	if cmtErr == nil {
 		cmt = strings.TrimSpace(string(cmtOut))
 	}
 
 	// Get build time
 	bt := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 
-	// Build ldflags string targeting pkg/buildinfo
-	ldflags := fmt.Sprintf("-X github.com/otherjamesbrown/penf-cli/pkg/buildinfo.Version=%s -X github.com/otherjamesbrown/penf-cli/pkg/buildinfo.Commit=%s -X github.com/otherjamesbrown/penf-cli/pkg/buildinfo.BuildTime=%s",
+	// Target the penfold server buildinfo package (not penf-cli)
+	flags := fmt.Sprintf("-X github.com/otherjamesbrown/penfold/pkg/buildinfo.Version=%s -X github.com/otherjamesbrown/penfold/pkg/buildinfo.Commit=%s -X github.com/otherjamesbrown/penfold/pkg/buildinfo.BuildTime=%s",
 		ver, cmt, bt)
 
-	return ldflags, nil
+	return flags, cmt, nil
 }
 
 func runDeploy(svc serviceConfig) error {
@@ -279,14 +367,14 @@ func runDeploy(svc serviceConfig) error {
 
 	host := hostForService(svc)
 
-	fmt.Printf("=== Deploying %s ===\n\n", svc.Name)
+	fmt.Printf("=== Deploying %s (%s) ===\n\n", svc.Name, svc.ProcessManager)
 
 	// 1. Build
-	fmt.Printf("[1/3] Building %s (%s/%s)...\n", svc.Name, svc.GOOS, svc.GOARCH)
+	fmt.Printf("[1/4] Building %s (%s/%s)...\n", svc.Name, svc.GOOS, svc.GOARCH)
 	buildDir := filepath.Join(root, svc.BuildDir)
 	buildOutput := filepath.Join(buildDir, svc.BinaryName)
 
-	ldflags, err := buildLDFlags()
+	ldflags, commit, err := buildLDFlags()
 	if err != nil {
 		return fmt.Errorf("failed to generate ldflags: %w", err)
 	}
@@ -309,8 +397,11 @@ func runDeploy(svc serviceConfig) error {
 	}
 	fmt.Printf("  Built %s (%.1f MB)\n\n", svc.BinaryName, float64(fi.Size())/(1024*1024))
 
-	// 2. Upload
-	fmt.Printf("[2/3] Uploading to %s:%s...\n", host, svc.BinaryPath)
+	// 2. Backup + Upload
+	fmt.Printf("[2/4] Backing up and uploading to %s:%s...\n", host, svc.BinaryPath)
+	if err := backupBinary(host, svc.BinaryPath); err != nil {
+		return fmt.Errorf("backup failed: %w", err)
+	}
 	if err := runCmd("scp", buildOutput, fmt.Sprintf("%s:%s.new", host, svc.BinaryPath)); err != nil {
 		return fmt.Errorf("scp failed: %w", err)
 	}
@@ -319,17 +410,20 @@ func runDeploy(svc serviceConfig) error {
 	}
 	fmt.Printf("  Uploaded\n\n")
 
-	// 3. Nomad job run
-	fmt.Printf("[3/3] Submitting Nomad job: %s...\n", svc.NomadName)
-	jobFile := filepath.Join(root, svc.NomadJob)
-	if err := runCmdEnv([]string{"NOMAD_ADDR=" + nomadAddr()}, "nomad", "job", "run", jobFile); err != nil {
-		return fmt.Errorf("nomad job run failed: %w", err)
+	// 3. Restart service
+	fmt.Printf("[3/4] Restarting %s via %s...\n", svc.Name, svc.ProcessManager)
+	if err := restartService(host, svc); err != nil {
+		return fmt.Errorf("restart failed: %w", err)
 	}
 
-	// Wait for healthy
-	fmt.Printf("  Waiting for %s to be healthy...\n", svc.NomadName)
-	if err := waitForNomadHealthy(svc.NomadName, 60); err != nil {
-		return err
+	// 4. Verify health + version
+	fmt.Printf("[4/4] Waiting for %s to be healthy (commit %s)...\n", svc.Name, commit)
+	if err := waitForServiceHealthy(host, svc, commit, 30); err != nil {
+		fmt.Printf("  Health check failed, rolling back...\n")
+		if rbErr := rollbackBinary(host, svc); rbErr != nil {
+			return fmt.Errorf("health check failed (%w) and rollback also failed (%v)", err, rbErr)
+		}
+		return fmt.Errorf("health check failed, rolled back: %w", err)
 	}
 
 	fmt.Printf("\n=== %s deployed successfully ===\n", svc.Name)
@@ -351,47 +445,16 @@ func runDeployAll() error {
 }
 
 func runDeployStatus() error {
-	addr := nomadAddr()
-	fmt.Printf("Nomad: %s\n\n", addr)
-	fmt.Printf("%-25s %s\n", "JOB", "STATUS")
-	fmt.Printf("%-25s %s\n", "---", "------")
+	fmt.Printf("%-25s %-10s %-8s %s\n", "SERVICE", "HOST", "MANAGER", "STATUS")
+	fmt.Printf("%-25s %-10s %-8s %s\n", "-------", "----", "-------", "------")
 
 	for _, name := range []string{"gateway", "worker", "ai"} {
 		svc := services[name]
-		status := getNomadJobStatus(svc.NomadName)
-		fmt.Printf("%-25s %s\n", svc.NomadName, status)
+		host := hostForService(svc)
+		status := getServiceStatus(host, svc)
+		fmt.Printf("%-25s %-10s %-8s %s\n", svc.Name, host, svc.ProcessManager, status)
 	}
 	return nil
-}
-
-func getNomadJobStatus(jobName string) string {
-	cmd := exec.Command("nomad", "job", "status", "-short", jobName)
-	cmd.Env = append(os.Environ(), "NOMAD_ADDR="+nomadAddr())
-	out, err := cmd.Output()
-	if err != nil {
-		return "not found"
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "Status") {
-			parts := strings.Fields(line)
-			if len(parts) >= 3 {
-				return parts[len(parts)-1]
-			}
-		}
-	}
-	return "unknown"
-}
-
-func waitForNomadHealthy(jobName string, timeoutSecs int) error {
-	for i := 0; i < timeoutSecs; i++ {
-		status := getNomadJobStatus(jobName)
-		if status == "running" {
-			fmt.Printf("  %s is running\n", jobName)
-			return nil
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return fmt.Errorf("%s failed to become healthy within %ds", jobName, timeoutSecs)
 }
 
 // deployHistoryEntry represents a row from the deploy_history table.
@@ -404,7 +467,7 @@ type deployHistoryEntry struct {
 	DeployedAt      time.Time
 	DeployedBy      sql.NullString
 	Changes         sql.NullString
-	NomadJobVersion sql.NullInt32
+	NomadJobVersion sql.NullInt32 // legacy column, kept for backward compatibility
 	ShardIDs        []string
 }
 

@@ -17,7 +17,7 @@ func TestDeployCommand(t *testing.T) {
 		t.Errorf("Unexpected Use: %s", deployCmd.Use)
 	}
 
-	if deployCmd.Short != "Build, upload, and deploy services via Nomad" {
+	if deployCmd.Short != "Build, upload, and deploy services" {
 		t.Errorf("Unexpected Short: %s", deployCmd.Short)
 	}
 }

@@ -62,14 +62,38 @@ Read each message and process it. Don't just list counts.
 ```bash
 penf status
 penf health
-ssh dev02 'nomad status'
+penf deploy --status
 ```
 
 Only mention if something is wrong. If everything is healthy, skip this section.
 
-### Step 5: Check for Overnight Changes
+### Step 5: Check for Overnight Run
 
-Look for signs that mycroft or other agents did work:
+Check if an overnight batch run was dispatched:
+
+```bash
+cxp memory search "overnight-run:" --agent agent-penfold
+```
+
+If a run was dispatched, check the status of every item in the manifest:
+
+```bash
+cxp shard list --label overnight --status needs-review
+cxp shard list --label overnight --status closed
+cxp shard list --label overnight --status in-progress
+```
+
+Produce a summary (see `pf-065971` for the format):
+- What completed and needs review
+- What's still running
+- What failed or got blocked
+- Any recurring task results
+
+This section should be prominent if an overnight run happened. If no overnight run, skip it.
+
+### Step 6: Check for Other Overnight Changes
+
+Look for signs that mycroft or other agents did work outside of a batch run:
 
 ```bash
 cxp memory search "deploy"
@@ -78,7 +102,25 @@ cxp memory search "release"
 
 Note any new deployments, fixes, or changes since last session.
 
-### Step 6: Summarize for James
+### Step 7: Overdue Recurring Tasks
+
+Check when recurring operational tasks last ran:
+
+```bash
+cxp memory search "overnight:" --agent agent-penfold
+```
+
+Flag anything overdue based on the schedule in `pf-065971`:
+- Context Review: weekly
+- Acronym Review: fortnightly
+- Mention Review: fortnightly
+
+If something is overdue, mention it in the briefing as a suggestion:
+> "Context review hasn't run in 12 days (weekly cadence). Worth including in the next overnight run."
+
+If nothing is overdue, skip this section.
+
+### Step 8: Summarize for James
 
 **Time-framed, Penfold-focused.** What matters:
 
@@ -97,7 +139,7 @@ Good:
 Bad:
 > "Session pf-5264da has 12 checkpoints. You have 1 unread message. The system is healthy."
 
-### Step 7: Offer Options
+### Step 9: Offer Options
 
 Based on what's in flight, suggest 2-3 concrete next steps:
 
