@@ -93,6 +93,11 @@ Related Commands:
 	cmd.AddCommand(newPipelineInspectCmd(pipelineDeps))
 	cmd.AddCommand(newPipelineDiffCmd(pipelineDeps))
 	cmd.AddCommand(newPipelineStageCmd(pipelineDeps))
+	cmd.AddCommand(newPipelineRulesCmd(pipelineDeps))
+	cmd.AddCommand(newPipelineRoutingCmd(pipelineDeps))
+	cmd.AddCommand(newPipelineDefineCmd(pipelineDeps))
+	cmd.AddCommand(newPipelineAuditCmd(pipelineDeps))
+	cmd.AddCommand(newPipelineCompareCmd(pipelineDeps))
 
 	return cmd
 }
@@ -625,6 +630,7 @@ func newPipelineReprocessCmd(deps *PipelineCommandDeps) *cobra.Command {
 	var sourceTag string
 	var timeout int32
 	var model string
+	var promptVersion int32
 
 	cmd := &cobra.Command{
 		Use:   "reprocess <content-id>",
@@ -643,8 +649,9 @@ Stages that can be reprocessed:
   - summary: Regenerate AI summaries
 
 Processing Overrides:
-  --timeout    Override timeout for this reprocessing run (seconds)
-  --model      Override model ID for this reprocessing run
+  --timeout         Override timeout for this reprocessing run (seconds)
+  --model           Override model ID for this reprocessing run
+  --prompt-version  Override prompt version for this reprocessing run
 
 Examples:
   # Reprocess all stages for a content item
@@ -659,6 +666,9 @@ Examples:
   # Reprocess with custom model and timeout
   penf pipeline reprocess content-123 --model gemini-2.0-pro --timeout 300
 
+  # Reprocess with a specific prompt version
+  penf pipeline reprocess content-123 --prompt-version 2
+
   # Dry-run to see impact
   penf pipeline reprocess --stage triage --dry-run
 
@@ -670,7 +680,7 @@ Examples:
 			if len(args) > 0 {
 				contentID = args[0]
 			}
-			return runPipelineReprocess(cmd.Context(), deps, contentID, stage, reason, outputFormat, dryRun, all, sourceTag, timeout, model)
+			return runPipelineReprocess(cmd.Context(), deps, contentID, stage, reason, outputFormat, dryRun, all, sourceTag, timeout, model, promptVersion)
 		},
 	}
 
@@ -683,11 +693,12 @@ Examples:
 	cmd.Flags().StringVar(&sourceTag, "source-tag", "", "Filter by source tag")
 	cmd.Flags().Int32Var(&timeout, "timeout", 0, "Timeout override in seconds (0 = use default)")
 	cmd.Flags().StringVar(&model, "model", "", "Model ID override (empty = use default)")
+	cmd.Flags().Int32Var(&promptVersion, "prompt-version", 0, "Prompt version override (0 = use active)")
 
 	return cmd
 }
 
-func runPipelineReprocess(ctx context.Context, deps *PipelineCommandDeps, contentID string, stage string, reason string, outputFormat string, dryRun bool, all bool, sourceTag string, timeout int32, model string) error {
+func runPipelineReprocess(ctx context.Context, deps *PipelineCommandDeps, contentID string, stage string, reason string, outputFormat string, dryRun bool, all bool, sourceTag string, timeout int32, model string, promptVersion int32) error {
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
@@ -707,10 +718,13 @@ func runPipelineReprocess(ctx context.Context, deps *PipelineCommandDeps, conten
 		}
 
 		// Show overrides that would be applied
-		if model != "" || timeout > 0 {
+		if model != "" || timeout > 0 || promptVersion > 0 {
 			fmt.Println("Overrides:")
 			if model != "" {
 				fmt.Printf("  Model: %s\n", model)
+			}
+			if promptVersion > 0 {
+				fmt.Printf("  Prompt Version: v%d\n", promptVersion)
 			}
 			if timeout > 0 {
 				fmt.Printf("  Timeout: %d seconds\n", timeout)
@@ -772,13 +786,16 @@ func runPipelineReprocess(ctx context.Context, deps *PipelineCommandDeps, conten
 	}
 
 	// Add processing options if overrides are provided
-	if model != "" || timeout > 0 {
+	if model != "" || timeout > 0 || promptVersion > 0 {
 		req.Options = &contentv1.ProcessingOptions{}
 		if model != "" {
 			req.Options.ModelId = &model
 		}
 		if timeout > 0 {
 			req.Options.TimeoutSeconds = &timeout
+		}
+		if promptVersion > 0 {
+			req.Options.PromptVersion = &promptVersion
 		}
 	}
 

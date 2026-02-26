@@ -89,6 +89,39 @@ service PipelineService {
 
   // GetStageConfig retrieves unified per-stage configuration (model + timeout).
   rpc GetStageConfig(GetStageConfigRequest) returns (GetStageConfigResponse);
+
+  // ListClassificationRules lists all classification rules in priority order.
+  rpc ListClassificationRules(ListClassificationRulesRequest) returns (ListClassificationRulesResponse);
+
+  // GetClassificationRule retrieves a single classification rule by name.
+  rpc GetClassificationRule(GetClassificationRuleRequest) returns (GetClassificationRuleResponse);
+
+  // TestClassificationRule runs the classification engine against a content item.
+  rpc TestClassificationRule(TestClassificationRuleRequest) returns (TestClassificationRuleResponse);
+
+  // ListPipelineRoutes lists all pipeline routing rules.
+  rpc ListPipelineRoutes(ListPipelineRoutesRequest) returns (ListPipelineRoutesResponse);
+
+  // TestPipelineRoute shows which pipeline(s) a content item would enter.
+  rpc TestPipelineRoute(TestPipelineRouteRequest) returns (TestPipelineRouteResponse);
+
+  // ListPipelineDefinitions lists all defined pipelines with their stages.
+  rpc ListPipelineDefinitions(ListPipelineDefinitionsRequest) returns (ListPipelineDefinitionsResponse);
+
+  // GetPipelineDefinition retrieves a single pipeline definition with its stages.
+  rpc GetPipelineDefinition(GetPipelineDefinitionRequest) returns (GetPipelineDefinitionResponse);
+
+  // UpdatePipelineStageConfig updates configuration for a specific stage in a pipeline.
+  rpc UpdatePipelineStageConfig(UpdatePipelineStageConfigRequest) returns (UpdatePipelineStageConfigResponse);
+
+  // CreatePipelineDefinition creates a new pipeline, optionally cloning from an existing one.
+  rpc CreatePipelineDefinition(CreatePipelineDefinitionRequest) returns (CreatePipelineDefinitionResponse);
+
+  // AuditPipelineCompleteness finds completed items missing expected pipeline_run records.
+  rpc AuditPipelineCompleteness(AuditPipelineCompletenessRequest) returns (AuditPipelineCompletenessResponse);
+
+  // ComparePipelineRuns compares pipeline run statistics grouped by model and prompt version.
+  rpc ComparePipelineRuns(ComparePipelineRunsRequest) returns (ComparePipelineRunsResponse);
 }
 
 // =============================================================================
@@ -998,6 +1031,9 @@ message DiffPipelineRunsResponse {
 message GetStageConfigRequest {
   // Optional: filter by specific stage (empty = all stages).
   string stage = 1;
+
+  // Optional: tenant ID for tenant-specific config. Falls back to default tenant.
+  string tenant_id = 2;
 }
 
 // StageConfigEntry represents unified model + timeout config for a pipeline stage.
@@ -1019,10 +1055,407 @@ message StageConfigEntry {
 
   // Source of timeout config: "db", "default".
   string timeout_source = 6;
+
+  // LLM parameters from pipeline_definitions (null for non-LLM stages).
+  optional float temperature = 7;
+  optional int32 max_tokens = 8;
+  optional int32 max_retries = 9;
 }
 
 // GetStageConfigResponse contains per-stage configuration entries.
 message GetStageConfigResponse {
   // Configuration for each pipeline stage.
   repeated StageConfigEntry stages = 1;
+}
+
+// =============================================================================
+// Classification Rules Messages
+// =============================================================================
+
+// ClassificationMatchCondition represents a single match condition for a rule.
+message ClassificationMatchCondition {
+  // Metadata field to match against (e.g., "from_address", "subject").
+  string field = 1;
+
+  // Match operator: "contains", "prefix", "suffix", "equals", "regex".
+  string operator = 2;
+
+  // Value to match.
+  string value = 3;
+}
+
+// ClassificationRule represents a content classification rule.
+message ClassificationRule {
+  // Rule name (unique identifier).
+  string name = 1;
+
+  // Priority (lower = higher priority, evaluated first).
+  int32 priority = 2;
+
+  // Scope of content this rule applies to (e.g., "EMAIL").
+  string scope = 3;
+
+  // Resulting content type when rule matches.
+  string content_type = 4;
+
+  // Resulting content subtype when rule matches.
+  string content_subtype = 5;
+
+  // Resulting notification source when rule matches (for NOTIFICATION subtype).
+  string notification_source = 6;
+
+  // Whether this rule is active.
+  bool active = 7;
+
+  // Match conditions (OR logic: any match triggers the rule).
+  repeated ClassificationMatchCondition conditions = 8;
+}
+
+// ListClassificationRulesRequest lists all classification rules.
+message ListClassificationRulesRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+}
+
+// ListClassificationRulesResponse contains all classification rules.
+message ListClassificationRulesResponse {
+  // Rules in priority order.
+  repeated ClassificationRule rules = 1;
+}
+
+// GetClassificationRuleRequest retrieves a single rule by name.
+message GetClassificationRuleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Rule name.
+  string name = 2;
+}
+
+// GetClassificationRuleResponse contains the requested rule.
+message GetClassificationRuleResponse {
+  // The classification rule.
+  ClassificationRule rule = 1;
+}
+
+// TestClassificationRuleRequest runs the engine against a content item.
+message TestClassificationRuleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Content ID to test against.
+  string content_id = 2;
+}
+
+// TestClassificationRuleResponse contains the test result.
+message TestClassificationRuleResponse {
+  // Which rule matched (nil if no match).
+  ClassificationRule matched_rule = 1;
+
+  // Resulting content type.
+  string content_type = 2;
+
+  // Resulting content subtype.
+  string content_subtype = 3;
+
+  // Resulting notification source.
+  string notification_source = 4;
+
+  // Total rules evaluated.
+  int32 rules_evaluated = 5;
+
+  // Description of which condition matched.
+  string matched_condition = 6;
+}
+
+// =============================================================================
+// Pipeline Routing Messages
+// =============================================================================
+
+// PipelineRoute represents a routing rule mapping content type to pipeline.
+message PipelineRoute {
+  // Route ID.
+  int64 id = 1;
+
+  // Content type to match.
+  string content_type = 2;
+
+  // Content subtype to match.
+  string content_subtype = 3;
+
+  // Target pipeline name.
+  string pipeline = 4;
+
+  // Whether this route is active.
+  bool active = 5;
+}
+
+// ListPipelineRoutesRequest lists all routing rules.
+message ListPipelineRoutesRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+}
+
+// ListPipelineRoutesResponse contains all routing rules.
+message ListPipelineRoutesResponse {
+  // All routing rules.
+  repeated PipelineRoute routes = 1;
+}
+
+// TestPipelineRouteRequest tests which pipeline(s) a content item would enter.
+message TestPipelineRouteRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Content ID to test.
+  string content_id = 2;
+}
+
+// MatchedRoute represents a matched pipeline route with its stages.
+message MatchedRoute {
+  // Pipeline name.
+  string pipeline = 1;
+
+  // Stages in this pipeline (e.g., "triage → extract → embed → summarize").
+  repeated string stages = 2;
+}
+
+// TestPipelineRouteResponse contains the routing test result.
+message TestPipelineRouteResponse {
+  // Content type of the tested item.
+  string content_type = 1;
+
+  // Content subtype of the tested item.
+  string content_subtype = 2;
+
+  // Matched routes (empty = no routes matched, all stages skipped).
+  repeated MatchedRoute matched_routes = 3;
+}
+
+// =============================================================================
+// Pipeline Definition Messages
+// =============================================================================
+
+// PipelineStageDefinition represents a stage within a pipeline definition.
+message PipelineStageDefinition {
+  // Stage identifier (e.g., "triage", "extract_assertions").
+  string stage = 1;
+
+  // Execution order within this pipeline.
+  int32 stage_order = 2;
+
+  // Whether this stage is enabled.
+  bool enabled = 3;
+
+  // Model override (empty = use model_config default).
+  string model_override = 4;
+
+  // Prompt version override (0 = use active prompt version).
+  int32 prompt_override = 5;
+
+  // Whether to skip this stage when triage importance is LOW.
+  bool skip_when_low = 6;
+
+  // Whether failure of this stage is non-fatal.
+  bool optional = 7;
+
+  // Timeout in seconds for this stage.
+  int32 timeout_seconds = 8;
+}
+
+// PipelineDefinition represents a named pipeline with its ordered stages.
+message PipelineDefinition {
+  // Pipeline name (e.g., "standard", "transcript", "attendees_only").
+  string pipeline = 1;
+
+  // Ordered stages in this pipeline.
+  repeated PipelineStageDefinition stages = 2;
+}
+
+// ListPipelineDefinitionsRequest lists all defined pipelines.
+message ListPipelineDefinitionsRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+}
+
+// ListPipelineDefinitionsResponse contains all pipeline definitions.
+message ListPipelineDefinitionsResponse {
+  // All pipeline definitions.
+  repeated PipelineDefinition pipelines = 1;
+}
+
+// GetPipelineDefinitionRequest retrieves a single pipeline definition.
+message GetPipelineDefinitionRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Pipeline name (required).
+  string pipeline = 2;
+}
+
+// GetPipelineDefinitionResponse contains the requested pipeline definition.
+message GetPipelineDefinitionResponse {
+  // The pipeline definition.
+  PipelineDefinition definition = 1;
+}
+
+// UpdatePipelineStageConfigRequest updates config for a stage in a pipeline.
+message UpdatePipelineStageConfigRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Pipeline name (required).
+  string pipeline = 2;
+
+  // Stage name (required).
+  string stage = 3;
+
+  // Model override to set (empty string = clear override).
+  optional string model_override = 4;
+
+  // Whether the stage is enabled.
+  optional bool enabled = 5;
+
+  // Whether to skip when triage importance is LOW.
+  optional bool skip_when_low = 6;
+
+  // Prompt version override (0 = clear override).
+  optional int32 prompt_override = 7;
+
+  // Timeout in seconds.
+  optional int32 timeout_seconds = 8;
+
+  // LLM temperature (0.0 - 2.0).
+  optional float temperature = 9;
+
+  // Max output tokens.
+  optional int32 max_tokens = 10;
+
+  // Max retry attempts.
+  optional int32 max_retries = 11;
+}
+
+// UpdatePipelineStageConfigResponse confirms the update.
+message UpdatePipelineStageConfigResponse {
+  // Updated stage definition.
+  PipelineStageDefinition stage = 1;
+
+  // Success message.
+  string message = 2;
+}
+
+// CreatePipelineDefinitionRequest creates a new pipeline.
+message CreatePipelineDefinitionRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // New pipeline name (required).
+  string pipeline = 2;
+
+  // Clone stages from this pipeline (optional, empty = create empty).
+  string from_pipeline = 3;
+}
+
+// CreatePipelineDefinitionResponse confirms pipeline creation.
+message CreatePipelineDefinitionResponse {
+  // The created pipeline definition.
+  PipelineDefinition definition = 1;
+
+  // Success message.
+  string message = 2;
+}
+
+// =============================================================================
+// Pipeline Audit Messages
+// =============================================================================
+
+// AuditPipelineCompletenessRequest finds items with missing pipeline stages.
+message AuditPipelineCompletenessRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Maximum number of items to return (default: 20).
+  int32 limit = 2;
+
+  // Filter by pipeline name (optional).
+  string pipeline = 3;
+}
+
+// AuditItem represents a content item with missing expected pipeline stages.
+message AuditItem {
+  // Source ID of the item.
+  int64 source_id = 1;
+
+  // Content ID.
+  string content_id = 2;
+
+  // Pipeline this item was routed to.
+  string pipeline = 3;
+
+  // Stages that should have run but have no pipeline_run record.
+  repeated string missing_stages = 4;
+
+  // Stages that completed successfully.
+  repeated string completed_stages = 5;
+}
+
+// AuditPipelineCompletenessResponse contains items with missing stages.
+message AuditPipelineCompletenessResponse {
+  // Items with missing pipeline stages.
+  repeated AuditItem items = 1;
+
+  // Total count of items with missing stages.
+  int64 total_count = 2;
+}
+
+// =============================================================================
+// Pipeline Comparison Messages
+// =============================================================================
+
+// ComparePipelineRunsRequest compares runs grouped by model/prompt.
+message ComparePipelineRunsRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Stage to compare (required).
+  string stage = 2;
+
+  // Maximum number of groups to return (default: 20).
+  int32 limit = 3;
+}
+
+// PipelineRunStats represents aggregate statistics for a model/prompt combination.
+message PipelineRunStats {
+  // Model ID used.
+  string model_id = 1;
+
+  // Prompt version used.
+  int32 prompt_version = 2;
+
+  // Number of runs with this combination.
+  int64 run_count = 3;
+
+  // Average duration in milliseconds.
+  double avg_duration_ms = 4;
+
+  // Average input tokens.
+  double avg_input_tokens = 5;
+
+  // Average output tokens.
+  double avg_output_tokens = 6;
+
+  // Number of successful runs.
+  int64 success_count = 7;
+
+  // Number of failed runs.
+  int64 failure_count = 8;
+}
+
+// ComparePipelineRunsResponse contains comparison statistics.
+message ComparePipelineRunsResponse {
+  // Stage being compared.
+  string stage = 1;
+
+  // Statistics grouped by model/prompt version.
+  repeated PipelineRunStats stats = 2;
 }

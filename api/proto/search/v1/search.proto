@@ -76,6 +76,9 @@ message SearchRequest {
 
   // Whether to include highlighted snippets in results (default: true)
   optional bool include_highlights = 9;
+
+  // Sort order for results (default: relevance)
+  SortOrder sort_order = 10;
 }
 
 // SemanticSearchRequest is the input for vector-only similarity search.

@@ -96,6 +96,7 @@ Related Commands:
 	cmd.AddCommand(newProjectAddCommand(deps))
 	cmd.AddCommand(newProjectShowCommand(deps))
 	cmd.AddCommand(newProjectDeleteCommand(deps))
+	cmd.AddCommand(newProjectUpdateCommand(deps))
 
 	return cmd
 }
@@ -262,6 +263,47 @@ Examples:
 	}
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation prompt")
+
+	return cmd
+}
+
+// newProjectUpdateCommand creates the 'project update' subcommand.
+func newProjectUpdateCommand(deps *ProjectCommandDeps) *cobra.Command {
+	var updateName string
+	var updateDescription string
+	var updateKeywords []string
+
+	cmd := &cobra.Command{
+		Use:   "update <name-or-id>",
+		Short: "Update a project",
+		Long: `Update an existing project's name, description, or keywords.
+
+Only specified flags are changed — omitted fields are preserved.
+
+Examples:
+  # Update description only
+  penf project update MTC --description "Major TikTok migration project"
+
+  # Update keywords
+  penf project update MTC --keywords mtc,tiktok,migration
+
+  # Update name
+  penf project update MTC --name "MTC Phase 2"
+
+  # Update multiple fields
+  penf project update MTC --description "Updated desc" --keywords new,kw`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			nameSet := cmd.Flags().Changed("name")
+			descSet := cmd.Flags().Changed("description")
+			kwSet := cmd.Flags().Changed("keywords")
+			return runProjectUpdate(cmd.Context(), deps, args[0], updateName, updateDescription, updateKeywords, nameSet, descSet, kwSet)
+		},
+	}
+
+	cmd.Flags().StringVar(&updateName, "name", "", "New project name")
+	cmd.Flags().StringVarP(&updateDescription, "description", "d", "", "New description")
+	cmd.Flags().StringSliceVarP(&updateKeywords, "keywords", "k", nil, "New keywords (comma-separated)")
 
 	return cmd
 }
@@ -481,6 +523,81 @@ func runProjectDelete(ctx context.Context, deps *ProjectCommandDeps, identifier 
 	}
 
 	fmt.Printf("\033[32mDeleted project:\033[0m %s (ID: %d)\n", project.Name, project.Id)
+	return nil
+}
+
+// runProjectUpdate executes the project update command via gRPC.
+func runProjectUpdate(ctx context.Context, deps *ProjectCommandDeps, identifier, name, description string, keywords []string, nameSet, descSet, kwSet bool) error {
+	if !nameSet && !descSet && !kwSet {
+		return fmt.Errorf("at least one of --name, --description, or --keywords is required")
+	}
+
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectProjectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := projectv1.NewProjectServiceClient(conn)
+	tenantID := getTenantIDForProject(deps)
+
+	// Resolve identifier to get current project
+	projectResp, err := client.GetProject(ctx, &projectv1.GetProjectRequest{
+		TenantId:   tenantID,
+		Identifier: identifier,
+	})
+	if err != nil {
+		return fmt.Errorf("project not found: %s", identifier)
+	}
+
+	current := projectResp.Project
+
+	// Build input preserving unchanged fields
+	input := &projectv1.ProjectInput{
+		Name:        current.Name,
+		Description: current.Description,
+		Keywords:    current.Keywords,
+	}
+	if nameSet {
+		input.Name = name
+	}
+	if descSet {
+		input.Description = description
+	}
+	if kwSet {
+		var cleanKeywords []string
+		for _, kw := range keywords {
+			kw = strings.TrimSpace(kw)
+			if kw != "" {
+				cleanKeywords = append(cleanKeywords, kw)
+			}
+		}
+		input.Keywords = cleanKeywords
+	}
+
+	resp, err := client.UpdateProject(ctx, &projectv1.UpdateProjectRequest{
+		Id:    current.Id,
+		Input: input,
+	})
+	if err != nil {
+		return fmt.Errorf("updating project: %w", err)
+	}
+
+	p := resp.Project
+	fmt.Printf("\033[32mUpdated project:\033[0m %s (ID: %d)\n", p.Name, p.Id)
+	if descSet {
+		fmt.Printf("  Description: %s\n", p.Description)
+	}
+	if kwSet {
+		fmt.Printf("  Keywords:    %s\n", strings.Join(p.Keywords, ", "))
+	}
+
 	return nil
 }
 

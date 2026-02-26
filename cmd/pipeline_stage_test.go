@@ -62,7 +62,7 @@ func TestPipelineStageSetCommand(t *testing.T) {
 	}
 
 	// Check flags
-	for _, flag := range []string{"model", "timeout", "heartbeat", "reason"} {
+	for _, flag := range []string{"model", "timeout", "heartbeat", "reason", "temperature", "max-tokens", "max-retries"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("Expected --%s flag to exist", flag)
 		}
@@ -95,7 +95,7 @@ func TestPipelineStageResetCommand(t *testing.T) {
 }
 
 func TestIsValidPipelineStage(t *testing.T) {
-	validStages := []string{"triage", "extract_ner", "extract_semantic", "extract_assertions", "analyze", "embed"}
+	validStages := []string{"triage", "segment", "extract_ner", "extract_semantic", "extract_assertions", "analyze", "summary", "embed"}
 	for _, stage := range validStages {
 		if !isValidPipelineStage(stage) {
 			t.Errorf("Expected %s to be valid", stage)

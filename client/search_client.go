@@ -150,6 +150,7 @@ type SearchRequest struct {
 	TextWeight   *float32
 	VectorWeight *float32
 	MinScore     *float32
+	SortOrder    searchv1.SortOrder
 }
 
 // SearchResult represents a single search result from the service.
@@ -190,10 +191,11 @@ func (c *SearchClient) Search(ctx context.Context, req *SearchRequest) (*SearchR
 
 	// Build the proto request.
 	protoReq := &searchv1.SearchRequest{
-		Query:    req.Query,
-		TenantId: req.TenantID,
-		Limit:    req.Limit,
-		Offset:   req.Offset,
+		Query:     req.Query,
+		TenantId:  req.TenantID,
+		Limit:     req.Limit,
+		Offset:    req.Offset,
+		SortOrder: req.SortOrder,
 	}
 
 	// Add optional weights.

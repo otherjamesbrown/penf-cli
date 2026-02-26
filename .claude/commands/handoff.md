@@ -26,6 +26,14 @@ Create a new shard with type `handoff`. Title should be a short description of t
 cxp shard create --type handoff --title "Handoff - [short description]" --body "[state from step 1]" --label handoff
 ```
 
+### Step 2b: Write Ledger Entry
+
+Also write the handoff to the session ledger for persistent narrative context:
+
+```bash
+penf ledger write --type handoff --title "Handoff - [short description]" --body "[state from step 1]" --label handoff
+```
+
 ### Step 3: Store Decisions as Memories
 
 If we made decisions or learned lessons this cycle, store them:

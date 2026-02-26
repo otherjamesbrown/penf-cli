@@ -269,11 +269,13 @@ func runAcronymsContext(ctx context.Context, deps *ProcessCommandDeps) error {
 	defer conn.Close()
 
 	// Fetch questions.
+	tenantID := getTenantID()
 	questionsClient := questionsv1.NewQuestionsServiceClient(conn)
 	questionsResp, err := questionsClient.ListQuestions(ctx, &questionsv1.ListQuestionsRequest{
 		Status:       questionsv1.QuestionStatus_QUESTION_STATUS_PENDING,
 		QuestionType: questionsv1.QuestionType_QUESTION_TYPE_ACRONYM,
 		Limit:        100, // Get all pending acronyms.
+		TenantId:     &tenantID,
 	})
 	if err != nil {
 		return fmt.Errorf("listing questions: %w", err)
@@ -307,7 +309,6 @@ func runAcronymsContext(ctx context.Context, deps *ProcessCommandDeps) error {
 
 	// Fetch glossary.
 	glossaryClient := glossaryv1.NewGlossaryServiceClient(conn)
-	tenantID := getTenantID()
 	glossaryResp, err := glossaryClient.ListTerms(ctx, &glossaryv1.ListTermsRequest{
 		TenantId: tenantID,
 		Limit:    500, // Get comprehensive glossary.
@@ -327,7 +328,9 @@ func runAcronymsContext(ctx context.Context, deps *ProcessCommandDeps) error {
 	}
 
 	// Fetch stats.
-	statsResp, err := questionsClient.GetQueueStats(ctx, &questionsv1.GetQueueStatsRequest{})
+	statsResp, err := questionsClient.GetQueueStats(ctx, &questionsv1.GetQueueStatsRequest{
+		TenantId: &tenantID,
+	})
 	if err != nil {
 		return fmt.Errorf("getting stats: %w", err)
 	}

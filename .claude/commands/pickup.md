@@ -8,13 +8,21 @@ Ignored.
 
 ## Instructions
 
-### Step 1: Find Handoff Shards
+### Step 1: Find Handoff
+
+First check the session ledger:
+
+```bash
+penf ledger list --type handoff --limit 1 -o json
+```
+
+If a recent handoff is found in the ledger, use it. Otherwise fall back to CXP:
 
 ```bash
 cxp shard list --type handoff --status open
 ```
 
-**If none found:** "No handoff to pick up." Stop.
+**If none found in either:** "No handoff to pick up." Stop.
 
 **If one found:** Load it directly.
 

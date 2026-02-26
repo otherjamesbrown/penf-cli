@@ -164,6 +164,70 @@ message StageResult {
 }
 
 // =============================================================================
+// Content Classification Enums
+// =============================================================================
+
+// ContentType classifies the high-level type of a content item.
+enum ContentType {
+  CONTENT_TYPE_UNSPECIFIED = 0;
+  CONTENT_TYPE_EMAIL = 1;
+  CONTENT_TYPE_MEETING = 2;
+  CONTENT_TYPE_CALENDAR = 3;
+  CONTENT_TYPE_DOCUMENT = 4;
+  CONTENT_TYPE_ATTACHMENT = 5;
+}
+
+// ContentSubtype classifies the subtype of a content item within its type.
+enum ContentSubtype {
+  CONTENT_SUBTYPE_UNSPECIFIED = 0;
+  // Email subtypes (1-9)
+  CONTENT_SUBTYPE_HUMAN = 1;
+  CONTENT_SUBTYPE_NOTIFICATION = 2;
+  CONTENT_SUBTYPE_AUTO_REPLY = 3;
+  CONTENT_SUBTYPE_NEWSLETTER = 4;
+  // Calendar subtypes (10-19)
+  CONTENT_SUBTYPE_INVITE = 10;
+  CONTENT_SUBTYPE_CANCELLATION = 11;
+  CONTENT_SUBTYPE_UPDATE = 12;
+  CONTENT_SUBTYPE_RESPONSE = 13;
+  // Meeting subtypes (20-29)
+  CONTENT_SUBTYPE_TRANSCRIPT = 20;
+}
+
+// ContentStructure classifies the structural relationship of a content item.
+enum ContentStructure {
+  CONTENT_STRUCTURE_UNSPECIFIED = 0;
+  // Email (1-9)
+  CONTENT_STRUCTURE_STANDALONE = 1;
+  CONTENT_STRUCTURE_REPLY = 2;
+  CONTENT_STRUCTURE_FORWARD = 3;
+  // Messaging (10-19, future)
+  CONTENT_STRUCTURE_TOP_LEVEL = 10;
+  CONTENT_STRUCTURE_THREAD_REPLY = 11;
+}
+
+// TriageCategory classifies the business category of a content item.
+enum TriageCategory {
+  TRIAGE_CATEGORY_UNSPECIFIED = 0;
+  TRIAGE_CATEGORY_ACTION_REQUEST = 1;
+  TRIAGE_CATEGORY_PROJECT_UPDATE = 2;
+  TRIAGE_CATEGORY_RISK_ISSUE = 3;
+  TRIAGE_CATEGORY_CUSTOMER = 4;
+  TRIAGE_CATEGORY_DECISION = 5;
+  TRIAGE_CATEGORY_INTERNAL_COMMS = 6;
+  TRIAGE_CATEGORY_PERSONAL = 7;
+  TRIAGE_CATEGORY_FYI = 8;
+}
+
+// TriageImportance classifies the importance level of a content item.
+enum TriageImportance {
+  TRIAGE_IMPORTANCE_UNSPECIFIED = 0;
+  TRIAGE_IMPORTANCE_HIGH = 1;
+  TRIAGE_IMPORTANCE_MEDIUM = 2;
+  TRIAGE_IMPORTANCE_LOW = 3;
+}
+
+// =============================================================================
 // Content Item Messages
 // =============================================================================
 
@@ -173,7 +237,9 @@ message ContentItem {
   // Unique identifier for this content item.
   string id = 1;
 
-  // Type of source this content originated from: "email", "document", "meeting", "slack".
+  // Deprecated: Use content_type_enum (field 18) and content_subtype_enum (field 19) instead.
+  // Previously indicated source type ("email", "document", "meeting", "slack").
+  // No longer populated for new items; retained for wire compatibility.
   string source_type = 2;
 
   // Identifier of the source record in the originating system.
@@ -223,6 +289,18 @@ message ContentItem {
 
   // Langfuse trace ID for observability (populated after pipeline processing).
   optional string langfuse_trace_id = 17;
+
+  // Structured content type classification.
+  ContentType content_type_enum = 18;
+
+  // Structured content subtype classification.
+  ContentSubtype content_subtype_enum = 19;
+
+  // Content structure classification (standalone, reply, forward, etc.).
+  ContentStructure content_structure = 20;
+
+  // Source system for notifications (e.g., "jira", "aha", "google_docs").
+  string notification_source = 21;
 }
 
 // ProcessingState represents the overall processing state of a content item.
@@ -289,6 +367,10 @@ message ProcessingOptions {
   // Override model for this processing run.
   // If set, uses this model instead of the stage's default active model.
   optional string model_id = 7;
+
+  // Override prompt version for this processing run.
+  // If set, uses this version instead of the active prompt version.
+  optional int32 prompt_version = 8;
 }
 
 // ProcessContentResponse returns the result of initiating content processing.
@@ -333,10 +415,10 @@ message ProcessingStatus {
   // Reason for the content contribution classification.
   string contribution_reason = 6;
 
-  // Triage category assigned to this content.
+  // Deprecated: use triage_category_enum instead.
   string triage_category = 7;
 
-  // Triage importance level assigned to this content.
+  // Deprecated: use triage_importance_enum instead.
   string triage_importance = 8;
 
   // Timestamp when pipeline processing started.
@@ -356,6 +438,12 @@ message ProcessingStatus {
 
   // Total output tokens produced across all LLM stages.
   optional int32 total_output_tokens = 14;
+
+  // Structured triage category classification.
+  TriageCategory triage_category_enum = 15;
+
+  // Structured triage importance classification.
+  TriageImportance triage_importance_enum = 16;
 }
 
 // ProcessingError represents an error that occurred during processing.
@@ -419,6 +507,9 @@ message ListContentItemsRequest {
   // Whether to include the full embedding vectors in responses.
   // Default: false (embeddings can be large and slow down responses).
   bool include_embeddings = 8;
+
+  // Filter by content type (optional).
+  optional ContentType content_type_filter = 9;
 }
 
 // ListContentItemsResponse contains a paginated list of content items.

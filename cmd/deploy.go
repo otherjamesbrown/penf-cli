@@ -427,6 +427,12 @@ func runDeploy(svc serviceConfig) error {
 	}
 
 	fmt.Printf("\n=== %s deployed successfully ===\n", svc.Name)
+
+	// Fire-and-forget activity log
+	if cfg, err := config.LoadConfig(); err == nil {
+		logActivity(cfg, fmt.Sprintf("deploy: %s (%s)", svc.Name, commit))
+	}
+
 	return nil
 }
 

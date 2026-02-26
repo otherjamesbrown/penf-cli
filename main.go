@@ -1266,6 +1266,10 @@ func init() {
 	glossaryCmd.GroupID = "entities"
 	rootCmd.AddCommand(glossaryCmd)
 
+	topicCmd := cmd.NewTopicCommand(nil)
+	topicCmd.GroupID = "entities"
+	rootCmd.AddCommand(topicCmd)
+
 	entityCmd := cmd.NewEntityCommand(nil)
 	entityCmd.GroupID = "entities"
 	rootCmd.AddCommand(entityCmd)
@@ -1339,6 +1343,10 @@ func init() {
 	qualityCmd := cmd.NewQualityCommand(nil)
 	qualityCmd.GroupID = "ops"
 	rootCmd.AddCommand(qualityCmd)
+
+	ledgerCmd := cmd.NewLedgerCommand(nil)
+	ledgerCmd.GroupID = "ops"
+	rootCmd.AddCommand(ledgerCmd)
 
 	// Setup
 	configCmd.GroupID = "setup"
@@ -1415,7 +1423,12 @@ func main() {
 // logCommandExecution logs the CLI command to Context-Palace.
 // This is best-effort - errors are logged to stderr but don't affect the command result.
 func logCommandExecution(args []string, cmdErr error) {
-	// Skip if config not loaded or Context-Palace not configured.
+	// If config wasn't loaded (e.g. unknown command skips PersistentPreRunE), load it now.
+	if cfg == nil {
+		cfg, _ = config.LoadConfig()
+	}
+
+	// Skip if config still unavailable or Context-Palace not configured.
 	if cfg == nil || cfg.ContextPalace == nil || !cfg.ContextPalace.IsConfigured() {
 		return
 	}
@@ -1428,15 +1441,18 @@ func logCommandExecution(args []string, cmdErr error) {
 		}
 	}
 
-	// Calculate duration.
-	duration := time.Since(cmdStartTime)
+	// Calculate duration (cmdStartTime may be zero if PersistentPreRunE was skipped).
+	var durationMs int
+	if !cmdStartTime.IsZero() {
+		durationMs = int(time.Since(cmdStartTime).Milliseconds())
+	}
 
 	// Build the command entry.
 	entry := &contextpalace.CommandEntry{
 		Command:     getCommandName(args),
 		Args:        getCommandArgs(args),
 		FullCommand: strings.Join(args, " "),
-		DurationMs:  int(duration.Milliseconds()),
+		DurationMs:  durationMs,
 		Success:     cmdErr == nil,
 		TenantID:    cfg.TenantID,
 	}

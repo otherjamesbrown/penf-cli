@@ -23,6 +23,7 @@ var (
 	contentOutput     string
 	contentStatus     string
 	contentSource     string
+	contentType       string
 	contentTenant     string
 	contentLimit      int32
 	contentProcessing bool
@@ -153,6 +154,7 @@ Examples:
 
 	cmd.Flags().StringVar(&contentStatus, "status", "", "Filter by processing state: pending, processing, complete, failed, cancelled, rejected, skipped")
 	cmd.Flags().StringVar(&contentSource, "source", "", "Filter by source type: email, document, meeting, slack")
+	cmd.Flags().StringVar(&contentType, "type", "", "Filter by content type: email, meeting, calendar, document, attachment")
 	cmd.Flags().StringVar(&contentTenant, "tenant", "", "Filter by tenant ID (defaults to config tenant)")
 
 	return cmd
@@ -214,6 +216,14 @@ func runContentList(ctx context.Context, deps *ContentCommandDeps) error {
 	// Apply filters
 	if contentSource != "" {
 		req.SourceType = &contentSource
+	}
+
+	if contentType != "" {
+		ct, err := parseContentType(contentType)
+		if err != nil {
+			return err
+		}
+		req.ContentTypeFilter = &ct
 	}
 
 	if contentStatus != "" {
@@ -287,6 +297,9 @@ func runContentShow(ctx context.Context, deps *ContentCommandDeps, contentID str
 		}
 	}
 
+	// Log activity (fire-and-forget)
+	logActivity(cfg, fmt.Sprintf("content show: %s", contentID))
+
 	// Output results
 	format := cfg.OutputFormat
 	if contentOutput != "" {
@@ -321,8 +334,8 @@ func outputContentListText(resp *contentv1.ListContentItemsResponse) error {
 	}
 
 	fmt.Printf("Content Items (%d total):\n\n", totalCount)
-	fmt.Println("  ID                    TYPE        SUBJECT/TITLE                      SOURCE     STATE       CREATED")
-	fmt.Println("  --                    ----        -------------                      ------     -----       -------")
+	fmt.Println("  ID                    TYPE        SUBTYPE       SUBJECT/TITLE                      STATE       CREATED")
+	fmt.Println("  --                    ----        -------       -------------                      -----       -------")
 
 	for _, item := range resp.Items {
 		// Get subject/title from metadata
@@ -340,11 +353,15 @@ func outputContentListText(resp *contentv1.ListContentItemsResponse) error {
 		// Format state
 		stateStr := formatProcessingState(item.State)
 
-		fmt.Printf("  %-21s %-11s %-34s %-10s %-11s %s\n",
+		// Format type from enum, falling back to source_type
+		typeStr := formatContentType(item)
+		subtypeStr := formatContentSubtype(item)
+
+		fmt.Printf("  %-21s %-11s %-13s %-34s %-11s %s\n",
 			truncate(item.Id, 21),
-			truncate(item.SourceType, 11),
+			truncate(typeStr, 11),
+			truncate(subtypeStr, 13),
 			truncate(subject, 34),
-			truncate(item.SourceId, 10),
 			stateStr,
 			createdStr)
 	}
@@ -385,7 +402,9 @@ func outputContentItemText(item *contentv1.ContentItem, status *contentv1.Proces
 	fmt.Println("Content Item Details:")
 	fmt.Println()
 	fmt.Printf("  \033[1mID:\033[0m           %s\n", item.Id)
-	fmt.Printf("  \033[1mSource Type:\033[0m  %s\n", item.SourceType)
+	fmt.Printf("  \033[1mType:\033[0m         %s\n", formatContentType(item))
+	fmt.Printf("  \033[1mSubtype:\033[0m      %s\n", formatContentSubtype(item))
+	fmt.Printf("  \033[1mStructure:\033[0m    %s\n", formatContentStructure(item))
 	fmt.Printf("  \033[1mSource ID:\033[0m    %s\n", item.SourceId)
 	fmt.Printf("  \033[1mTenant ID:\033[0m    %s\n", item.TenantId)
 	fmt.Printf("  \033[1mState:\033[0m        %s\n", formatProcessingState(item.State))
@@ -412,7 +431,8 @@ func outputContentItemText(item *contentv1.ContentItem, status *contentv1.Proces
 	fmt.Println()
 
 	// For email content, show email-specific fields first
-	if item.SourceType == "email" && len(item.Metadata) > 0 {
+	isEmail := item.ContentTypeEnum == contentv1.ContentType_CONTENT_TYPE_EMAIL || item.SourceType == "email"
+	if isEmail && len(item.Metadata) > 0 {
 		fmt.Println("  \033[1mEmail:\033[0m")
 		if subject, ok := item.Metadata["subject"]; ok {
 			fmt.Printf("    Subject:     %s\n", subject)
@@ -444,7 +464,7 @@ func outputContentItemText(item *contentv1.ContentItem, status *contentv1.Proces
 		}
 
 		hasOtherMetadata := false
-		if item.SourceType == "email" {
+		if isEmail {
 			for key := range item.Metadata {
 				if !emailFields[key] {
 					hasOtherMetadata = true
@@ -458,7 +478,7 @@ func outputContentItemText(item *contentv1.ContentItem, status *contentv1.Proces
 		if hasOtherMetadata {
 			fmt.Println("  \033[1mMetadata:\033[0m")
 			for key, value := range item.Metadata {
-				if item.SourceType == "email" && emailFields[key] {
+				if isEmail && emailFields[key] {
 					continue
 				}
 				fmt.Printf("    %-12s %s\n", key+":", truncate(value, 60))
@@ -519,12 +539,8 @@ func outputContentItemText(item *contentv1.ContentItem, status *contentv1.Proces
 		if status.ContributionReason != "" {
 			fmt.Printf("    Reason:         %s\n", status.ContributionReason)
 		}
-		if status.TriageCategory != "" {
-			fmt.Printf("    Category:       %s\n", status.TriageCategory)
-		}
-		if status.TriageImportance != "" {
-			fmt.Printf("    Importance:     %s\n", status.TriageImportance)
-		}
+		fmt.Printf("    Category:       %s\n", formatTriageCategory(status))
+		fmt.Printf("    Importance:     %s\n", formatTriageImportance(status))
 
 		// Per-stage results
 		if len(status.Stages) > 0 {
@@ -690,6 +706,87 @@ func formatStageStatus(status contentv1.StageStatus) string {
 	default:
 		return "-"
 	}
+}
+
+// formatContentType returns a display string for content type, falling back to source_type.
+func formatContentType(item *contentv1.ContentItem) string {
+	if item.ContentTypeEnum != contentv1.ContentType_CONTENT_TYPE_UNSPECIFIED {
+		return stripEnumPrefix(item.ContentTypeEnum.String(), "CONTENT_TYPE_")
+	}
+	// Fallback to deprecated source_type
+	if item.SourceType != "" {
+		return strings.ToUpper(item.SourceType)
+	}
+	return "-"
+}
+
+// formatContentSubtype returns a display string for content subtype.
+// For NOTIFICATION subtype, appends the notification source.
+func formatContentSubtype(item *contentv1.ContentItem) string {
+	if item.ContentSubtypeEnum != contentv1.ContentSubtype_CONTENT_SUBTYPE_UNSPECIFIED {
+		name := stripEnumPrefix(item.ContentSubtypeEnum.String(), "CONTENT_SUBTYPE_")
+		if item.ContentSubtypeEnum == contentv1.ContentSubtype_CONTENT_SUBTYPE_NOTIFICATION && item.NotificationSource != "" {
+			return fmt.Sprintf("%s (%s)", name, item.NotificationSource)
+		}
+		return name
+	}
+	return "-"
+}
+
+// formatContentStructure returns a display string for content structure.
+func formatContentStructure(item *contentv1.ContentItem) string {
+	if item.ContentStructure != contentv1.ContentStructure_CONTENT_STRUCTURE_UNSPECIFIED {
+		return stripEnumPrefix(item.ContentStructure.String(), "CONTENT_STRUCTURE_")
+	}
+	return "-"
+}
+
+// formatTriageCategory returns a display string for triage category, with fallback.
+func formatTriageCategory(status *contentv1.ProcessingStatus) string {
+	if status.TriageCategoryEnum != contentv1.TriageCategory_TRIAGE_CATEGORY_UNSPECIFIED {
+		return stripEnumPrefix(status.TriageCategoryEnum.String(), "TRIAGE_CATEGORY_")
+	}
+	// Fallback to deprecated string field
+	if status.TriageCategory != "" {
+		return strings.ToUpper(status.TriageCategory)
+	}
+	return "-"
+}
+
+// formatTriageImportance returns a display string for triage importance, with fallback.
+func formatTriageImportance(status *contentv1.ProcessingStatus) string {
+	if status.TriageImportanceEnum != contentv1.TriageImportance_TRIAGE_IMPORTANCE_UNSPECIFIED {
+		return stripEnumPrefix(status.TriageImportanceEnum.String(), "TRIAGE_IMPORTANCE_")
+	}
+	// Fallback to deprecated string field
+	if status.TriageImportance != "" {
+		return strings.ToUpper(status.TriageImportance)
+	}
+	return "-"
+}
+
+// parseContentType converts a user-friendly content type string to the proto enum.
+func parseContentType(ct string) (contentv1.ContentType, error) {
+	switch strings.ToLower(ct) {
+	case "email":
+		return contentv1.ContentType_CONTENT_TYPE_EMAIL, nil
+	case "meeting":
+		return contentv1.ContentType_CONTENT_TYPE_MEETING, nil
+	case "calendar":
+		return contentv1.ContentType_CONTENT_TYPE_CALENDAR, nil
+	case "document":
+		return contentv1.ContentType_CONTENT_TYPE_DOCUMENT, nil
+	case "attachment":
+		return contentv1.ContentType_CONTENT_TYPE_ATTACHMENT, nil
+	default:
+		return contentv1.ContentType_CONTENT_TYPE_UNSPECIFIED,
+			fmt.Errorf("invalid content type: %s (must be: email, meeting, calendar, document, attachment)", ct)
+	}
+}
+
+// stripEnumPrefix removes a proto enum prefix and returns the readable name.
+func stripEnumPrefix(enumStr, prefix string) string {
+	return strings.TrimPrefix(enumStr, prefix)
 }
 
 func getSubjectFromMetadata(metadata map[string]string) string {

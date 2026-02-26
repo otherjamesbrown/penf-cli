@@ -1,0 +1,219 @@
+// Ledger Service Protobuf Definitions
+// Provides gRPC service for the session ledger — narrative context capture across sessions.
+
+syntax = "proto3";
+
+package penfold.ledger.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/ledger/v1;ledgerv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// LedgerService provides gRPC endpoints for the session ledger.
+service LedgerService {
+  // CreateEntry appends an immutable entry to the session ledger.
+  rpc CreateEntry(CreateEntryRequest) returns (CreateEntryResponse);
+
+  // GetEntry retrieves a single ledger entry by ID.
+  rpc GetEntry(GetEntryRequest) returns (LedgerEntry);
+
+  // ListEntries lists ledger entries with filtering.
+  rpc ListEntries(ListEntriesRequest) returns (ListEntriesResponse);
+
+  // ListSessions returns session summaries (aggregated from entries).
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+
+  // GetSession returns all entries for a specific session.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+
+  // SearchEntries performs full-text search across ledger entries.
+  rpc SearchEntries(SearchEntriesRequest) returns (SearchEntriesResponse);
+
+  // GetLatestHandoff returns the most recent handoff entry (for /pickup).
+  rpc GetLatestHandoff(GetLatestHandoffRequest) returns (LedgerEntry);
+
+  // ListConsolidations lists consolidated narratives.
+  rpc ListConsolidations(ListConsolidationsRequest) returns (ListConsolidationsResponse);
+
+  // GetConsolidation retrieves a single consolidation by ID.
+  rpc GetConsolidation(GetConsolidationRequest) returns (Consolidation);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// EntryType classifies what kind of narrative record this is.
+enum EntryType {
+  ENTRY_TYPE_UNSPECIFIED = 0;
+  ENTRY_TYPE_NARRATIVE   = 1;  // Context, reasoning, background
+  ENTRY_TYPE_DECISION    = 2;  // Choice made with rationale
+  ENTRY_TYPE_DISCOVERY   = 3;  // Finding, insight, root cause
+  ENTRY_TYPE_HANDOFF     = 4;  // Session state for resumption
+  ENTRY_TYPE_ACTIVITY    = 5;  // System operation (search, entity lookup, etc.)
+}
+
+// EntrySource tracks which system generated the entry.
+enum EntrySource {
+  ENTRY_SOURCE_UNSPECIFIED = 0;
+  ENTRY_SOURCE_PENF       = 1;  // Generated from penf CLI operations
+  ENTRY_SOURCE_CXP        = 2;  // Generated from cxp operations
+  ENTRY_SOURCE_MANUAL     = 3;  // Manually created by agent or user
+}
+
+// LedgerEntry is an immutable narrative record.
+message LedgerEntry {
+  int64                         id          = 1;
+  string                        tenant_id   = 2;
+  string                        session_id  = 3;
+  EntryType                     entry_type  = 4;
+  string                        title       = 5;
+  optional string               body        = 6;
+  EntrySource                   source      = 7;
+  string                        agent       = 8;
+  repeated string               labels      = 9;
+  repeated string               shard_refs  = 10;
+  map<string, string>           metadata    = 11;
+  google.protobuf.Timestamp     created_at  = 12;
+}
+
+// SessionSummary is an aggregated view of a session's entries.
+message SessionSummary {
+  string                        session_id    = 1;
+  string                        agent         = 2;
+  int32                         entry_count   = 3;
+  google.protobuf.Timestamp     first_entry   = 4;
+  google.protobuf.Timestamp     last_entry    = 5;
+  repeated string               entry_types   = 6;   // Distinct types present
+  repeated string               labels        = 7;   // Aggregated labels
+  optional string               latest_title  = 8;   // Title of most recent entry
+}
+
+// Consolidation is an LLM-generated summary of ledger entries.
+message Consolidation {
+  int64                         id                = 1;
+  string                        tenant_id         = 2;
+  string                        title             = 3;
+  string                        body              = 4;
+  repeated int64                source_entry_ids  = 5;
+  repeated string               session_ids       = 6;
+  repeated Decision             decisions         = 7;
+  repeated Pattern              patterns          = 8;
+  google.protobuf.Timestamp     time_start        = 9;
+  google.protobuf.Timestamp     time_end          = 10;
+  optional string               model_id          = 11;
+  google.protobuf.Timestamp     created_at        = 12;
+}
+
+message Decision {
+  string title      = 1;
+  string body       = 2;
+  string session_id = 3;
+}
+
+message Pattern {
+  string          title    = 1;
+  string          body     = 2;
+  repeated string evidence = 3;  // Entry IDs or session IDs supporting this
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+message CreateEntryRequest {
+  string          tenant_id   = 1;
+  string          session_id  = 2;
+  EntryType       entry_type  = 3;
+  string          title       = 4;
+  optional string body        = 5;
+  EntrySource     source      = 6;
+  string          agent       = 7;
+  repeated string labels      = 8;
+  repeated string shard_refs  = 9;
+  map<string, string> metadata = 10;
+}
+
+message CreateEntryResponse {
+  LedgerEntry entry = 1;
+}
+
+message GetEntryRequest {
+  string tenant_id = 1;
+  int64  id        = 2;
+}
+
+message ListEntriesRequest {
+  string              tenant_id  = 1;
+  optional string     session_id = 2;   // Filter by session
+  optional string     entry_type = 3;   // Filter by type
+  optional string     source     = 4;   // Filter by source
+  optional string     agent      = 5;   // Filter by agent
+  repeated string     labels     = 6;   // Filter by labels (AND)
+  int32               limit      = 7;
+  int32               offset     = 8;
+}
+
+message ListEntriesResponse {
+  repeated LedgerEntry entries = 1;
+  int32                total   = 2;
+}
+
+message ListSessionsRequest {
+  string          tenant_id = 1;
+  optional string agent     = 2;   // Filter by agent
+  int32           limit     = 3;
+  int32           offset    = 4;
+}
+
+message ListSessionsResponse {
+  repeated SessionSummary sessions = 1;
+  int32                   total    = 2;
+}
+
+message GetSessionRequest {
+  string tenant_id  = 1;
+  string session_id = 2;
+}
+
+message GetSessionResponse {
+  SessionSummary       summary = 1;
+  repeated LedgerEntry entries = 2;
+}
+
+message SearchEntriesRequest {
+  string tenant_id = 1;
+  string query     = 2;   // Full-text search query
+  int32  limit     = 3;
+  int32  offset    = 4;
+}
+
+message SearchEntriesResponse {
+  repeated LedgerEntry entries = 1;
+  int32                total   = 2;
+}
+
+message GetLatestHandoffRequest {
+  string          tenant_id = 1;
+  optional string agent     = 2;   // Filter by agent (default: any)
+}
+
+message ListConsolidationsRequest {
+  string tenant_id = 1;
+  int32  limit     = 2;
+  int32  offset    = 3;
+}
+
+message ListConsolidationsResponse {
+  repeated Consolidation consolidations = 1;
+  int32                  total          = 2;
+}
+
+message GetConsolidationRequest {
+  string tenant_id = 1;
+  int64  id        = 2;
+}

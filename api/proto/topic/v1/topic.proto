@@ -1,0 +1,167 @@
+// Topic Service Protobuf Definitions
+// Provides gRPC service for topic management — contextual knowledge entities
+// richer than glossary terms but without ownership/actions/risks.
+
+syntax = "proto3";
+
+package penfold.topic.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/topic/v1;topicv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// TopicService provides gRPC endpoints for topic management.
+service TopicService {
+  // CreateTopic creates a new topic.
+  rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
+
+  // GetTopic retrieves a topic by ID or name.
+  rpc GetTopic(GetTopicRequest) returns (GetTopicResponse);
+
+  // UpdateTopic updates an existing topic.
+  rpc UpdateTopic(UpdateTopicRequest) returns (UpdateTopicResponse);
+
+  // DeleteTopic deletes a topic by ID.
+  rpc DeleteTopic(DeleteTopicRequest) returns (DeleteTopicResponse);
+
+  // ListTopics lists topics with optional filtering.
+  rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
+}
+
+// =============================================================================
+// Core Messages
+// =============================================================================
+
+// Topic represents a contextual knowledge entity with keywords for auto-tagging.
+message Topic {
+  // Unique topic identifier.
+  int64 id = 1;
+
+  // Tenant ID for multi-tenant support.
+  string tenant_id = 2;
+
+  // Topic name.
+  string name = 3;
+
+  // Topic description (paragraph-level context, richer than glossary).
+  string description = 4;
+
+  // Keywords for matching content to this topic.
+  repeated string keywords = 5;
+
+  // When the topic was created.
+  google.protobuf.Timestamp created_at = 6;
+
+  // When the topic was last updated.
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// TopicInput represents input for creating or updating a topic.
+message TopicInput {
+  // Topic name (required).
+  string name = 1;
+
+  // Topic description (optional).
+  string description = 2;
+
+  // Keywords for matching content to this topic.
+  repeated string keywords = 3;
+}
+
+// TopicFilter contains filtering options for topic queries.
+message TopicFilter {
+  // Tenant ID (required).
+  string tenant_id = 1;
+
+  // Search by name (partial match).
+  string name_search = 2;
+
+  // Filter by keyword (topics containing this keyword).
+  string keyword = 3;
+
+  // Maximum number of results.
+  int32 limit = 4;
+
+  // Pagination offset.
+  int32 offset = 5;
+}
+
+// =============================================================================
+// Request/Response Messages
+// =============================================================================
+
+// CreateTopicRequest creates a new topic.
+message CreateTopicRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Topic input.
+  TopicInput input = 2;
+}
+
+// CreateTopicResponse returns the created topic.
+message CreateTopicResponse {
+  // The created topic.
+  Topic topic = 1;
+}
+
+// GetTopicRequest retrieves a topic.
+message GetTopicRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Topic ID or name.
+  string identifier = 2;
+}
+
+// GetTopicResponse returns the topic.
+message GetTopicResponse {
+  // The topic.
+  Topic topic = 1;
+}
+
+// UpdateTopicRequest updates an existing topic.
+message UpdateTopicRequest {
+  // Topic ID to update.
+  int64 id = 1;
+
+  // Updated topic input.
+  TopicInput input = 2;
+}
+
+// UpdateTopicResponse returns the updated topic.
+message UpdateTopicResponse {
+  // The updated topic.
+  Topic topic = 1;
+}
+
+// DeleteTopicRequest deletes a topic.
+message DeleteTopicRequest {
+  // Topic ID to delete.
+  int64 id = 1;
+}
+
+// DeleteTopicResponse confirms deletion.
+message DeleteTopicResponse {
+  // Whether the deletion was successful.
+  bool success = 1;
+}
+
+// ListTopicsRequest lists topics.
+message ListTopicsRequest {
+  // Filter options.
+  TopicFilter filter = 1;
+}
+
+// ListTopicsResponse returns matching topics.
+message ListTopicsResponse {
+  // The matching topics.
+  repeated Topic topics = 1;
+
+  // Total count of matching topics.
+  int64 total_count = 2;
+}

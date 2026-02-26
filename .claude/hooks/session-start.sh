@@ -8,7 +8,8 @@ set -euo pipefail
 # Instance identity (first 8 chars of conversation UUID)
 PROJ_DIR="$HOME/.claude/projects/-Users-james-github-otherjamesbrown-penf-cli"
 INSTANCE_ID=$(basename "$(ls -t "$PROJ_DIR"/*.jsonl 2>/dev/null | head -1)" .jsonl 2>/dev/null | cut -c1-8)
-echo "[Instance: penfold:${INSTANCE_ID:-unknown}]"
+export CLAUDE_SESSION_ID="penfold:${INSTANCE_ID:-unknown}"
+echo "[Instance: ${CLAUDE_SESSION_ID}]"
 
 # Board
 echo ""
@@ -38,6 +39,14 @@ if [ -n "$PHASED_PARENTS" ]; then
     ' 2>/dev/null
   done
   echo ""
+fi
+
+# Last handoff from session ledger
+HANDOFF=$(penf ledger list --type handoff --limit 1 -o json 2>/dev/null | jq -r '.entries[0] // empty' 2>/dev/null)
+if [ -n "$HANDOFF" ] && [ "$HANDOFF" != "null" ]; then
+  echo ""
+  echo "# Last Handoff #"
+  echo "$HANDOFF" | jq -r '"  \(.title) (\(.session_id)) — \(.created_at.seconds | todate)"' 2>/dev/null || true
 fi
 
 # Focus shard details

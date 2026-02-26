@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	searchv1 "github.com/otherjamesbrown/penf-cli/api/proto/search/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
 	"github.com/otherjamesbrown/penf-cli/config"
 	"github.com/otherjamesbrown/penf-cli/services/search/query"
@@ -374,6 +375,17 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 	}
 	defer searchClient.Close()
 
+	// Map sort order to proto enum.
+	var protoSortOrder searchv1.SortOrder
+	switch sortOrder {
+	case SortOrderDate:
+		protoSortOrder = searchv1.SortOrder_SORT_ORDER_DATE_DESC
+	case SortOrderDateAsc:
+		protoSortOrder = searchv1.SortOrder_SORT_ORDER_DATE_ASC
+	case SortOrderRelevance:
+		protoSortOrder = searchv1.SortOrder_SORT_ORDER_RELEVANCE
+	}
+
 	// Build search request.
 	req := &client.SearchRequest{
 		Query:        queryStr,
@@ -383,6 +395,7 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 		DateTo:       dateTo,
 		Limit:        int32(searchLimit),
 		Offset:       int32(searchOffset),
+		SortOrder:    protoSortOrder,
 	}
 
 	// Execute the search based on mode.
@@ -420,6 +433,9 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 		SearchedAt:    time.Now(),
 		ExpansionInfo: searchResp.ExpansionInfo,
 	}
+
+	// Log activity (fire-and-forget)
+	logActivity(cfg, fmt.Sprintf("search: %s (%d results)", queryStr, len(results)))
 
 	// Output results.
 	return outputSearchResults(outputFormat, response, searchVerbose)
