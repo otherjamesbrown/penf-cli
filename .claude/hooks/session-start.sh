@@ -5,10 +5,16 @@
 
 set -euo pipefail
 
-# Instance identity (first 8 chars of conversation UUID)
-PROJ_DIR="$HOME/.claude/projects/-Users-james-github-otherjamesbrown-penf-cli"
-INSTANCE_ID=$(basename "$(ls -t "$PROJ_DIR"/*.jsonl 2>/dev/null | head -1)" .jsonl 2>/dev/null | cut -c1-8)
-export CLAUDE_SESSION_ID="penfold:${INSTANCE_ID:-unknown}"
+# Read session ID from hook input (unique per Claude Code instance)
+INPUT=$(cat)
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+CLAUDE_SESSION_ID="penfold:${SESSION_ID:0:8}"
+
+# Persist session ID for all subsequent penf commands in this session
+if [ -n "$CLAUDE_ENV_FILE" ] && [ -n "$SESSION_ID" ]; then
+  echo "export CLAUDE_SESSION_ID=\"${CLAUDE_SESSION_ID}\"" >> "$CLAUDE_ENV_FILE"
+fi
+
 echo "[Instance: ${CLAUDE_SESSION_ID}]"
 
 # Board
