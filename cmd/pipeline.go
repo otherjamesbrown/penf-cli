@@ -12,8 +12,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	contentv1 "github.com/otherjamesbrown/penf-cli/api/proto/content/v1"
 	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
@@ -61,10 +63,6 @@ Commands:
   status  - Show overall pipeline statistics
   job     - Show details for a specific job
   jobs    - List recent ingest jobs
-
-Documentation:
-  Pipeline concepts:   docs/concepts/pipeline.md
-  System vision:       docs/shared/vision.md
 
 Related Commands:
   penf reprocess   Shortcut for 'penf pipeline reprocess'
@@ -876,7 +874,11 @@ func runBulkReprocess(ctx context.Context, conn *grpc.ClientConn, cfg *config.CL
 		stagesToReprocess = []contentv1.ProcessingStage{stageEnum}
 	}
 
-	// Reprocess each content item
+	// Reprocess each content item with backpressure handling (pf-f69608).
+	// The gateway returns ResourceExhausted when the pipeline concurrency limit
+	// is reached. We retry with exponential backoff instead of failing immediately.
+	const maxRetries = 6 // up to ~63s total backoff per item
+
 	successCount := 0
 	failCount := 0
 	var jobIDs []string
@@ -899,7 +901,31 @@ func runBulkReprocess(ctx context.Context, conn *grpc.ClientConn, cfg *config.CL
 			}
 		}
 
-		resp, err := contentClient.ReprocessContent(ctx, req)
+		// Retry loop with exponential backoff for ResourceExhausted.
+		var resp *contentv1.ReprocessContentResponse
+		var err error
+		for attempt := 0; attempt <= maxRetries; attempt++ {
+			resp, err = contentClient.ReprocessContent(ctx, req)
+			if err == nil {
+				break
+			}
+			st, _ := status.FromError(err)
+			if st.Code() != codes.ResourceExhausted {
+				break // non-retryable error
+			}
+			if attempt == maxRetries {
+				break // exhausted retries
+			}
+			backoff := time.Duration(1<<uint(attempt+1)) * time.Second
+			fmt.Printf("  Concurrency limit reached for %s, waiting %v (retry %d/%d)...\n",
+				contentID, backoff, attempt+1, maxRetries)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to reprocess %s: %v\n", contentID, err)
 			failCount++
