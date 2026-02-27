@@ -110,6 +110,10 @@ message ConversationItem {
   string content_id = 2;
   optional int64 source_id = 3;
   google.protobuf.Timestamp added_at = 4;
+  // Content metadata — populated from sources table to avoid N+1 lookups.
+  optional google.protobuf.Timestamp content_date = 5;
+  optional string from_name = 6;
+  optional string subject = 7;
 }
 
 // ConversationParticipant represents a participant in a conversation.

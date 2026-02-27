@@ -196,33 +196,32 @@ Environment:
 	return deployCmd
 }
 
-// restartService restarts a service via SSH using the host's native process manager.
+// restartService restarts a service using the host's native process manager.
 func restartService(host string, svc serviceConfig) error {
-	var cmd string
+	var shellCmd string
 	switch svc.ProcessManager {
 	case "launchd":
-		cmd = fmt.Sprintf("sudo launchctl kickstart -k %s", svc.ServiceLabel)
+		shellCmd = fmt.Sprintf("sudo launchctl kickstart -k %s", svc.ServiceLabel)
 	case "systemd":
-		cmd = fmt.Sprintf("sudo systemctl restart %s", svc.ServiceLabel)
+		shellCmd = fmt.Sprintf("sudo systemctl restart %s", svc.ServiceLabel)
 	default:
 		return fmt.Errorf("unknown process manager: %s", svc.ProcessManager)
 	}
-	return runCmd("ssh", host, cmd)
+	return runRemoteCmd(host, shellCmd)
 }
 
-// getServiceStatus checks service status via SSH using the host's native process manager.
+// getServiceStatus checks service status using the host's native process manager.
 func getServiceStatus(host string, svc serviceConfig) string {
-	var args []string
+	var shellCmd string
 	switch svc.ProcessManager {
 	case "launchd":
-		args = []string{host, fmt.Sprintf("sudo launchctl print %s 2>/dev/null | grep 'state' | awk '{print $NF}'", svc.ServiceLabel)}
+		shellCmd = fmt.Sprintf("sudo launchctl print %s 2>/dev/null | grep '^\\tstate' | awk '{print $NF}'", svc.ServiceLabel)
 	case "systemd":
-		args = []string{host, fmt.Sprintf("systemctl is-active %s 2>/dev/null", svc.ServiceLabel)}
+		shellCmd = fmt.Sprintf("systemctl is-active %s 2>/dev/null", svc.ServiceLabel)
 	default:
 		return "unknown"
 	}
-	cmd := exec.Command("ssh", args...)
-	out, err := cmd.Output()
+	out, err := runRemoteCmdOutput(host, shellCmd)
 	if err != nil {
 		return "not running"
 	}
@@ -285,15 +284,15 @@ func waitForServiceHealthy(host string, svc serviceConfig, expectedCommit string
 	return fmt.Errorf("%s failed to become healthy within %ds", svc.Name, timeoutSecs)
 }
 
-// backupBinary creates a .prev backup of the current binary on the remote host.
+// backupBinary creates a .prev backup of the current binary on the target host.
 func backupBinary(host, binaryPath string) error {
-	return runCmd("ssh", host, fmt.Sprintf("[ -f %s ] && cp %s %s.prev || true", binaryPath, binaryPath, binaryPath))
+	return runRemoteCmd(host, fmt.Sprintf("[ -f %s ] && cp %s %s.prev || true", binaryPath, binaryPath, binaryPath))
 }
 
 // rollbackBinary restores the .prev backup and restarts the service.
 func rollbackBinary(host string, svc serviceConfig) error {
 	fmt.Printf("  Rolling back %s...\n", svc.Name)
-	if err := runCmd("ssh", host, fmt.Sprintf("[ -f %s.prev ] && mv %s.prev %s", svc.BinaryPath, svc.BinaryPath, svc.BinaryPath)); err != nil {
+	if err := runRemoteCmd(host, fmt.Sprintf("[ -f %s.prev ] && mv %s.prev %s", svc.BinaryPath, svc.BinaryPath, svc.BinaryPath)); err != nil {
 		return fmt.Errorf("rollback failed: %w", err)
 	}
 	return restartService(host, svc)
@@ -322,6 +321,35 @@ func hostForService(svc serviceConfig) string {
 		return h
 	}
 	return svc.Host
+}
+
+// isLocalHost returns true if the given host refers to this machine.
+func isLocalHost(host string) bool {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return false
+	}
+	// Match "dev01" against "dev01.brown.chat" etc.
+	return host == hostname || strings.HasPrefix(hostname, host+".")
+}
+
+// runRemoteCmd runs a shell command on the given host via SSH, or locally if the host is this machine.
+func runRemoteCmd(host, shellCmd string) error {
+	if isLocalHost(host) {
+		return runCmd("bash", "-c", shellCmd)
+	}
+	return runCmd("ssh", host, shellCmd)
+}
+
+// runRemoteCmdOutput runs a shell command on the given host and returns its output.
+func runRemoteCmdOutput(host, shellCmd string) ([]byte, error) {
+	var cmd *exec.Cmd
+	if isLocalHost(host) {
+		cmd = exec.Command("bash", "-c", shellCmd)
+	} else {
+		cmd = exec.Command("ssh", host, shellCmd)
+	}
+	return cmd.Output()
 }
 
 func runCmd(name string, args ...string) error {
@@ -402,10 +430,16 @@ func runDeploy(svc serviceConfig) error {
 	if err := backupBinary(host, svc.BinaryPath); err != nil {
 		return fmt.Errorf("backup failed: %w", err)
 	}
-	if err := runCmd("scp", buildOutput, fmt.Sprintf("%s:%s.new", host, svc.BinaryPath)); err != nil {
-		return fmt.Errorf("scp failed: %w", err)
+	if isLocalHost(host) {
+		if err := runCmd("cp", buildOutput, svc.BinaryPath+".new"); err != nil {
+			return fmt.Errorf("local copy failed: %w", err)
+		}
+	} else {
+		if err := runCmd("scp", buildOutput, fmt.Sprintf("%s:%s.new", host, svc.BinaryPath)); err != nil {
+			return fmt.Errorf("scp failed: %w", err)
+		}
 	}
-	if err := runCmd("ssh", host, fmt.Sprintf("chmod +x %s.new && mv %s.new %s", svc.BinaryPath, svc.BinaryPath, svc.BinaryPath)); err != nil {
+	if err := runRemoteCmd(host, fmt.Sprintf("chmod +x %s.new && mv %s.new %s", svc.BinaryPath, svc.BinaryPath, svc.BinaryPath)); err != nil {
 		return fmt.Errorf("binary swap failed: %w", err)
 	}
 	fmt.Printf("  Uploaded\n\n")

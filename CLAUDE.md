@@ -18,7 +18,7 @@ The playbook is loaded by the hook. Do not reload it.
 | Context Palace | dev02.brown.chat:5432 | ~/.cp/config.yaml |
 
 - **Context Palace setup:** setup.md
-- **User preferences:** docs/preferences.md (NEVER modify)
+- **User preferences:** stored in Context Palace memories
 
 ## Building
 

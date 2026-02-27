@@ -531,6 +531,130 @@ func (c *AIClient) convertAnalyzeResponse(resp *aiv1.AnalyzeByIDResponse) *Analy
 	return result
 }
 
+// GetStageConfig returns the current model configuration for all pipeline stages.
+func (c *AIClient) GetStageConfig(ctx context.Context, tenantID string, stage string) (*aiv1.GetStageConfigResponse, error) {
+	c.mu.RLock()
+	client := c.client
+	c.mu.RUnlock()
+
+	if client == nil {
+		return nil, fmt.Errorf("AI client not connected")
+	}
+
+	ctx = c.contextWithTenant(ctx, tenantID)
+
+	req := &aiv1.GetStageConfigRequest{}
+	if stage != "" {
+		req.Stage = &stage
+	}
+
+	resp, err := client.GetStageConfig(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("get stage config request failed: %w", err)
+	}
+
+	return resp, nil
+}
+
+// SetStageConfig sets the model for a pipeline stage or default.
+func (c *AIClient) SetStageConfig(ctx context.Context, tenantID string, key, model string) (*aiv1.SetStageConfigResponse, error) {
+	c.mu.RLock()
+	client := c.client
+	c.mu.RUnlock()
+
+	if client == nil {
+		return nil, fmt.Errorf("AI client not connected")
+	}
+
+	ctx = c.contextWithTenant(ctx, tenantID)
+
+	resp, err := client.SetStageConfig(ctx, &aiv1.SetStageConfigRequest{
+		Key:   key,
+		Model: model,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("set stage config request failed: %w", err)
+	}
+
+	return resp, nil
+}
+
+// ResetStageConfig removes a DB override for a stage, reverting to env/default.
+func (c *AIClient) ResetStageConfig(ctx context.Context, tenantID string, key string) (*aiv1.ResetStageConfigResponse, error) {
+	c.mu.RLock()
+	client := c.client
+	c.mu.RUnlock()
+
+	if client == nil {
+		return nil, fmt.Errorf("AI client not connected")
+	}
+
+	ctx = c.contextWithTenant(ctx, tenantID)
+
+	resp, err := client.ResetStageConfig(ctx, &aiv1.ResetStageConfigRequest{
+		Key: key,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("reset stage config request failed: %w", err)
+	}
+
+	return resp, nil
+}
+
+// ListAvailableModels returns models installed on Ollama plus known remote models.
+func (c *AIClient) ListAvailableModels(ctx context.Context, tenantID string, backend string) (*aiv1.ListAvailableModelsResponse, error) {
+	c.mu.RLock()
+	client := c.client
+	c.mu.RUnlock()
+
+	if client == nil {
+		return nil, fmt.Errorf("AI client not connected")
+	}
+
+	ctx = c.contextWithTenant(ctx, tenantID)
+
+	req := &aiv1.ListAvailableModelsRequest{}
+	if backend != "" {
+		req.Backend = &backend
+	}
+
+	resp, err := client.ListAvailableModels(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("list available models request failed: %w", err)
+	}
+
+	return resp, nil
+}
+
+// TestStage runs a quick inference test for a pipeline stage.
+func (c *AIClient) TestStage(ctx context.Context, tenantID string, stage string) (*aiv1.TestStageResponse, error) {
+	c.mu.RLock()
+	client := c.client
+	c.mu.RUnlock()
+
+	if client == nil {
+		return nil, fmt.Errorf("AI client not connected")
+	}
+
+	ctx = c.contextWithTenant(ctx, tenantID)
+
+	// Use a longer timeout for inference tests.
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
+	}
+
+	resp, err := client.TestStage(ctx, &aiv1.TestStageRequest{
+		Stage: stage,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("test stage request failed: %w", err)
+	}
+
+	return resp, nil
+}
+
 // ListModels returns registered AI models.
 func (c *AIClient) ListModels(ctx context.Context, tenantID string) ([]*aiv1.ModelInfo, error) {
 	c.mu.RLock()

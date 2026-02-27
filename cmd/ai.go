@@ -111,6 +111,7 @@ When to Use:
 	cmd.AddCommand(newAIQueryCommand(deps))
 	cmd.AddCommand(newAISummarizeCommand(deps))
 	cmd.AddCommand(newAIAnalyzeCommand(deps))
+	cmd.AddCommand(NewAIModelCommand(deps))
 
 	return cmd
 }

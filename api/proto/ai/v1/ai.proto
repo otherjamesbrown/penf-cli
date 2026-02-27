@@ -83,6 +83,27 @@ service AICoordinatorService {
   rpc UpdateRoutingRule(UpdateRoutingRuleRequest) returns (UpdateRoutingRuleResponse);
 
   // ---------------------------------------------------------------------------
+  // Stage Configuration RPCs
+  // ---------------------------------------------------------------------------
+
+  // GetStageConfig returns the current model configuration for all pipeline stages.
+  // Shows which model each stage uses and the config source (db override, env var, default).
+  rpc GetStageConfig(GetStageConfigRequest) returns (GetStageConfigResponse);
+
+  // SetStageConfig sets the model for a specific pipeline stage or default.
+  // Creates a DB override that takes precedence over env vars.
+  rpc SetStageConfig(SetStageConfigRequest) returns (SetStageConfigResponse);
+
+  // ResetStageConfig removes the DB override for a stage, reverting to env var or default.
+  rpc ResetStageConfig(ResetStageConfigRequest) returns (ResetStageConfigResponse);
+
+  // ListAvailableModels returns models installed on Ollama plus known remote models.
+  rpc ListAvailableModels(ListAvailableModelsRequest) returns (ListAvailableModelsResponse);
+
+  // TestStage runs a quick inference test for a pipeline stage using its configured model.
+  rpc TestStage(TestStageRequest) returns (TestStageResponse);
+
+  // ---------------------------------------------------------------------------
   // AI Operations RPCs (CLI-facing)
   // ---------------------------------------------------------------------------
 
@@ -1332,4 +1353,134 @@ message AnalyzeByIDResponse {
 
   // Execution time in milliseconds.
   optional double latency_ms = 14;
+}
+
+// =============================================================================
+// Stage Configuration Messages
+// =============================================================================
+
+// StageModelConfig describes the model configuration for a single pipeline stage.
+message StageModelConfig {
+  // Pipeline stage name (e.g. "triage", "extract_semantic", "deep_analyze", "embedding").
+  string stage = 1;
+
+  // The model currently configured for this stage.
+  string model = 2;
+
+  // Where the config came from: "db", "env", "default".
+  string source = 3;
+
+  // The env var name that would apply if no DB override (e.g. "AI_MODEL_TRIAGE").
+  string env_var = 4;
+
+  // The backend provider: "ollama", "gemini", "openai", "anthropic".
+  string backend = 5;
+}
+
+// GetStageConfigRequest requests the current stage→model mapping.
+message GetStageConfigRequest {
+  // Optional: filter to a specific stage. If empty, returns all stages.
+  optional string stage = 1;
+}
+
+// GetStageConfigResponse returns the model configuration for pipeline stages.
+message GetStageConfigResponse {
+  // Per-stage model configuration.
+  repeated StageModelConfig stages = 1;
+
+  // Default LLM model.
+  StageModelConfig default_llm = 2;
+
+  // Default embedding model.
+  StageModelConfig default_embedding = 3;
+}
+
+// SetStageConfigRequest sets the model for a stage or default.
+message SetStageConfigRequest {
+  // The config key: stage name (e.g. "triage") or "default" / "default-embedding".
+  string key = 1;
+
+  // The model to assign (e.g. "qwen3:8b", "gemini-2.5-pro").
+  string model = 2;
+}
+
+// SetStageConfigResponse confirms the configuration change.
+message SetStageConfigResponse {
+  // The updated stage configuration.
+  StageModelConfig config = 1;
+
+  // The previous model that was configured.
+  string previous_model = 2;
+}
+
+// ResetStageConfigRequest removes a DB override for a stage.
+message ResetStageConfigRequest {
+  // The config key to reset: stage name or "default" / "default-embedding".
+  string key = 1;
+}
+
+// ResetStageConfigResponse confirms the reset.
+message ResetStageConfigResponse {
+  // The effective configuration after reset (falls back to env/default).
+  StageModelConfig config = 1;
+}
+
+// AvailableModel describes a model available for use.
+message AvailableModel {
+  // Model name/identifier.
+  string name = 1;
+
+  // Backend provider: "ollama", "gemini", "openai", "anthropic".
+  string backend = 2;
+
+  // Model size (for local models, e.g. "4.7 GB").
+  optional string size = 3;
+
+  // Whether this model is currently assigned to any stage.
+  bool in_use = 4;
+
+  // Stages using this model (if in_use is true).
+  repeated string used_by_stages = 5;
+}
+
+// ListAvailableModelsRequest lists models available for assignment.
+message ListAvailableModelsRequest {
+  // Optional filter by backend: "ollama", "gemini", "openai", "anthropic".
+  optional string backend = 1;
+}
+
+// ListAvailableModelsResponse returns available models.
+message ListAvailableModelsResponse {
+  // Available models from all backends.
+  repeated AvailableModel models = 1;
+}
+
+// TestStageRequest runs a quick inference test on a pipeline stage.
+message TestStageRequest {
+  // The pipeline stage to test (e.g. "triage", "extract_semantic").
+  string stage = 1;
+}
+
+// TestStageResponse returns the test results.
+message TestStageResponse {
+  // The stage that was tested.
+  string stage = 1;
+
+  // The model used for the test.
+  string model = 2;
+
+  // The backend provider.
+  string backend = 3;
+
+  // Inference latency in milliseconds.
+  double latency_ms = 4;
+
+  // Whether the test succeeded.
+  bool success = 5;
+
+  // Error message if the test failed.
+  optional string error = 6;
+
+  // Truncated output from the test inference.
+  optional string output_preview = 7;
 }

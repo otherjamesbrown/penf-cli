@@ -799,21 +799,26 @@ func outputConversationDetailText(resp *conversationv1.ShowConversationResponse)
 	// Items
 	if len(resp.Items) > 0 {
 		fmt.Println("\nItems:")
-		fmt.Println("────────────────────────────────────────────────────────────────────────────────────────")
-		fmt.Printf("%-38s %-10s %-20s\n", "CONTENT ID", "SOURCE ID", "ADDED AT")
-		fmt.Println("────────────────────────────────────────────────────────────────────────────────────────")
+		fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────────────────────────────")
+		fmt.Printf("%-16s %-20s %-22s %s\n", "CONTENT ID", "DATE", "FROM", "SUBJECT")
+		fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────────────────────────────")
 
 		for _, item := range resp.Items {
-			sourceID := "N/A"
-			if item.SourceId != nil {
-				sourceID = fmt.Sprintf("%d", *item.SourceId)
+			date := formatThreadTimestamp(item.ContentDate)
+			from := ""
+			if item.FromName != nil {
+				from = *item.FromName
 			}
-			addedAt := formatThreadTimestamp(item.AddedAt)
+			subject := ""
+			if item.Subject != nil {
+				subject = *item.Subject
+			}
 
-			fmt.Printf("%-38s %-10s %-20s\n",
+			fmt.Printf("%-16s %-20s %-22s %s\n",
 				item.ContentId,
-				sourceID,
-				addedAt)
+				date,
+				truncateThreadString(from, 22),
+				truncateThreadString(subject, 50))
 		}
 	}
 
