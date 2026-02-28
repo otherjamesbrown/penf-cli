@@ -179,10 +179,7 @@ Examples:
   # Show product hierarchy
   penf product hierarchy "My Product"
 
-Documentation:
-  Product model:          docs/concepts/products.md (hierarchy, teams, events)
-  Entity types:           docs/shared/entities.md (products as entities)
-  Use case:               docs/shared/use-cases.md (UC-4: Product Knowledge Base)`,
+Product and entity model details are in Context Palace knowledge shards.`,
 		Aliases: []string{"prod", "products"},
 	}
 

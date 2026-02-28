@@ -120,7 +120,7 @@ Commands:
   context     Get full context for Claude-guided review
   batch       Batch process confirmations, resolutions, merges
 
-See docs/workflows/onboarding.md for detailed documentation.`,
+Onboarding workflow details are in Context Palace knowledge shards.`,
 		Aliases: []string{"onboard"},
 	}
 

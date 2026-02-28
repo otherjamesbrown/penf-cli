@@ -81,10 +81,6 @@ Examples:
   # Output as JSON for programmatic use
   penf trace dc-9x3kp7mn -o json
 
-Documentation:
-  Pipeline concepts:   docs/concepts/pipeline.md
-  Entity model:        docs/shared/entities.md
-
 Related Commands:
   penf content trace <id>    Processing timeline for a content item
   penf pipeline history <id> Pipeline execution stages for a source

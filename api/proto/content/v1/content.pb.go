@@ -1548,8 +1548,10 @@ type ListContentItemsRequest struct {
 	IncludeEmbeddings bool `protobuf:"varint,8,opt,name=include_embeddings,json=includeEmbeddings,proto3" json:"include_embeddings,omitempty"`
 	// Filter by content type (optional).
 	ContentTypeFilter *ContentType `protobuf:"varint,9,opt,name=content_type_filter,json=contentTypeFilter,proto3,enum=penfold.content.v1.ContentType,oneof" json:"content_type_filter,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Filter by source tag from ingestion metadata (optional).
+	SourceTag     *string `protobuf:"bytes,10,opt,name=source_tag,json=sourceTag,proto3,oneof" json:"source_tag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListContentItemsRequest) Reset() {
@@ -1643,6 +1645,13 @@ func (x *ListContentItemsRequest) GetContentTypeFilter() ContentType {
 		return *x.ContentTypeFilter
 	}
 	return ContentType_CONTENT_TYPE_UNSPECIFIED
+}
+
+func (x *ListContentItemsRequest) GetSourceTag() string {
+	if x != nil && x.SourceTag != nil {
+		return *x.SourceTag
+	}
+	return ""
 }
 
 // ListContentItemsResponse contains a paginated list of content items.
@@ -3775,7 +3784,7 @@ const file_api_proto_content_v1_content_proto_rawDesc = "" +
 	"\x15GetContentItemRequest\x12\x1d\n" +
 	"\n" +
 	"content_id\x18\x01 \x01(\tR\tcontentId\x12+\n" +
-	"\x11include_embedding\x18\x02 \x01(\bR\x10includeEmbedding\"\xc2\x04\n" +
+	"\x11include_embedding\x18\x02 \x01(\bR\x10includeEmbedding\"\xf5\x04\n" +
 	"\x17ListContentItemsRequest\x12$\n" +
 	"\vsource_type\x18\x01 \x01(\tH\x00R\n" +
 	"sourceType\x88\x01\x01\x12>\n" +
@@ -3787,12 +3796,16 @@ const file_api_proto_content_v1_content_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\a \x01(\tR\tpageToken\x12-\n" +
 	"\x12include_embeddings\x18\b \x01(\bR\x11includeEmbeddings\x12T\n" +
-	"\x13content_type_filter\x18\t \x01(\x0e2\x1f.penfold.content.v1.ContentTypeH\x04R\x11contentTypeFilter\x88\x01\x01B\x0e\n" +
+	"\x13content_type_filter\x18\t \x01(\x0e2\x1f.penfold.content.v1.ContentTypeH\x04R\x11contentTypeFilter\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"source_tag\x18\n" +
+	" \x01(\tH\x05R\tsourceTag\x88\x01\x01B\x0e\n" +
 	"\f_source_typeB\b\n" +
 	"\x06_stateB\x10\n" +
 	"\x0e_created_afterB\x11\n" +
 	"\x0f_created_beforeB\x16\n" +
-	"\x14_content_type_filter\"\xaf\x01\n" +
+	"\x14_content_type_filterB\r\n" +
+	"\v_source_tag\"\xaf\x01\n" +
 	"\x18ListContentItemsResponse\x125\n" +
 	"\x05items\x18\x01 \x03(\v2\x1f.penfold.content.v1.ContentItemR\x05items\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12$\n" +

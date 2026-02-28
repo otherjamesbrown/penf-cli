@@ -136,10 +136,6 @@ Examples:
   # Terminate a workflow (immediate)
   penf workflow terminate wf-abc123
 
-Documentation:
-  Pipeline overview:   docs/concepts/pipeline.md
-  System vision:       docs/shared/vision.md
-
 Related Commands:
   penf pipeline    Pipeline-level statistics and queue status
   penf content     Browse processed content items`,

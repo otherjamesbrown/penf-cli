@@ -68,9 +68,7 @@ mention resolution, including:
 Each trace includes timing, decisions, reasoning, and optionally
 full LLM prompts/responses for debugging.
 
-Documentation:
-  Entity resolution:   docs/concepts/mention-resolution.md
-  Entity model:        docs/shared/entities.md`,
+Entity resolution details are in Context Palace knowledge shards.`,
 	}
 
 	// Add persistent flags

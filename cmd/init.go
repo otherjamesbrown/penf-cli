@@ -6,8 +6,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,19 +46,12 @@ This command will:
 4. Create CLAUDE.md in current directory (for Claude Code)
 5. Create preferences.md in current directory (user settings - never overwritten)
 6. Install process definitions in current directory
-7. Install documentation hierarchy for Claude agents
 
 Run this from your project directory. Global config goes to ~/.penf/,
-but context files (CLAUDE.md, preferences.md, processes/, docs/) are created
+but context files (CLAUDE.md, preferences.md, processes/) are created
 in the current directory so Claude Code can find them.
 
-After init, run 'penf init entities' to seed known people, products, and glossary.
-
-Documentation (installed to docs/):
-  docs/assistant-rules.md   How Penfold (the AI) should operate
-  docs/index.md             System overview and navigation
-  docs/shared/vision.md     What Penfold is and why
-  docs/shared/entities.md   Data model and relationships`,
+After init, run 'penf init entities' to seed known people, products, and glossary.`,
 		RunE: runInit,
 	}
 
@@ -157,14 +148,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println()
 
-	// Step 8: Install documentation for Claude agents.
-	fmt.Println("Installing documentation...")
-	if err := initDocs(); err != nil {
-		fmt.Printf("  \033[33mWarning:\033[0m Could not install docs: %v\n", err)
-	}
-	fmt.Println()
-
-	// Step 9: Create memory directory for session logs.
+	// Step 8: Create memory directory for session logs.
 	fmt.Println("Creating memory directory...")
 	if err := initMemoryDir(); err != nil {
 		fmt.Printf("  \033[33mWarning:\033[0m Could not create memory directory: %v\n", err)
@@ -180,7 +164,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  CLAUDE.md:       %s\n", filepath.Join(cwd, "CLAUDE.md"))
 	fmt.Printf("  Preferences:     %s\n", filepath.Join(cwd, "preferences.md"))
 	fmt.Printf("  Processes:       %s\n", filepath.Join(cwd, "processes/"))
-	fmt.Printf("  Documentation:   %s\n", filepath.Join(cwd, "docs/"))
 	fmt.Printf("  Memory:          %s\n", filepath.Join(cwd, "memory/"))
 	fmt.Println()
 	fmt.Println("Next steps:")
@@ -319,108 +302,6 @@ func initProcessDefinitions() error {
 	return nil
 }
 
-// initDocs downloads documentation from GitHub for Claude agents.
-// Downloads from context/client/ and context/shared/ in the penfold repo.
-// Structure:
-//
-//	docs/           - Client docs (assistant-rules.md, index.md, concepts/, workflows/)
-//	docs/shared/    - Shared docs (vision, entities, use-cases)
-func initDocs() error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("getting current directory: %w", err)
-	}
-
-	docsDir := filepath.Join(cwd, "docs")
-
-	// Files to download from context/client/ -> docs/
-	clientFiles := []string{
-		"assistant-rules.md",
-		"index.md",
-		"preferences.md",
-		"processes.md",
-		"concepts/entities.md",
-		"concepts/glossary.md",
-		"concepts/mentions.md",
-		"concepts/people.md",
-		"concepts/products.md",
-		"workflows/acronym-review.md",
-		"workflows/init-entities.md",
-		"workflows/mention-review.md",
-		"workflows/onboarding.md",
-	}
-
-	// Files to download from context/shared/ -> docs/shared/
-	sharedFiles := []string{
-		"vision.md",
-		"entities.md",
-		"use-cases.md",
-		"interaction-model.md",
-	}
-
-	baseURL := "https://raw.githubusercontent.com/otherjamesbrown/penfold/main/context"
-	client := &http.Client{Timeout: 30 * time.Second}
-
-	// Download client docs
-	for _, file := range clientFiles {
-		destPath := filepath.Join(docsDir, file)
-		srcURL := fmt.Sprintf("%s/client/%s", baseURL, file)
-
-		if err := downloadFile(client, srcURL, destPath); err != nil {
-			return fmt.Errorf("downloading %s: %w", file, err)
-		}
-	}
-
-	// Download shared docs
-	sharedDir := filepath.Join(docsDir, "shared")
-	for _, file := range sharedFiles {
-		destPath := filepath.Join(sharedDir, file)
-		srcURL := fmt.Sprintf("%s/shared/%s", baseURL, file)
-
-		if err := downloadFile(client, srcURL, destPath); err != nil {
-			return fmt.Errorf("downloading shared/%s: %w", file, err)
-		}
-	}
-
-	fmt.Printf("  \033[32m✓\033[0m Downloaded docs/ from GitHub (concepts, workflows, shared)\n")
-	fmt.Println("    Claude reads docs/assistant-rules.md for identity and operating principles")
-	fmt.Println("    Shared docs (vision, entities, use-cases) are in docs/shared/")
-
-	return nil
-}
-
-// downloadFile downloads a file from a URL and saves it to destPath.
-func downloadFile(client *http.Client, url, destPath string) error {
-	// Create parent directory
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return fmt.Errorf("creating directory: %w", err)
-	}
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return fmt.Errorf("fetching %s: %w", url, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode == 404 {
-		return fmt.Errorf("file not found: %s", url)
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
-	}
-
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("reading response: %w", err)
-	}
-
-	if err := os.WriteFile(destPath, content, 0644); err != nil {
-		return fmt.Errorf("writing file: %w", err)
-	}
-
-	return nil
-}
-
 // initMemoryDir creates the memory directory for session logs.
 // This directory stores daily YYYY-MM-DD.md files for session continuity.
 func initMemoryDir() error {
@@ -479,31 +360,23 @@ Periodically review memory files and update preferences.md with what's worth kee
 }
 
 // generateAssistantClaudeMd generates the assistant CLAUDE.md content.
-// This is intentionally minimal - all real content lives in docs/assistant-rules.md.
+// This is intentionally minimal - context is injected by the SessionStart hook.
 func generateAssistantClaudeMd(cfg *config.CLIConfig) string {
-	return fmt.Sprintf(`# Penfold Assistant
+	return fmt.Sprintf(`# Penfold CLI
 
-**Read `+"`docs/assistant-rules.md`"+` first** - it defines who you are and how to operate.
+You are **agent-penfold** — James's knowledge assistant and dev orchestrator.
 
 ## Configuration
 
 - **Server:** %s
 - **Config:** ~/.penf/config.yaml
-- **Docs:** docs/ (downloaded from GitHub)
-
-## Quick Start
-
-1. Read `+"`docs/assistant-rules.md`"+` - your identity and operating principles
-2. Read `+"`docs/index.md`"+` - system overview and navigation
-3. Check Agent Mail inbox for dev messages
-4. Help the user
 
 ## Troubleshooting
 
 `+"```"+`bash
 penf status    # Check connection
 penf health    # View system health
-penf update    # Update CLI and docs
+penf update    # Update CLI
 `+"```"+`
 `, cfg.ServerAddress)
 }

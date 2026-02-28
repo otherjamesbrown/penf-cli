@@ -64,8 +64,7 @@ This command will:
 2. Download the binary for your platform
 3. Replace the current binary
 4. Update the assistant CLAUDE.md configuration
-5. Update process definitions (~/.penf/processes.md)
-6. Update documentation for Claude agents (docs/)
+5. Update process definitions
 
 Examples:
   penf update           # Update to latest version
@@ -201,14 +200,6 @@ func runUpdate(currentVersion string) error {
 	fmt.Println("Updating process definitions...")
 	if err := initProcessDefinitions(); err != nil {
 		fmt.Printf("  \033[33mWarning:\033[0m Could not update process definitions: %v\n", err)
-	}
-
-	// Update documentation for Claude agents.
-	fmt.Println("Updating documentation...")
-	if err := initDocs(); err != nil {
-		fmt.Printf("  \033[33mWarning:\033[0m Could not update docs: %v\n", err)
-	} else {
-		fmt.Printf("  \033[32m✓\033[0m Documentation updated in %s/docs/\n", cwd)
 	}
 
 	// Create preferences.md if it doesn't exist (never overwrites user's file).

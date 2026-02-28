@@ -221,8 +221,7 @@ func TestUpdateCreatesNewCLAUDEMd(t *testing.T) {
 
 	contentStr := string(content)
 	expectedStrings := []string{
-		"# Penfold Assistant",
-		"docs/assistant-rules.md",
+		"# Penfold CLI",
 		"penf status",
 		"penf health",
 	}

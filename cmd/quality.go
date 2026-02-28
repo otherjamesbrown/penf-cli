@@ -88,9 +88,7 @@ Common Quality Issues:
   - Missing or conflicting entity attributes
   - Content items with poor extraction scores
 
-Documentation:
-  Quality monitoring: docs/ops/quality-dashboard.md
-  Entity resolution:  docs/concepts/entities.md`,
+Quality and entity details are in Context Palace knowledge shards.`,
 		Aliases: []string{"qual", "q"},
 	}
 

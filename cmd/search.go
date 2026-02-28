@@ -248,11 +248,6 @@ JSON Output (for AI processing):
     "query_time_ms": 23.5
   }
 
-Documentation:
-  Glossary expansion: docs/concepts/glossary.md (how acronyms expand queries)
-  Entity types:       docs/shared/entities.md (what you're searching)
-  Vision:             docs/shared/vision.md (why search matters)
-
 When to Use:
   search     Find specific content by keywords, dates, or content type
   ai query   Get synthesized answers to natural language questions

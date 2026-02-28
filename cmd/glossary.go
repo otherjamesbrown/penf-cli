@@ -84,10 +84,7 @@ JSON Output (for AI processing):
     "total": 42
   }
 
-Documentation:
-  How glossary works:     docs/concepts/glossary.md (multi-context, aliases, expansion)
-  Acronym workflow:       docs/workflows/acronym-review.md (processing unknown acronyms)
-  Entity types:           docs/shared/entities.md (glossary as an entity)`,
+Glossary and acronym workflow details are in Context Palace knowledge shards.`,
 		Aliases: []string{"terms", "dict"},
 	}
 

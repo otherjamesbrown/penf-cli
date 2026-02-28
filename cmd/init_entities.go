@@ -102,7 +102,7 @@ Example JSON format:
   ]
 }
 
-See docs/workflows/init-entities.md for detailed documentation.`,
+Entity seeding workflow details are in Context Palace knowledge shards.`,
 		RunE: runInitEntities,
 	}
 

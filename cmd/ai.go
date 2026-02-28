@@ -95,10 +95,6 @@ Examples:
   # Analyze content for insights
   penf ai analyze email-456
 
-Documentation:
-  System vision:       docs/shared/vision.md
-  Entity model:        docs/shared/entities.md
-
 When to Use:
   ai query     Synthesized answers from the knowledge base
   ai summarize Summary of a specific content item

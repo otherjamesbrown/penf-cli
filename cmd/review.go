@@ -184,10 +184,7 @@ For AI-Powered Review:
   Use 'penf process' commands for intelligent batch processing instead of
   individual review commands. This provides full context for better decisions.
 
-Documentation:
-  Onboarding workflow:    docs/workflows/onboarding.md (review after import)
-  Entity types:           docs/concepts/entities.md (what you're reviewing)
-  Use case:               docs/shared/use-cases.md (UC-5: Daily Review)`,
+Review workflows are documented in Context Palace knowledge shards.`,
 	}
 
 	// Add session subcommands.

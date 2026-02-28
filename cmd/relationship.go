@@ -218,11 +218,7 @@ Relationship Types:
   - located_at:   Physical location
   - related_to:   General association
 
-Documentation:
-  People entities:        docs/concepts/people.md (how people are resolved)
-  Entity types:           docs/concepts/entities.md (all entity types)
-  Mention resolution:     docs/concepts/mentions.md (how mentions become entities)
-  Use case:               docs/shared/use-cases.md (UC-3: Expertise Discovery)`,
+Entity resolution details are in Context Palace knowledge shards.`,
 		Aliases: []string{"rel", "relations"},
 	}
 

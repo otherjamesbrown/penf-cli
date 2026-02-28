@@ -127,8 +127,7 @@ func TestDownloadAssistantClaudeMd_CreatesNewFile(t *testing.T) {
 	// Check for expected template content
 	contentStr := string(content)
 	expectedStrings := []string{
-		"# Penfold Assistant",
-		"docs/assistant-rules.md",
+		"# Penfold CLI",
 		cfg.ServerAddress,
 		"penf status",
 		"penf health",

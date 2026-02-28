@@ -180,8 +180,7 @@ Examples:
   # Start a local model server
   penf model serve phi --port 8080
 
-Documentation:
-  System vision:       docs/shared/vision.md`,
+Model configuration details are in Context Palace knowledge shards.`,
 		Aliases: []string{"models", "llm"},
 	}
 

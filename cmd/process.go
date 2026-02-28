@@ -148,12 +148,7 @@ Example workflow:
   penf process mentions batch-resolve '{"resolutions":[...]}'
   penf process onboarding batch '{"confirm_people":[...]}'
 
-Documentation:
-  How to operate:         docs/assistant-rules.md (your operating principles)
-  Acronym workflow:       docs/workflows/acronym-review.md
-  Mention workflow:       docs/workflows/mention-review.md
-  Onboarding workflow:    docs/workflows/onboarding.md
-  Interaction model:      docs/shared/interaction-model.md`,
+Workflows are documented in Context Palace knowledge shards.`,
 	}
 
 	// Add workflow subcommands.
@@ -176,7 +171,7 @@ This workflow allows Claude to:
 2. Access the existing glossary to check for duplicates
 3. Batch resolve multiple acronyms efficiently
 
-See docs/workflows/acronym-review.md for detailed guidance.`,
+Acronym review workflow details are in Context Palace knowledge shards.`,
 		Aliases: []string{"acro"},
 	}
 

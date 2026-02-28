@@ -49,7 +49,7 @@ This workflow allows Claude to:
 3. Batch resolve multiple mentions efficiently
 4. Create new patterns for recurring mentions
 
-See docs/workflows/mention-review.md for detailed guidance.`,
+Mention review workflow details are in Context Palace knowledge shards.`,
 		Aliases: []string{"mention"},
 	}
 

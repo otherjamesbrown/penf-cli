@@ -510,6 +510,9 @@ message ListContentItemsRequest {
 
   // Filter by content type (optional).
   optional ContentType content_type_filter = 9;
+
+  // Filter by source tag from ingestion metadata (optional).
+  optional string source_tag = 10;
 }
 
 // ListContentItemsResponse contains a paginated list of content items.

@@ -826,9 +826,9 @@ func runBulkReprocess(ctx context.Context, conn *grpc.ClientConn, cfg *config.CL
 		PageSize: 100, // Process in batches of 100
 	}
 
-	// Optional source type filter from source tag
+	// Optional source tag filter
 	if sourceTag != "" {
-		listReq.SourceType = &sourceTag
+		listReq.SourceTag = &sourceTag
 	}
 
 	fmt.Printf("Querying content items for tenant %s", tenantID)
