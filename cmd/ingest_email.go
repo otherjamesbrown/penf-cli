@@ -652,12 +652,46 @@ func emailToProtoRequest(email *eml.ParsedEmail, tenantID, sourceTag string, lab
 		})
 	}
 
-	// Additional headers
-	if email.Headers != nil {
-		req.Headers = email.Headers
+	// Always include To/CC/From headers for pipeline classification (pf-b19e97).
+	// The triage activity uses metadata["headers"] for newsletter detection (To==From)
+	// and header prepending. The parsed email has structured To/CC/From fields but
+	// they weren't flowing into the headers map that downstream expects.
+	headers := make(map[string]string)
+	if email.From.Email != "" {
+		headers["From"] = formatEmailHeader(email.From)
+	}
+	if len(email.To) > 0 {
+		headers["To"] = formatEmailHeaders(email.To)
+	}
+	if len(email.Cc) > 0 {
+		headers["Cc"] = formatEmailHeaders(email.Cc)
+	}
+	// Merge any explicitly preserved headers (auto-submission, precedence, etc.)
+	for k, v := range email.Headers {
+		headers[k] = v
+	}
+	if len(headers) > 0 {
+		req.Headers = headers
 	}
 
 	return req
+}
+
+// formatEmailHeader formats an eml.Address as an RFC 5322 header value.
+func formatEmailHeader(addr eml.Address) string {
+	if addr.Name != "" {
+		return addr.Name + " <" + addr.Email + ">"
+	}
+	return addr.Email
+}
+
+// formatEmailHeaders formats a slice of addresses as a comma-separated header value.
+func formatEmailHeaders(addrs []eml.Address) string {
+	parts := make([]string, len(addrs))
+	for i, addr := range addrs {
+		parts[i] = formatEmailHeader(addr)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // recordEmailOutcome updates progress and result based on the processing outcome.

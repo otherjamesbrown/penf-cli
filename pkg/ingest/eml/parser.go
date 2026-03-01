@@ -318,6 +318,38 @@ func (p *Parser) parseMultipart(body io.Reader, boundary string, email *ParsedEm
 			continue
 		}
 
+		// Handle embedded message/rfc822 (forwarded emails) — pf-f08812
+		if mediaType == "message/rfc822" {
+			nestedData, readErr := io.ReadAll(part)
+			if readErr == nil {
+				nestedResult, parseErr := p.parseWithOptions(nestedData, opts)
+				if parseErr == nil && nestedResult.Email != nil {
+					nestedBody := nestedResult.Email.GetBody()
+					if nestedBody != "" && email.BodyText != "" {
+						email.BodyText += "\n\n" + nestedBody
+					} else if nestedBody != "" {
+						email.BodyText = nestedBody
+					}
+				}
+			}
+			continue
+		}
+
+		// Handle text/calendar (ICS) — extract event metadata as body text (pf-58c28d)
+		if mediaType == "text/calendar" {
+			icsContent, readErr := io.ReadAll(part)
+			if readErr == nil {
+				if summary := parseICSMetadata(string(icsContent)); summary != "" {
+					if email.BodyText != "" {
+						email.BodyText += "\n\n" + summary
+					} else {
+						email.BodyText = summary
+					}
+				}
+			}
+			continue
+		}
+
 		// Check if this is an attachment
 		isAttachment := disposition == "attachment" ||
 			(disposition == "inline" && dispParams["filename"] != "") ||
@@ -615,4 +647,77 @@ func ParseFile(path string) (*ParseResult, error) {
 func ParseBytes(data []byte) (*ParseResult, error) {
 	parser := NewParser(DefaultParseOptions())
 	return parser.ParseBytes(data)
+}
+
+// parseICSMetadata extracts key calendar event fields from iCalendar data
+// and returns a human-readable summary. Returns "" if no VEVENT is found.
+func parseICSMetadata(icsData string) string {
+	var summary, dtStart, dtEnd, organizer string
+	var attendees []string
+	inEvent := false
+
+	for _, line := range strings.Split(icsData, "\n") {
+		line = strings.TrimRight(line, "\r")
+
+		if line == "BEGIN:VEVENT" {
+			inEvent = true
+			continue
+		}
+		if line == "END:VEVENT" {
+			break
+		}
+		if !inEvent {
+			continue
+		}
+
+		// Use HasPrefix+Index pattern to handle parameterised properties
+		// e.g. SUMMARY;LANGUAGE=en-US:Declined: James/Tom
+		if strings.HasPrefix(line, "SUMMARY") {
+			if idx := strings.Index(line, ":"); idx >= 0 {
+				summary = line[idx+1:]
+			}
+		} else if strings.HasPrefix(line, "DTSTART") {
+			if idx := strings.Index(line, ":"); idx >= 0 {
+				dtStart = line[idx+1:]
+			}
+		} else if strings.HasPrefix(line, "DTEND") {
+			if idx := strings.Index(line, ":"); idx >= 0 {
+				dtEnd = line[idx+1:]
+			}
+		} else if strings.HasPrefix(line, "ORGANIZER") {
+			if idx := strings.Index(line, ":"); idx >= 0 {
+				val := line[idx+1:]
+				organizer = strings.TrimPrefix(val, "mailto:")
+			}
+		} else if strings.HasPrefix(line, "ATTENDEE") {
+			if idx := strings.Index(line, ":"); idx >= 0 {
+				val := line[idx+1:]
+				attendees = append(attendees, strings.TrimPrefix(val, "mailto:"))
+			}
+		}
+	}
+
+	if summary == "" && organizer == "" && len(attendees) == 0 {
+		return ""
+	}
+
+	var parts []string
+	parts = append(parts, "[Calendar Event]")
+	if summary != "" {
+		parts = append(parts, "Title: "+summary)
+	}
+	if dtStart != "" {
+		parts = append(parts, "Start: "+dtStart)
+	}
+	if dtEnd != "" {
+		parts = append(parts, "End: "+dtEnd)
+	}
+	if organizer != "" {
+		parts = append(parts, "Organizer: "+organizer)
+	}
+	if len(attendees) > 0 {
+		parts = append(parts, "Attendees: "+strings.Join(attendees, ", "))
+	}
+
+	return strings.Join(parts, "\n")
 }
