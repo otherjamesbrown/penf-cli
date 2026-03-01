@@ -337,9 +337,15 @@ func (p *Parser) parseMultipart(body io.Reader, boundary string, email *ParsedEm
 
 		// Handle text/calendar (ICS) — extract event metadata as body text (pf-58c28d)
 		if mediaType == "text/calendar" {
-			icsContent, readErr := io.ReadAll(part)
+			icsRaw, readErr := io.ReadAll(part)
 			if readErr == nil {
-				if summary := parseICSMetadata(string(icsContent)); summary != "" {
+				// Decode transfer encoding (often base64 for calendar parts)
+				te := strings.ToLower(part.Header.Get("Content-Transfer-Encoding"))
+				icsDecoded, decErr := decodeTransferEncoding(icsRaw, te)
+				if decErr != nil {
+					icsDecoded = icsRaw // fallback to raw
+				}
+				if summary := parseICSMetadata(string(icsDecoded)); summary != "" {
 					if email.BodyText != "" {
 						email.BodyText += "\n\n" + summary
 					} else {
