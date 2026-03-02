@@ -2,7 +2,10 @@
   "mcpServers": {
     "penfold": {
       "type": "http",
-      "url": "http://dev02.brown.chat:50056/mcp"
+      "url": "http://dev02.brown.chat:50056/mcp",
+      "headers": {
+        "Authorization": "Bearer 76eff3949936b319c115baf044db768f51f006f8e045633a67b7f8f6d1751d1d"
+      }
     }
   }
 }
