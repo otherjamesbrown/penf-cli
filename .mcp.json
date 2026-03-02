@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "penfold": {
+      "type": "http",
+      "url": "http://dev02.brown.chat:50056/mcp"
+    }
+  }
+}
