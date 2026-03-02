@@ -401,8 +401,8 @@ func outputDefineShowHuman(def *pipelinev1.PipelineDefinition) error {
 	}
 
 	fmt.Printf("Pipeline: %s (%d stages)\n\n", def.Pipeline, len(def.Stages))
-	fmt.Println("  ORDER  STAGE                 ENABLED  SKIP-LOW  MODEL              TIMEOUT")
-	fmt.Println("  -----  -----                 -------  --------  -----              -------")
+	fmt.Println("  ORDER  STAGE                 ENABLED  SKIP-LOW  PROMPT  MODEL              TIMEOUT")
+	fmt.Println("  -----  -----                 -------  --------  ------  -----              -------")
 
 	for _, s := range def.Stages {
 		enabledStr := "\033[32mtrue\033[0m "
@@ -415,6 +415,11 @@ func outputDefineShowHuman(def *pipelinev1.PipelineDefinition) error {
 			skipLowStr = "true "
 		}
 
+		promptStr := "-"
+		if s.PromptOverride > 0 {
+			promptStr = fmt.Sprintf("v%d", s.PromptOverride)
+		}
+
 		modelStr := "-"
 		if s.ModelOverride != "" {
 			modelStr = s.ModelOverride
@@ -425,11 +430,12 @@ func outputDefineShowHuman(def *pipelinev1.PipelineDefinition) error {
 			timeoutStr = fmt.Sprintf("%ds", s.TimeoutSeconds)
 		}
 
-		fmt.Printf("  %-5d  %-20s  %s    %-5s     %-18s %s\n",
+		fmt.Printf("  %-5d  %-20s  %s    %-5s     %-6s  %-18s %s\n",
 			s.StageOrder,
 			s.Stage,
 			enabledStr,
 			skipLowStr,
+			promptStr,
 			modelStr,
 			timeoutStr)
 	}
