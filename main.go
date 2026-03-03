@@ -1348,6 +1348,10 @@ func init() {
 	ledgerCmd.GroupID = "ops"
 	rootCmd.AddCommand(ledgerCmd)
 
+	scheduleCmd := cmd.NewScheduleCommand(nil)
+	scheduleCmd.GroupID = "ops"
+	rootCmd.AddCommand(scheduleCmd)
+
 	// Setup
 	configCmd.GroupID = "setup"
 	rootCmd.AddCommand(configCmd)
