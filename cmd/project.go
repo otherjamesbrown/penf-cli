@@ -648,11 +648,11 @@ func outputProjectsTableProto(projects []*projectv1.Project) error {
 		}
 		descStr := "-"
 		if p.Description != "" {
-			descStr = projectTruncateString(p.Description, 30)
+			descStr = truncateString(p.Description, 30)
 		}
 		fmt.Printf("  %-6d  %-30s %-30s %s\n",
 			p.Id,
-			projectTruncateString(p.Name, 30),
+			truncateString(p.Name, 30),
 			descStr,
 			keywordStr)
 	}
@@ -751,19 +751,10 @@ func outputProjectYAML(v interface{}) error {
 	return enc.Encode(v)
 }
 
-// projectTruncateString truncates a string to maxLen, adding "..." if truncated.
-func projectTruncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	if maxLen <= 3 {
-		return s[:maxLen]
-	}
-	return s[:maxLen-3] + "..."
-}
-
 // newProjectThemesCommand creates the 'project themes' subcommand.
 func newProjectThemesCommand(deps *ProjectCommandDeps) *cobra.Command {
+	var limit int32
+
 	cmd := &cobra.Command{
 		Use:   "themes <name-or-id>",
 		Short: "List topics scoped to a project",
@@ -774,16 +765,20 @@ running context and status.
 
 Examples:
   penf project themes "API Migration"
-  penf project themes 42`,
+  penf project themes 42
+  penf project themes MTC --limit 100`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProjectThemes(cmd.Context(), deps, args[0])
+			return runProjectThemes(cmd.Context(), deps, args[0], limit)
 		},
 	}
+
+	cmd.Flags().Int32VarP(&limit, "limit", "l", 50, "Maximum number of topics to return")
+
 	return cmd
 }
 
-func runProjectThemes(ctx context.Context, deps *ProjectCommandDeps, identifier string) error {
+func runProjectThemes(ctx context.Context, deps *ProjectCommandDeps, identifier string, limit int32) error {
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
@@ -810,31 +805,22 @@ func runProjectThemes(ctx context.Context, deps *ProjectCommandDeps, identifier 
 
 	project := projResp.Project
 
-	// List topics filtered by project_id
-	topicClient := topicv1.NewTopicServiceClient(conn)
-	topicResp, err := topicClient.ListTopics(ctx, &topicv1.ListTopicsRequest{
-		Filter: &topicv1.TopicFilter{
-			TenantId:  tenantID,
-			ProjectId: &project.Id,
-			Limit:     50,
-		},
-	})
+	// Delegate topic listing to topic.go via exported helper
+	topicDeps := &TopicCommandDeps{LoadConfig: deps.LoadConfig}
+	topics, err := ListTopicsByProject(ctx, topicDeps, project.Id, limit)
 	if err != nil {
-		return fmt.Errorf("listing project topics: %w", err)
+		return err
 	}
 
-	format := cfg.OutputFormat
-	if projectOutput != "" {
-		format = config.OutputFormat(projectOutput)
-	}
+	format := getProjectOutputFormat(cfg)
 
 	switch format {
 	case config.OutputFormatJSON:
-		return outputProjectJSON(topicResp.Topics)
+		return outputProjectJSON(topics)
 	case config.OutputFormatYAML:
-		return outputProjectYAML(topicResp.Topics)
+		return outputProjectYAML(topics)
 	default:
-		return outputProjectThemesText(project.Name, topicResp.Topics)
+		return outputProjectThemesText(project.Name, topics)
 	}
 }
 
@@ -853,15 +839,11 @@ func outputProjectThemesText(projectName string, topics []*topicv1.Topic) error 
 		if status == "" {
 			status = "active"
 		}
-		ctx := t.RunningContext
-		if len(ctx) > 50 {
-			ctx = ctx[:47] + "..."
-		}
 		fmt.Printf("  %-5d %-20s %-9s %s\n",
 			t.Id,
-			projectTruncateString(t.Name, 20),
+			truncateString(t.Name, 20),
 			status,
-			ctx)
+			truncateString(t.RunningContext, 50))
 	}
 
 	fmt.Println()

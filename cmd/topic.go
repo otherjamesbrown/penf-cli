@@ -201,7 +201,14 @@ Examples:
 			if cmd.Flags().Changed("project") {
 				projIDPtr = &projectID
 			}
-			return runTopicUpdate(cmd.Context(), deps, id, name, description, keywords, projIDPtr, runningContext, status)
+			return runTopicUpdate(cmd.Context(), deps, id, topicUpdateOpts{
+				Name:           name,
+				Description:    description,
+				Keywords:       keywords,
+				ProjectID:      projIDPtr,
+				RunningContext: runningContext,
+				Status:         status,
+			})
 		},
 	}
 
@@ -361,7 +368,16 @@ func runTopicDelete(ctx context.Context, deps *TopicCommandDeps, id int64) error
 	return nil
 }
 
-func runTopicUpdate(ctx context.Context, deps *TopicCommandDeps, id int64, name, description string, keywords []string, projectID *int64, runningContext, status string) error {
+type topicUpdateOpts struct {
+	Name           string
+	Description    string
+	Keywords       []string
+	ProjectID      *int64
+	RunningContext string
+	Status         string
+}
+
+func runTopicUpdate(ctx context.Context, deps *TopicCommandDeps, id int64, opts topicUpdateOpts) error {
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
@@ -377,14 +393,14 @@ func runTopicUpdate(ctx context.Context, deps *TopicCommandDeps, id int64, name,
 	client := topicv1.NewTopicServiceClient(conn)
 
 	input := &topicv1.TopicInput{
-		Name:           name,
-		Description:    description,
-		Keywords:       keywords,
-		RunningContext: runningContext,
-		Status:         status,
+		Name:           opts.Name,
+		Description:    opts.Description,
+		Keywords:       opts.Keywords,
+		RunningContext: opts.RunningContext,
+		Status:         opts.Status,
 	}
-	if projectID != nil {
-		input.ProjectId = projectID
+	if opts.ProjectID != nil {
+		input.ProjectId = opts.ProjectID
 	}
 
 	resp, err := client.UpdateTopic(ctx, &topicv1.UpdateTopicRequest{
@@ -450,7 +466,7 @@ func outputTopicsText(topics []*topicv1.Topic, totalCount int64) error {
 		}
 		fmt.Printf("  %-5d %-20s %-40s %s\n",
 			t.Id,
-			truncateTopic(t.Name, 20),
+			truncateString(t.Name, 20),
 			descStr,
 			keywordStr)
 	}
@@ -515,9 +531,33 @@ func outputTopicYAML(v interface{}) error {
 	return enc.Encode(v)
 }
 
-func truncateTopic(s string, max int) string {
-	if len(s) <= max {
-		return s
+// ListTopicsByProject lists topics scoped to a project, for use by project commands.
+func ListTopicsByProject(ctx context.Context, deps *TopicCommandDeps, projectID int64, limit int32) ([]*topicv1.Topic, error) {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("loading configuration: %w", err)
 	}
-	return s[:max-3] + "..."
+	deps.Config = cfg
+
+	conn, err := connectToGateway(cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := topicv1.NewTopicServiceClient(conn)
+	tenantID := getTenantIDForTopic(deps)
+
+	resp, err := client.ListTopics(ctx, &topicv1.ListTopicsRequest{
+		Filter: &topicv1.TopicFilter{
+			TenantId:  tenantID,
+			ProjectId: &projectID,
+			Limit:     limit,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing project topics: %w", err)
+	}
+
+	return resp.Topics, nil
 }
