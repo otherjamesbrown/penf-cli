@@ -84,6 +84,9 @@ var (
 	recordChanges        string
 	recordShardIDs       string
 	recordNotify         bool
+
+	// bridge subcommand flags
+	bridgeStatus bool
 )
 
 // NewDeployCommand creates the deploy command.
@@ -102,14 +105,17 @@ Examples:
   penf deploy ai           Build and deploy AI coordinator to dev02 (systemd)
   penf deploy all          Deploy all services in order
   penf deploy --status     Show service status
+  penf deploy bridge       Deploy penfold-bridge (TypeScript/Node.js) to dev01
 
 Subcommands:
   penf deploy history      Show deployment history
+  penf deploy bridge       Deploy the WhatsApp bridge service
 
 Environment:
   GATEWAY_HOST     Gateway host (default: dev02)
   WORKER_HOST      Worker host (default: dev01)
-  AI_HOST          AI coordinator host (default: dev02)`,
+  AI_HOST          AI coordinator host (default: dev02)
+  BRIDGE_HOST      Bridge host (default: dev01)`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if deployStatus {
@@ -192,6 +198,35 @@ Environment:
 	_ = recordCmd.MarkFlagRequired("commit")
 
 	deployCmd.AddCommand(recordCmd)
+
+	// Bridge subcommand — TypeScript/Node.js, separate deploy logic.
+	bridgeCmd := &cobra.Command{
+		Use:   "bridge",
+		Short: "Deploy penfold-bridge (TypeScript/Node.js WhatsApp bridge)",
+		Long: `Build and deploy the penfold-bridge service to dev01.
+
+The bridge is a TypeScript/Node.js service and is deployed differently from Go services:
+  1. npm run build     — compile TypeScript to dist/
+  2. rsync            — upload dist/, package.json, package-lock.json, proto/ to dev01
+  3. npm ci           — install production deps on dev01
+  4. launchctl        — restart com.penfold.bridge
+
+Examples:
+  penf deploy bridge           Build and deploy bridge to dev01
+  penf deploy bridge --status  Show bridge service status
+
+Environment:
+  BRIDGE_HOST      Bridge host (default: dev01)
+  BRIDGE_REPO      Local path to penfold-bridge repo (default: ~/github/otherjamesbrown/penfold-bridge)`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if bridgeStatus {
+				return runDeployBridgeStatus()
+			}
+			return runDeployBridge()
+		},
+	}
+	bridgeCmd.Flags().BoolVar(&bridgeStatus, "status", false, "Show bridge service status")
+	deployCmd.AddCommand(bridgeCmd)
 
 	return deployCmd
 }
@@ -494,7 +529,144 @@ func runDeployStatus() error {
 		status := getServiceStatus(host, svc)
 		fmt.Printf("%-25s %-10s %-8s %s\n", svc.Name, host, svc.ProcessManager, status)
 	}
+
+	// Bridge status (launchd on dev01, queried via health endpoint)
+	bridgeHost := os.Getenv("BRIDGE_HOST")
+	if bridgeHost == "" {
+		bridgeHost = "dev01"
+	}
+	bridgeHealthOut, err := remoteOutput(bridgeHost, "curl -sf http://localhost:3456/health 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); print('healthy' if d.get('healthy') else 'unhealthy')\" 2>/dev/null")
+	bridgeStatusStr := "unknown"
+	if err == nil && len(bridgeHealthOut) > 0 {
+		bridgeStatusStr = strings.TrimSpace(string(bridgeHealthOut))
+	}
+	fmt.Printf("%-25s %-10s %-8s %s\n", "penfold-bridge", bridgeHost, "launchd", bridgeStatusStr)
+
 	return nil
+}
+
+// runDeployBridge builds and deploys the penfold-bridge TypeScript service.
+// Deploy steps differ from Go services: build with npm, rsync dist/, restart launchd.
+func runDeployBridge() error {
+	host := os.Getenv("BRIDGE_HOST")
+	if host == "" {
+		host = "dev01"
+	}
+
+	repoDir := os.Getenv("BRIDGE_REPO")
+	if repoDir == "" {
+		home, _ := os.UserHomeDir()
+		repoDir = filepath.Join(home, "github", "otherjamesbrown", "penfold-bridge")
+	}
+
+	const (
+		remoteDir    = "/opt/penfold/bridge"
+		launchdLabel = "com.penfold.bridge"
+		healthURL    = "http://localhost:3456/health"
+	)
+
+	fmt.Printf("=== Deploying penfold-bridge (Node.js/launchd) ===\n\n")
+
+	// 1. Build TypeScript
+	fmt.Printf("[1/4] Building TypeScript in %s...\n", repoDir)
+	buildCmd := exec.Command("npm", "run", "build")
+	buildCmd.Dir = repoDir
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+	if err := buildCmd.Run(); err != nil {
+		return fmt.Errorf("npm build failed: %w", err)
+	}
+	fmt.Printf("  Build complete\n\n")
+
+	// 2. Upload: dist/, proto/, package.json, package-lock.json
+	fmt.Printf("[2/4] Uploading to %s:%s...\n", host, remoteDir)
+	if err := runRemoteCmd(host, fmt.Sprintf("mkdir -p %s", remoteDir)); err != nil {
+		return fmt.Errorf("remote mkdir failed: %w", err)
+	}
+	rsyncArgs := []string{
+		"-avz", "--delete",
+		filepath.Join(repoDir, "dist") + "/",
+		filepath.Join(repoDir, "proto") + "/",
+		filepath.Join(repoDir, "package.json"),
+		fmt.Sprintf("%s:%s/", host, remoteDir),
+	}
+	if isLocalHost(host) {
+		// Local copy: just rsync without SSH
+		if err := runCmd("rsync", rsyncArgs...); err != nil {
+			return fmt.Errorf("rsync failed: %w", err)
+		}
+		// Also copy package-lock.json if it exists
+		if err := runCmd("cp", filepath.Join(repoDir, "package-lock.json"), remoteDir+"/"); err == nil {
+			_ = runCmd("cp", "-r", filepath.Join(repoDir, "proto"), remoteDir+"/")
+		}
+	} else {
+		if err := runCmd("rsync", append([]string{"-e", "ssh"}, rsyncArgs...)...); err != nil {
+			return fmt.Errorf("rsync failed: %w", err)
+		}
+		if err := runCmd("scp", filepath.Join(repoDir, "package-lock.json"), fmt.Sprintf("%s:%s/", host, remoteDir)); err != nil {
+			return fmt.Errorf("scp package-lock.json failed: %w", err)
+		}
+		if err := runCmd("rsync", "-avz", "-e", "ssh", filepath.Join(repoDir, "proto")+"/", fmt.Sprintf("%s:%s/proto/", host, remoteDir)); err != nil {
+			return fmt.Errorf("rsync proto failed: %w", err)
+		}
+	}
+	fmt.Printf("  Uploaded\n\n")
+
+	// Install production deps on remote
+	fmt.Printf("  Installing production deps on %s...\n", host)
+	if err := runRemoteCmd(host, fmt.Sprintf("cd %s && npm ci --omit=dev 2>&1", remoteDir)); err != nil {
+		return fmt.Errorf("npm ci failed: %w", err)
+	}
+
+	// 3. Restart service via launchd
+	fmt.Printf("[3/4] Restarting %s via launchd on %s...\n", launchdLabel, host)
+	// Stop if running, then start (kickstart -k kills and restarts)
+	if err := runRemoteCmd(host, fmt.Sprintf("launchctl kickstart -k system/%s 2>/dev/null || launchctl load /Library/LaunchDaemons/%s.plist", launchdLabel, launchdLabel)); err != nil {
+		return fmt.Errorf("launchctl restart failed: %w", err)
+	}
+
+	// 4. Verify health
+	fmt.Printf("[4/4] Waiting for bridge health endpoint (%s)...\n", healthURL)
+	for i := 0; i < 15; i++ {
+		time.Sleep(2 * time.Second)
+		out, err := remoteOutput(host, fmt.Sprintf("curl -sf %s 2>/dev/null | head -c 200", healthURL))
+		if err == nil && len(out) > 0 {
+			fmt.Printf("  Health OK: %s\n", strings.TrimSpace(string(out)))
+			fmt.Printf("\n=== penfold-bridge deployed successfully ===\n")
+			return nil
+		}
+	}
+	return fmt.Errorf("bridge health check timed out — check logs: ssh %s 'tail -50 /var/log/penfold-bridge.log'", host)
+}
+
+func runDeployBridgeStatus() error {
+	host := os.Getenv("BRIDGE_HOST")
+	if host == "" {
+		host = "dev01"
+	}
+	const launchdLabel = "com.penfold.bridge"
+	statusCmd := fmt.Sprintf("launchctl print system/%s 2>/dev/null | grep -E 'state|pid' | head -5", launchdLabel)
+	out, err := remoteOutput(host, statusCmd)
+	if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+		fmt.Printf("penfold-bridge: not loaded (or launchctl unavailable on %s)\n", host)
+		return nil
+	}
+	fmt.Printf("penfold-bridge on %s:\n%s\n", host, string(out))
+
+	// Also show health endpoint
+	health, _ := remoteOutput(host, "curl -sf http://localhost:3456/health 2>/dev/null")
+	if len(health) > 0 {
+		fmt.Printf("health: %s\n", strings.TrimSpace(string(health)))
+	}
+	return nil
+}
+
+// remoteOutput runs a command on host and returns stdout (supports local host).
+func remoteOutput(host, shellCmd string) ([]byte, error) {
+	if isLocalHost(host) {
+		return exec.Command("sh", "-c", shellCmd).Output()
+	}
+	return exec.Command("ssh", host, shellCmd).Output()
 }
 
 // deployHistoryEntry represents a row from the deploy_history table.
