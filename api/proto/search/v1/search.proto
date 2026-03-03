@@ -8,6 +8,7 @@ package penfold.search.v1;
 option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/search/v1;searchv1";
 
 import "google/protobuf/timestamp.proto";
+import "mentions/v1/mentions.proto";
 
 // =============================================================================
 // Service Definition
@@ -207,14 +208,32 @@ message FilterOptions {
   // Filter by specific tags
   repeated string tags = 5;
 
-  // Filter by entity references (people, organizations, etc.)
-  repeated string entity_ids = 6;
+  // Deprecated: use entity_role_filters instead. Not implemented.
+  repeated string entity_ids = 6 [deprecated = true];
 
   // Filter by source system (e.g., "gmail", "slack", "notion")
   repeated string sources = 7;
 
   // Exclude documents by ID
   repeated string exclude_ids = 8;
+
+  // Filter by entity participation role.
+  // Multiple entries are ANDed (all must match).
+  repeated EntityRoleFilter entity_role_filters = 10;
+}
+
+// EntityRoleFilter specifies an entity and the participation roles to filter by.
+message EntityRoleFilter {
+  oneof entity {
+    // Filter by entity database ID
+    int64 entity_id = 1;
+    // Filter by email address (resolved to entity via people table)
+    string email = 2;
+    // Filter by entity canonical name (resolved via people table)
+    string entity_name = 3;
+  }
+  // Roles to match. If empty, matches any role for the entity.
+  repeated penfold.mentions.v1.ParticipationRole roles = 4;
 }
 
 // =============================================================================

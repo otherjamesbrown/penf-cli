@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	mentionsv1 "github.com/otherjamesbrown/penf-cli/api/proto/mentions/v1"
 	searchv1 "github.com/otherjamesbrown/penf-cli/api/proto/search/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
 	"github.com/otherjamesbrown/penf-cli/config"
@@ -169,6 +170,7 @@ var (
 	searchTenant   string
 	searchSemantic bool
 	searchExact    bool
+	searchFilters  []string
 )
 
 // Advanced search flags.
@@ -271,6 +273,7 @@ When to Use:
 	cmd.Flags().StringVar(&searchTenant, "tenant", "", "Tenant ID (overrides config)")
 	cmd.Flags().BoolVar(&searchSemantic, "semantic", false, "Use semantic (vector) search only")
 	cmd.Flags().BoolVar(&searchExact, "exact", false, "Exact match only (no fuzzy matching)")
+	cmd.Flags().StringSliceVarP(&searchFilters, "filter", "f", nil, "Field filters (from:email, to:email, cc:email, recipient:email, participant:email, mentioned:email)")
 
 	// Add subcommands.
 	cmd.AddCommand(newSearchAdvancedCommand(deps))
@@ -381,16 +384,24 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 		protoSortOrder = searchv1.SortOrder_SORT_ORDER_RELEVANCE
 	}
 
+	// Parse role filters from --filter flag.
+	var roleFilters []*searchv1.EntityRoleFilter
+	var clientSideFilters []string
+	if len(searchFilters) > 0 {
+		roleFilters, clientSideFilters = parseRoleFilters(searchFilters)
+	}
+
 	// Build search request.
 	req := &client.SearchRequest{
-		Query:        queryStr,
-		TenantID:     cfg.TenantID,
-		ContentTypes: searchTypes,
-		DateFrom:     dateFrom,
-		DateTo:       dateTo,
-		Limit:        int32(searchLimit),
-		Offset:       int32(searchOffset),
-		SortOrder:    protoSortOrder,
+		Query:             queryStr,
+		TenantID:          cfg.TenantID,
+		ContentTypes:      searchTypes,
+		DateFrom:          dateFrom,
+		DateTo:            dateTo,
+		Limit:             int32(searchLimit),
+		Offset:            int32(searchOffset),
+		SortOrder:         protoSortOrder,
+		EntityRoleFilters: roleFilters,
 	}
 
 	// Execute the search based on mode.
@@ -414,6 +425,11 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 
 	// Convert search response to CLI format.
 	results := convertSearchResults(searchResp.Results, searchVerbose)
+
+	// Apply remaining client-side filters (subject, tag, etc.)
+	if len(clientSideFilters) > 0 {
+		results = applyFieldFilters(results, clientSideFilters)
+	}
 
 	// Build response.
 	response := SearchResponse{
@@ -946,7 +962,63 @@ func runAdvancedSearch(ctx context.Context, deps *SearchCommandDeps, queryStr st
 	return outputSearchResults(outputFormat, response, searchVerbose)
 }
 
-// applyFieldFilters applies field filters to results client-side.
+// roleFilterMapping maps CLI filter field names to ParticipationRole values.
+var roleFilterMapping = map[string][]mentionsv1.ParticipationRole{
+	"from":      {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_FROM},
+	"sender":    {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_FROM},
+	"to":        {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_TO},
+	"cc":        {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_CC},
+	"recipient": {
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_TO,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_CC,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_BCC,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_GROUP_MEMBER,
+	},
+	"participant": {
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_FROM,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_TO,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_CC,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_BCC,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_ORGANIZER,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_ATTENDEE,
+		mentionsv1.ParticipationRole_PARTICIPATION_ROLE_GROUP_MEMBER,
+	},
+	"mentioned": {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_MENTIONED},
+	"attendee":  {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_ATTENDEE},
+	"organizer": {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_ORGANIZER},
+	"speaker":   {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_SPEAKER},
+}
+
+// parseRoleFilters separates role-based filters (handled server-side) from
+// other field filters (handled client-side).
+func parseRoleFilters(filters []string) ([]*searchv1.EntityRoleFilter, []string) {
+	var roleFilters []*searchv1.EntityRoleFilter
+	var remaining []string
+
+	for _, filter := range filters {
+		parts := strings.SplitN(filter, ":", 2)
+		if len(parts) != 2 {
+			remaining = append(remaining, filter)
+			continue
+		}
+		field, value := strings.ToLower(parts[0]), parts[1]
+
+		if roles, ok := roleFilterMapping[field]; ok {
+			rf := &searchv1.EntityRoleFilter{
+				Entity: &searchv1.EntityRoleFilter_Email{Email: strings.ToLower(value)},
+				Roles:  roles,
+			}
+			roleFilters = append(roleFilters, rf)
+		} else {
+			remaining = append(remaining, filter)
+		}
+	}
+
+	return roleFilters, remaining
+}
+
+// applyFieldFilters applies non-role field filters to results client-side.
+// Role-based filters (from, to, cc, etc.) are handled server-side via EntityRoleFilter.
 func applyFieldFilters(results []SearchResult, fieldFilters []string) []SearchResult {
 	if len(fieldFilters) == 0 {
 		return results
@@ -969,22 +1041,6 @@ func applyFieldFilters(results []SearchResult, fieldFilters []string) []SearchRe
 				}
 			case "source":
 				if !strings.Contains(strings.ToLower(result.Source), value) {
-					match = false
-				}
-			case "from":
-				if from, ok := result.Metadata["from"]; ok {
-					if !strings.Contains(strings.ToLower(from), value) {
-						match = false
-					}
-				} else {
-					match = false
-				}
-			case "to":
-				if to, ok := result.Metadata["to"]; ok {
-					if !strings.Contains(strings.ToLower(to), value) {
-						match = false
-					}
-				} else {
 					match = false
 				}
 			case "subject":

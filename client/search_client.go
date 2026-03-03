@@ -140,17 +140,18 @@ func (c *SearchClient) contextWithTenant(ctx context.Context, tenantID string) c
 
 // SearchRequest represents a search request with all options.
 type SearchRequest struct {
-	Query        string
-	TenantID     string
-	ContentTypes []string
-	DateFrom     *time.Time
-	DateTo       *time.Time
-	Limit        int32
-	Offset       int32
-	TextWeight   *float32
-	VectorWeight *float32
-	MinScore     *float32
-	SortOrder    searchv1.SortOrder
+	Query             string
+	TenantID          string
+	ContentTypes      []string
+	DateFrom          *time.Time
+	DateTo            *time.Time
+	Limit             int32
+	Offset            int32
+	TextWeight        *float32
+	VectorWeight      *float32
+	MinScore          *float32
+	SortOrder         searchv1.SortOrder
+	EntityRoleFilters []*searchv1.EntityRoleFilter
 }
 
 // SearchResult represents a single search result from the service.
@@ -210,9 +211,10 @@ func (c *SearchClient) Search(ctx context.Context, req *SearchRequest) (*SearchR
 	}
 
 	// Build filters.
-	if len(req.ContentTypes) > 0 || req.DateFrom != nil || req.DateTo != nil {
+	if len(req.ContentTypes) > 0 || req.DateFrom != nil || req.DateTo != nil || len(req.EntityRoleFilters) > 0 {
 		protoReq.Filters = &searchv1.FilterOptions{
-			ContentTypes: req.ContentTypes,
+			ContentTypes:      req.ContentTypes,
+			EntityRoleFilters: req.EntityRoleFilters,
 		}
 		if req.DateFrom != nil {
 			protoReq.Filters.DateFrom = timestamppb.New(*req.DateFrom)
@@ -257,9 +259,10 @@ func (c *SearchClient) SemanticSearch(ctx context.Context, req *SearchRequest) (
 	}
 
 	// Build filters.
-	if len(req.ContentTypes) > 0 || req.DateFrom != nil || req.DateTo != nil {
+	if len(req.ContentTypes) > 0 || req.DateFrom != nil || req.DateTo != nil || len(req.EntityRoleFilters) > 0 {
 		protoReq.Filters = &searchv1.FilterOptions{
-			ContentTypes: req.ContentTypes,
+			ContentTypes:      req.ContentTypes,
+			EntityRoleFilters: req.EntityRoleFilters,
 		}
 		if req.DateFrom != nil {
 			protoReq.Filters.DateFrom = timestamppb.New(*req.DateFrom)
@@ -299,9 +302,10 @@ func (c *SearchClient) KeywordSearch(ctx context.Context, req *SearchRequest) (*
 	}
 
 	// Build filters.
-	if len(req.ContentTypes) > 0 || req.DateFrom != nil || req.DateTo != nil {
+	if len(req.ContentTypes) > 0 || req.DateFrom != nil || req.DateTo != nil || len(req.EntityRoleFilters) > 0 {
 		protoReq.Filters = &searchv1.FilterOptions{
-			ContentTypes: req.ContentTypes,
+			ContentTypes:      req.ContentTypes,
+			EntityRoleFilters: req.EntityRoleFilters,
 		}
 		if req.DateFrom != nil {
 			protoReq.Filters.DateFrom = timestamppb.New(*req.DateFrom)

@@ -69,6 +69,20 @@ enum MentionStatus {
   MENTION_STATUS_DISMISSED = 4;
 }
 
+// ParticipationRole indicates how an entity relates to content.
+enum ParticipationRole {
+  PARTICIPATION_ROLE_UNSPECIFIED = 0;
+  PARTICIPATION_ROLE_FROM = 1;
+  PARTICIPATION_ROLE_TO = 2;
+  PARTICIPATION_ROLE_CC = 3;
+  PARTICIPATION_ROLE_BCC = 4;
+  PARTICIPATION_ROLE_MENTIONED = 5;
+  PARTICIPATION_ROLE_ORGANIZER = 6;
+  PARTICIPATION_ROLE_ATTENDEE = 7;
+  PARTICIPATION_ROLE_SPEAKER = 8;
+  PARTICIPATION_ROLE_GROUP_MEMBER = 9;
+}
+
 // ResolutionSource indicates how a resolution was determined.
 enum ResolutionSource {
   RESOLUTION_SOURCE_UNSPECIFIED = 0;
