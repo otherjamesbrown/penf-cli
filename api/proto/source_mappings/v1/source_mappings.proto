@@ -1,0 +1,101 @@
+// Source Mappings Service Protobuf Definitions
+// Provides gRPC service for managing project-to-source mappings
+
+syntax = "proto3";
+
+package penfold.source_mappings.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/source_mappings/v1;source_mappingsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// SourceMappingService manages mappings between external sources and projects.
+service SourceMappingService {
+  // Create a new source mapping
+  rpc CreateSourceMapping(CreateSourceMappingRequest) returns (CreateSourceMappingResponse);
+
+  // List source mappings with optional filters
+  rpc ListSourceMappings(ListSourceMappingsRequest) returns (ListSourceMappingsResponse);
+
+  // Update an existing source mapping
+  rpc UpdateSourceMapping(UpdateSourceMappingRequest) returns (UpdateSourceMappingResponse);
+
+  // Delete a source mapping
+  rpc DeleteSourceMapping(DeleteSourceMappingRequest) returns (DeleteSourceMappingResponse);
+}
+
+// =============================================================================
+// Messages
+// =============================================================================
+
+// SourceMapping represents a mapping from an external source to a project.
+message SourceMapping {
+  int64 id = 1;
+  string tenant_id = 2;
+  int64 project_id = 3;
+  string source_type = 4;
+  string source_identifier = 5;
+  string match_type = 6;
+  float confidence = 7;
+  string notes = 8;
+  bool enabled = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// CreateSourceMappingRequest creates a new source-to-project mapping.
+message CreateSourceMappingRequest {
+  string tenant_id = 1;
+  int64 project_id = 2;
+  string source_type = 3;
+  string source_identifier = 4;
+  string match_type = 5;
+  optional float confidence = 6;
+  optional string notes = 7;
+}
+
+// CreateSourceMappingResponse returns the created mapping.
+message CreateSourceMappingResponse {
+  SourceMapping mapping = 1;
+}
+
+// ListSourceMappingsRequest lists mappings with optional filters.
+message ListSourceMappingsRequest {
+  string tenant_id = 1;
+  optional int64 project_id = 2;
+  optional string source_type = 3;
+}
+
+// ListSourceMappingsResponse returns matching mappings.
+message ListSourceMappingsResponse {
+  repeated SourceMapping mappings = 1;
+}
+
+// UpdateSourceMappingRequest updates fields on an existing mapping.
+message UpdateSourceMappingRequest {
+  string tenant_id = 1;
+  int64 id = 2;
+  optional float confidence = 3;
+  optional string notes = 4;
+  optional bool enabled = 5;
+}
+
+// UpdateSourceMappingResponse returns the updated mapping.
+message UpdateSourceMappingResponse {
+  SourceMapping mapping = 1;
+}
+
+// DeleteSourceMappingRequest deletes a mapping by ID.
+message DeleteSourceMappingRequest {
+  string tenant_id = 1;
+  int64 id = 2;
+}
+
+// DeleteSourceMappingResponse confirms deletion.
+message DeleteSourceMappingResponse {
+  bool success = 1;
+}

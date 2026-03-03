@@ -1258,6 +1258,10 @@ func init() {
 	projectCmd.GroupID = "entities"
 	rootCmd.AddCommand(projectCmd)
 
+	sourceCmd := cmd.NewSourceCommand(nil)
+	sourceCmd.GroupID = "entities"
+	rootCmd.AddCommand(sourceCmd)
+
 	teamCmd := cmd.NewTeamCommand(nil)
 	teamCmd.GroupID = "entities"
 	rootCmd.AddCommand(teamCmd)
