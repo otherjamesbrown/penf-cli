@@ -57,18 +57,21 @@ const (
 
 // Entity represents a node in the relationship graph.
 type Entity struct {
-	ID            string            `json:"id" yaml:"id"`
-	Name          string            `json:"name" yaml:"name"`
-	Type          EntityType        `json:"type" yaml:"type"`
-	Aliases       []string          `json:"aliases,omitempty" yaml:"aliases,omitempty"`
-	Confidence    float64           `json:"confidence" yaml:"confidence"`
-	SourceCount   int               `json:"source_count" yaml:"source_count"`
-	FirstSeen     time.Time         `json:"first_seen" yaml:"first_seen"`
-	LastSeen      time.Time         `json:"last_seen" yaml:"last_seen"`
-	Metadata      map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	RelationCount int               `json:"relation_count" yaml:"relation_count"`
-	SentCount     int               `json:"sent_count" yaml:"sent_count"`
-	ReceivedCount int               `json:"received_count" yaml:"received_count"`
+	ID                    string            `json:"id" yaml:"id"`
+	Name                  string            `json:"name" yaml:"name"`
+	Type                  EntityType        `json:"type" yaml:"type"`
+	Aliases               []string          `json:"aliases,omitempty" yaml:"aliases,omitempty"`
+	Confidence            float64           `json:"confidence" yaml:"confidence"`
+	SourceCount           int               `json:"source_count" yaml:"source_count"`
+	FirstSeen             time.Time         `json:"first_seen" yaml:"first_seen"`
+	LastSeen              time.Time         `json:"last_seen" yaml:"last_seen"`
+	Metadata              map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	RelationCount         int               `json:"relation_count" yaml:"relation_count"`
+	SentCount             int               `json:"sent_count" yaml:"sent_count"`
+	ReceivedCount         int               `json:"received_count" yaml:"received_count"`
+	CommunicationPatterns string            `json:"communication_patterns,omitempty" yaml:"communication_patterns,omitempty"`
+	ExpertiseAreas        []string          `json:"expertise_areas,omitempty" yaml:"expertise_areas,omitempty"`
+	OrgPosition           string            `json:"org_position,omitempty" yaml:"org_position,omitempty"`
 }
 
 // Relationship represents an edge in the relationship graph.
@@ -2180,6 +2183,39 @@ func outputEntityDetailText(e Entity) error {
 	fmt.Printf("  \033[1mFirst Seen:\033[0m   %s\n", e.FirstSeen.Format(time.RFC3339))
 	fmt.Printf("  \033[1mLast Seen:\033[0m    %s\n", e.LastSeen.Format(time.RFC3339))
 	fmt.Println()
+	if len(e.ExpertiseAreas) > 0 {
+		fmt.Printf("  \033[1mExpertise:\033[0m    %s\n", strings.Join(e.ExpertiseAreas, ", "))
+	}
+	if e.CommunicationPatterns != "" {
+		var cp map[string]interface{}
+		if json.Unmarshal([]byte(e.CommunicationPatterns), &cp) == nil {
+			fmt.Println("  \033[1mCommunication:\033[0m")
+			if freq, ok := cp["email_frequency"].(map[string]interface{}); ok {
+				if sent, ok := freq["sent_per_week"].(float64); ok {
+					fmt.Printf("    Sent/week:     %.1f\n", sent)
+				}
+				if recv, ok := freq["received_per_week"].(float64); ok {
+					fmt.Printf("    Received/week: %.1f\n", recv)
+				}
+			}
+			if collabs, ok := cp["top_collaborators"].([]interface{}); ok && len(collabs) > 0 {
+				fmt.Printf("    Collaborators: %d\n", len(collabs))
+			}
+		}
+	}
+	if e.OrgPosition != "" {
+		var op map[string]interface{}
+		if json.Unmarshal([]byte(e.OrgPosition), &op) == nil {
+			fmt.Println("  \033[1mOrg Position:\033[0m")
+			if level, ok := op["inferred_level"].(string); ok {
+				fmt.Printf("    Level: %s\n", level)
+			}
+			if dept, ok := op["department"].(string); ok {
+				fmt.Printf("    Dept:  %s\n", dept)
+			}
+		}
+	}
+	fmt.Println()
 	if len(e.Metadata) > 0 {
 		fmt.Println("  \033[1mMetadata:\033[0m")
 		for k, v := range e.Metadata {
@@ -2563,18 +2599,21 @@ func clientEntityToLocal(e *client.RelEntity) Entity {
 		return Entity{}
 	}
 	return Entity{
-		ID:            e.ID,
-		Name:          e.Name,
-		Type:          EntityType(e.Type),
-		Aliases:       e.Aliases,
-		Confidence:    float64(e.Confidence),
-		SourceCount:   int(e.SourceCount),
-		FirstSeen:     e.FirstSeen,
-		LastSeen:      e.LastSeen,
-		Metadata:      e.Metadata,
-		RelationCount: int(e.RelationCount),
-		SentCount:     int(e.SentCount),
-		ReceivedCount: int(e.ReceivedCount),
+		ID:                    e.ID,
+		Name:                  e.Name,
+		Type:                  EntityType(e.Type),
+		Aliases:               e.Aliases,
+		Confidence:            float64(e.Confidence),
+		SourceCount:           int(e.SourceCount),
+		FirstSeen:             e.FirstSeen,
+		LastSeen:              e.LastSeen,
+		Metadata:              e.Metadata,
+		RelationCount:         int(e.RelationCount),
+		SentCount:             int(e.SentCount),
+		ReceivedCount:         int(e.ReceivedCount),
+		CommunicationPatterns: e.CommunicationPatterns,
+		ExpertiseAreas:        e.ExpertiseAreas,
+		OrgPosition:           e.OrgPosition,
 	}
 }
 

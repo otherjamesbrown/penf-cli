@@ -128,6 +128,15 @@ message Entity {
 
   // Number of messages received by this person (for person entities only)
   int32 received_count = 15;
+
+  // Communication patterns (JSON-encoded, for person entities).
+  string communication_patterns = 16;
+
+  // Areas of expertise (for person entities).
+  repeated string expertise_areas = 17;
+
+  // Organizational position (JSON-encoded, for person entities).
+  string org_position = 18;
 }
 
 // EntityType enumerates the possible types of entities.

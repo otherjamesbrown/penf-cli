@@ -58,6 +58,18 @@ message Topic {
 
   // When the topic was last updated.
   google.protobuf.Timestamp updated_at = 7;
+
+  // Project ID this topic is linked to (nullable FK → projects).
+  optional int64 project_id = 8;
+
+  // Running context for this topic.
+  string running_context = 9;
+
+  // Topic status (e.g., "active", "archived").
+  string status = 10;
+
+  // When the topic was last updated with new context.
+  google.protobuf.Timestamp last_updated_at = 11;
 }
 
 // TopicInput represents input for creating or updating a topic.
@@ -70,6 +82,15 @@ message TopicInput {
 
   // Keywords for matching content to this topic.
   repeated string keywords = 3;
+
+  // Project ID to link this topic to (optional).
+  optional int64 project_id = 4;
+
+  // Running context for this topic (optional).
+  string running_context = 5;
+
+  // Topic status (optional).
+  string status = 6;
 }
 
 // TopicFilter contains filtering options for topic queries.
@@ -88,6 +109,9 @@ message TopicFilter {
 
   // Pagination offset.
   int32 offset = 5;
+
+  // Filter by project ID (optional).
+  optional int64 project_id = 6;
 }
 
 // =============================================================================

@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	projectv1 "github.com/otherjamesbrown/penf-cli/api/proto/project/v1"
+	topicv1 "github.com/otherjamesbrown/penf-cli/api/proto/topic/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
 	"github.com/otherjamesbrown/penf-cli/config"
 )
@@ -97,6 +98,7 @@ Related Commands:
 	cmd.AddCommand(newProjectShowCommand(deps))
 	cmd.AddCommand(newProjectDeleteCommand(deps))
 	cmd.AddCommand(newProjectUpdateCommand(deps))
+	cmd.AddCommand(newProjectThemesCommand(deps))
 
 	return cmd
 }
@@ -696,6 +698,35 @@ func outputProjectDetailTextProto(project *projectv1.Project) error {
 		fmt.Printf("  \033[1mJira:\033[0m        %s\n", strings.Join(project.JiraProjects, ", "))
 	}
 
+	if project.Timeline != "" {
+		var tl map[string]interface{}
+		if json.Unmarshal([]byte(project.Timeline), &tl) == nil {
+			fmt.Println()
+			fmt.Println("  \033[1mTimeline:\033[0m")
+			if phase, ok := tl["current_phase"].(string); ok {
+				fmt.Printf("    Phase: %s\n", phase)
+			}
+			if milestones, ok := tl["milestones"].([]interface{}); ok {
+				for _, m := range milestones {
+					if ms, ok := m.(map[string]interface{}); ok {
+						fmt.Printf("    %s — %s\n", ms["date"], ms["label"])
+					}
+				}
+			}
+		}
+	}
+
+	if project.Metadata != "" {
+		var md map[string]interface{}
+		if json.Unmarshal([]byte(project.Metadata), &md) == nil && len(md) > 0 {
+			fmt.Println()
+			fmt.Println("  \033[1mMetadata:\033[0m")
+			for k, v := range md {
+				fmt.Printf("    %s: %v\n", k, v)
+			}
+		}
+	}
+
 	fmt.Println()
 	if project.CreatedAt != nil {
 		fmt.Printf("  \033[1mCreated:\033[0m     %s\n", project.CreatedAt.AsTime().Format("2006-01-02 15:04:05"))
@@ -729,4 +760,110 @@ func projectTruncateString(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// newProjectThemesCommand creates the 'project themes' subcommand.
+func newProjectThemesCommand(deps *ProjectCommandDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "themes <name-or-id>",
+		Short: "List topics scoped to a project",
+		Long: `Show topics (themes) associated with a project.
+
+Topics linked to a project via project_id are shown with their
+running context and status.
+
+Examples:
+  penf project themes "API Migration"
+  penf project themes 42`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProjectThemes(cmd.Context(), deps, args[0])
+		},
+	}
+	return cmd
+}
+
+func runProjectThemes(ctx context.Context, deps *ProjectCommandDeps, identifier string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectProjectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	// Resolve project to get its ID
+	projClient := projectv1.NewProjectServiceClient(conn)
+	tenantID := getTenantIDForProject(deps)
+
+	projResp, err := projClient.GetProject(ctx, &projectv1.GetProjectRequest{
+		TenantId:   tenantID,
+		Identifier: identifier,
+	})
+	if err != nil {
+		return fmt.Errorf("project not found: %s", identifier)
+	}
+
+	project := projResp.Project
+
+	// List topics filtered by project_id
+	topicClient := topicv1.NewTopicServiceClient(conn)
+	topicResp, err := topicClient.ListTopics(ctx, &topicv1.ListTopicsRequest{
+		Filter: &topicv1.TopicFilter{
+			TenantId:  tenantID,
+			ProjectId: &project.Id,
+			Limit:     50,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("listing project topics: %w", err)
+	}
+
+	format := cfg.OutputFormat
+	if projectOutput != "" {
+		format = config.OutputFormat(projectOutput)
+	}
+
+	switch format {
+	case config.OutputFormatJSON:
+		return outputProjectJSON(topicResp.Topics)
+	case config.OutputFormatYAML:
+		return outputProjectYAML(topicResp.Topics)
+	default:
+		return outputProjectThemesText(project.Name, topicResp.Topics)
+	}
+}
+
+func outputProjectThemesText(projectName string, topics []*topicv1.Topic) error {
+	if len(topics) == 0 {
+		fmt.Printf("No topics linked to project \"%s\".\n", projectName)
+		return nil
+	}
+
+	fmt.Printf("Topics for \"%s\" (%d):\n\n", projectName, len(topics))
+	fmt.Println("  ID    NAME                 STATUS    CONTEXT")
+	fmt.Println("  --    ----                 ------    -------")
+
+	for _, t := range topics {
+		status := t.Status
+		if status == "" {
+			status = "active"
+		}
+		ctx := t.RunningContext
+		if len(ctx) > 50 {
+			ctx = ctx[:47] + "..."
+		}
+		fmt.Printf("  %-5d %-20s %-9s %s\n",
+			t.Id,
+			projectTruncateString(t.Name, 20),
+			status,
+			ctx)
+	}
+
+	fmt.Println()
+	return nil
 }

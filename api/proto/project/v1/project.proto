@@ -76,6 +76,12 @@ message Project {
 
   // Project status: "active" or "archived".
   string status = 9;
+
+  // Project timeline (JSON-encoded).
+  string timeline = 10;
+
+  // Project metadata (JSON-encoded).
+  string metadata = 11;
 }
 
 // ProjectInput represents input for creating or updating a project.

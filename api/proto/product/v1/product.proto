@@ -216,6 +216,15 @@ message Product {
 
   // Aliases for this product (populated on read operations).
   repeated string aliases = 12;
+
+  // Roadmap context text.
+  string roadmap_context = 13;
+
+  // Technical stack components.
+  repeated string technical_stack = 14;
+
+  // Customer associations (JSON-encoded).
+  string customer_associations = 15;
 }
 
 // ProductInput represents input for creating or updating a product.

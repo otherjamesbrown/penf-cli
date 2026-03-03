@@ -145,13 +145,16 @@ type RelEntity struct {
 	Confidence    float32
 	SourceCount   int32
 	RelationCount int32
-	SentCount     int32
-	ReceivedCount int32
-	FirstSeen     time.Time
-	LastSeen      time.Time
-	Metadata      map[string]string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	SentCount             int32
+	ReceivedCount         int32
+	FirstSeen             time.Time
+	LastSeen              time.Time
+	Metadata              map[string]string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	CommunicationPatterns string
+	ExpertiseAreas        []string
+	OrgPosition           string
 }
 
 // Relationship represents a relationship between entities.
@@ -890,16 +893,19 @@ func protoToEntity(e *relationshipv1.Entity) *RelEntity {
 	}
 
 	entity := &RelEntity{
-		ID:            e.Id,
-		Name:          e.Name,
-		Type:          e.Type.String(),
-		Aliases:       e.Aliases,
-		Confidence:    e.Confidence,
-		SourceCount:   e.SourceCount,
-		RelationCount: e.RelationCount,
-		SentCount:     e.SentCount,
-		ReceivedCount: e.ReceivedCount,
-		Metadata:      e.Metadata,
+		ID:                    e.Id,
+		Name:                  e.Name,
+		Type:                  e.Type.String(),
+		Aliases:               e.Aliases,
+		Confidence:            e.Confidence,
+		SourceCount:           e.SourceCount,
+		RelationCount:         e.RelationCount,
+		SentCount:             e.SentCount,
+		ReceivedCount:         e.ReceivedCount,
+		Metadata:              e.Metadata,
+		CommunicationPatterns: e.CommunicationPatterns,
+		ExpertiseAreas:        e.ExpertiseAreas,
+		OrgPosition:           e.OrgPosition,
 	}
 
 	if e.CanonicalName != nil {

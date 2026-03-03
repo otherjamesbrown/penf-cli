@@ -107,6 +107,7 @@ Examples:
 func newTopicListCommand(deps *TopicCommandDeps) *cobra.Command {
 	var keyword string
 	var search string
+	var projectID int64
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -117,15 +118,21 @@ Examples:
   penf topic list
   penf topic list --keyword mtc
   penf topic list --search "cloud"
+  penf topic list --project 5
   penf topic list -o json`,
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTopicList(cmd.Context(), deps, search, keyword)
+			var projIDPtr *int64
+			if cmd.Flags().Changed("project") {
+				projIDPtr = &projectID
+			}
+			return runTopicList(cmd.Context(), deps, search, keyword, projIDPtr)
 		},
 	}
 
 	cmd.Flags().StringVar(&keyword, "keyword", "", "Filter by keyword")
 	cmd.Flags().StringVarP(&search, "search", "s", "", "Search by name")
+	cmd.Flags().Int64Var(&projectID, "project", 0, "Filter by project ID")
 
 	return cmd
 }
@@ -170,28 +177,40 @@ func newTopicUpdateCommand(deps *TopicCommandDeps) *cobra.Command {
 	var description string
 	var keywords []string
 	var name string
+	var projectID int64
+	var runningContext string
+	var status string
 
 	cmd := &cobra.Command{
 		Use:   "update <id>",
 		Short: "Update a topic",
-		Long: `Update an existing topic's name, description, or keywords.
+		Long: `Update an existing topic's name, description, keywords, or project linkage.
 
 Examples:
   penf topic update 42 --description "Updated description"
-  penf topic update 42 --keywords new,keywords --name "New Name"`,
+  penf topic update 42 --keywords new,keywords --name "New Name"
+  penf topic update 42 --project 5 --status active
+  penf topic update 42 --running-context "Migration delayed to Q3"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var id int64
 			if _, err := fmt.Sscanf(args[0], "%d", &id); err != nil || id <= 0 {
 				return fmt.Errorf("invalid topic ID: %s (must be a positive integer)", args[0])
 			}
-			return runTopicUpdate(cmd.Context(), deps, id, name, description, keywords)
+			var projIDPtr *int64
+			if cmd.Flags().Changed("project") {
+				projIDPtr = &projectID
+			}
+			return runTopicUpdate(cmd.Context(), deps, id, name, description, keywords, projIDPtr, runningContext, status)
 		},
 	}
 
 	cmd.Flags().StringVar(&name, "name", "", "New topic name")
 	cmd.Flags().StringVarP(&description, "description", "d", "", "New description")
 	cmd.Flags().StringSliceVarP(&keywords, "keywords", "k", nil, "New keywords (comma-separated)")
+	cmd.Flags().Int64Var(&projectID, "project", 0, "Link to project ID (0 to unlink)")
+	cmd.Flags().StringVar(&runningContext, "running-context", "", "Running context for the topic")
+	cmd.Flags().StringVar(&status, "status", "", "Topic status (active, archived)")
 
 	return cmd
 }
@@ -238,7 +257,7 @@ func runTopicAdd(ctx context.Context, deps *TopicCommandDeps, name, description 
 	return nil
 }
 
-func runTopicList(ctx context.Context, deps *TopicCommandDeps, search, keyword string) error {
+func runTopicList(ctx context.Context, deps *TopicCommandDeps, search, keyword string, projectID *int64) error {
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
@@ -254,13 +273,18 @@ func runTopicList(ctx context.Context, deps *TopicCommandDeps, search, keyword s
 	client := topicv1.NewTopicServiceClient(conn)
 	tenantID := getTenantIDForTopic(deps)
 
+	filter := &topicv1.TopicFilter{
+		TenantId:   tenantID,
+		NameSearch: search,
+		Keyword:    keyword,
+		Limit:      int32(topicLimit),
+	}
+	if projectID != nil {
+		filter.ProjectId = projectID
+	}
+
 	resp, err := client.ListTopics(ctx, &topicv1.ListTopicsRequest{
-		Filter: &topicv1.TopicFilter{
-			TenantId:   tenantID,
-			NameSearch: search,
-			Keyword:    keyword,
-			Limit:      int32(topicLimit),
-		},
+		Filter: filter,
 	})
 	if err != nil {
 		return fmt.Errorf("listing topics: %w", err)
@@ -337,7 +361,7 @@ func runTopicDelete(ctx context.Context, deps *TopicCommandDeps, id int64) error
 	return nil
 }
 
-func runTopicUpdate(ctx context.Context, deps *TopicCommandDeps, id int64, name, description string, keywords []string) error {
+func runTopicUpdate(ctx context.Context, deps *TopicCommandDeps, id int64, name, description string, keywords []string, projectID *int64, runningContext, status string) error {
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
@@ -352,13 +376,20 @@ func runTopicUpdate(ctx context.Context, deps *TopicCommandDeps, id int64, name,
 
 	client := topicv1.NewTopicServiceClient(conn)
 
+	input := &topicv1.TopicInput{
+		Name:           name,
+		Description:    description,
+		Keywords:       keywords,
+		RunningContext: runningContext,
+		Status:         status,
+	}
+	if projectID != nil {
+		input.ProjectId = projectID
+	}
+
 	resp, err := client.UpdateTopic(ctx, &topicv1.UpdateTopicRequest{
-		Id: id,
-		Input: &topicv1.TopicInput{
-			Name:        name,
-			Description: description,
-			Keywords:    keywords,
-		},
+		Id:    id,
+		Input: input,
 	})
 	if err != nil {
 		return fmt.Errorf("updating topic: %w", err)
@@ -371,6 +402,9 @@ func runTopicUpdate(ctx context.Context, deps *TopicCommandDeps, id int64, name,
 	}
 	if len(t.Keywords) > 0 {
 		fmt.Printf("  Keywords:    %s\n", strings.Join(t.Keywords, ", "))
+	}
+	if t.Status != "" {
+		fmt.Printf("  Status:      %s\n", t.Status)
 	}
 
 	return nil
@@ -447,12 +481,24 @@ func outputTopicDetailText(topic *topicv1.Topic) error {
 	if len(topic.Keywords) > 0 {
 		fmt.Printf("  \033[1mKeywords:\033[0m     %s\n", strings.Join(topic.Keywords, ", "))
 	}
+	if topic.Status != "" {
+		fmt.Printf("  \033[1mStatus:\033[0m       %s\n", topic.Status)
+	}
+	if topic.ProjectId != nil {
+		fmt.Printf("  \033[1mProject ID:\033[0m   %d\n", *topic.ProjectId)
+	}
+	if topic.RunningContext != "" {
+		fmt.Printf("  \033[1mContext:\033[0m       %s\n", topic.RunningContext)
+	}
 	fmt.Println()
 	if topic.CreatedAt != nil {
 		fmt.Printf("  \033[1mCreated:\033[0m      %s\n", topic.CreatedAt.AsTime().Format("2006-01-02 15:04:05"))
 	}
 	if topic.UpdatedAt != nil {
 		fmt.Printf("  \033[1mUpdated:\033[0m      %s\n", topic.UpdatedAt.AsTime().Format("2006-01-02 15:04:05"))
+	}
+	if topic.LastUpdatedAt != nil {
+		fmt.Printf("  \033[1mLast Active:\033[0m  %s\n", topic.LastUpdatedAt.AsTime().Format("2006-01-02 15:04:05"))
 	}
 
 	return nil

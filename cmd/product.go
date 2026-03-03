@@ -780,6 +780,36 @@ func outputProductDetailText(product *productv1.Product) error {
 		fmt.Printf("  \033[1mAliases:\033[0m     %s\n", strings.Join(product.Aliases, ", "))
 	}
 
+	if product.RoadmapContext != "" {
+		fmt.Printf("\n  \033[1mRoadmap:\033[0m     %s\n", product.RoadmapContext)
+	}
+
+	if len(product.TechnicalStack) > 0 {
+		fmt.Printf("  \033[1mTech Stack:\033[0m  %s\n", strings.Join(product.TechnicalStack, ", "))
+	}
+
+	if product.CustomerAssociations != "" {
+		var ca map[string]interface{}
+		if json.Unmarshal([]byte(product.CustomerAssociations), &ca) == nil {
+			if customers, ok := ca["customers"].([]interface{}); ok && len(customers) > 0 {
+				fmt.Printf("\n  \033[1mCustomers:\033[0m\n")
+				for _, c := range customers {
+					if cm, ok := c.(map[string]interface{}); ok {
+						name, _ := cm["name"].(string)
+						rel, _ := cm["relationship"].(string)
+						if name != "" {
+							fmt.Printf("    %s", name)
+							if rel != "" {
+								fmt.Printf(" (%s)", rel)
+							}
+							fmt.Println()
+						}
+					}
+				}
+			}
+		}
+	}
+
 	fmt.Println()
 	if product.CreatedAt != nil {
 		fmt.Printf("  \033[1mCreated:\033[0m     %s\n", product.CreatedAt.AsTime().Format("2006-01-02 15:04:05"))
