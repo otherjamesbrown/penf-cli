@@ -112,6 +112,7 @@ Examples:
 	cmd.AddCommand(newEntitySearchCommand(deps))
 	cmd.AddCommand(newEntityManagementUpdateCommand(deps))
 	cmd.AddCommand(newEntityManagementBulkEnrichCommand(deps))
+	cmd.AddCommand(newEntityGroupCommand(deps))
 
 	return cmd
 }

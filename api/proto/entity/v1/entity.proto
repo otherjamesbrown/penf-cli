@@ -73,6 +73,18 @@ service EntityManagementService {
 
   // BulkEnrichEntities enriches entities by domain with company and is_internal flag.
   rpc BulkEnrichEntities(BulkEnrichEntitiesRequest) returns (BulkEnrichEntitiesResponse);
+
+  // AddGroupMember adds a member to a distribution list / group entity.
+  rpc AddGroupMember(AddGroupMemberRequest) returns (AddGroupMemberResponse);
+
+  // RemoveGroupMember soft-deletes a member from a group.
+  rpc RemoveGroupMember(RemoveGroupMemberRequest) returns (RemoveGroupMemberResponse);
+
+  // ListGroupMembers lists members of a group entity.
+  rpc ListGroupMembers(ListGroupMembersRequest) returns (ListGroupMembersResponse);
+
+  // GetEntityGroups returns the groups that an entity belongs to.
+  rpc GetEntityGroups(GetEntityGroupsRequest) returns (GetEntityGroupsResponse);
 }
 
 // =============================================================================
@@ -721,4 +733,69 @@ message BulkEnrichEntitiesRequest {
 message BulkEnrichEntitiesResponse {
   // Number of entities enriched
   int32 count = 1;
+}
+
+// =============================================================================
+// Group Membership Messages
+// =============================================================================
+
+// GroupMember represents a member of an entity group.
+message GroupMember {
+  int64 id = 1;
+  int64 group_entity_id = 2;
+  int64 member_entity_id = 3;
+  string member_name = 4;
+  string member_email = 5;
+  string source = 6;
+  google.protobuf.Timestamp added_at = 7;
+  optional google.protobuf.Timestamp removed_at = 8;
+}
+
+// AddGroupMemberRequest adds a member to a group.
+message AddGroupMemberRequest {
+  string tenant_id = 1;
+  int64 group_entity_id = 2;
+  int64 member_entity_id = 3;
+  string source = 4;
+}
+
+// AddGroupMemberResponse confirms member addition.
+message AddGroupMemberResponse {
+  int64 id = 1;
+}
+
+// RemoveGroupMemberRequest soft-deletes a member from a group.
+message RemoveGroupMemberRequest {
+  string tenant_id = 1;
+  int64 group_entity_id = 2;
+  int64 member_entity_id = 3;
+}
+
+// RemoveGroupMemberResponse confirms member removal.
+message RemoveGroupMemberResponse {
+  bool removed = 1;
+}
+
+// ListGroupMembersRequest lists members of a group.
+message ListGroupMembersRequest {
+  string tenant_id = 1;
+  int64 group_entity_id = 2;
+  bool include_removed = 3;
+}
+
+// ListGroupMembersResponse returns group members.
+message ListGroupMembersResponse {
+  repeated GroupMember members = 1;
+}
+
+// GetEntityGroupsRequest returns groups an entity belongs to.
+message GetEntityGroupsRequest {
+  string tenant_id = 1;
+  int64 member_entity_id = 2;
+  bool include_removed = 3;
+}
+
+// GetEntityGroupsResponse returns groups for an entity.
+message GetEntityGroupsResponse {
+  repeated GroupMember memberships = 1;
 }
