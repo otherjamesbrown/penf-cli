@@ -96,6 +96,7 @@ func runGraphStatus(ctx context.Context, deps *SourceCommandDeps) error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
+	deps.Config = cfg
 
 	conn, err := connectToGateway(cfg)
 	if err != nil {
@@ -152,6 +153,7 @@ func runGraphSync(ctx context.Context, deps *SourceCommandDeps, syncType string)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
+	deps.Config = cfg
 
 	conn, err := connectToGateway(cfg)
 	if err != nil {
@@ -188,6 +190,7 @@ func runGraphChannels(ctx context.Context, deps *SourceCommandDeps) error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
+	deps.Config = cfg
 
 	conn, err := connectToGateway(cfg)
 	if err != nil {
@@ -239,6 +242,7 @@ func runGraphAuth(ctx context.Context, deps *SourceCommandDeps) error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
+	deps.Config = cfg
 
 	conn, err := connectToGateway(cfg)
 	if err != nil {
@@ -252,6 +256,15 @@ func runGraphAuth(ctx context.Context, deps *SourceCommandDeps) error {
 	})
 	if err != nil {
 		return fmt.Errorf("initiating auth: %w", err)
+	}
+
+	if sourceOutput == "json" {
+		return json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+			"user_code":        resp.UserCode,
+			"verification_url": resp.VerificationUrl,
+			"message":          resp.Message,
+			"expires_in":       resp.ExpiresIn,
+		})
 	}
 
 	fmt.Println(resp.Message)
