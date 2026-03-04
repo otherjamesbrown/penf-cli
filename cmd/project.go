@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/yaml.v3"
 
+	contentv1 "github.com/otherjamesbrown/penf-cli/api/proto/content/v1"
 	projectv1 "github.com/otherjamesbrown/penf-cli/api/proto/project/v1"
 	topicv1 "github.com/otherjamesbrown/penf-cli/api/proto/topic/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
@@ -99,6 +102,9 @@ Related Commands:
 	cmd.AddCommand(newProjectDeleteCommand(deps))
 	cmd.AddCommand(newProjectUpdateCommand(deps))
 	cmd.AddCommand(newProjectThemesCommand(deps))
+	cmd.AddCommand(newProjectContentCommand(deps))
+	cmd.AddCommand(newProjectStatsCommand(deps))
+	cmd.AddCommand(newProjectUnattributedCommand(deps))
 
 	return cmd
 }
@@ -847,5 +853,380 @@ func outputProjectThemesText(projectName string, topics []*topicv1.Topic) error 
 	}
 
 	fmt.Println()
+	return nil
+}
+
+// ==================== Project Observability Commands ====================
+
+// newProjectContentCommand creates 'project content <project>' — list attributed content.
+func newProjectContentCommand(deps *ProjectCommandDeps) *cobra.Command {
+	var since string
+	var until string
+	var pageSize int32
+
+	cmd := &cobra.Command{
+		Use:   "content <project>",
+		Short: "List content attributed to a project",
+		Long: `List content items (emails, meetings, documents) attributed to a project.
+
+Shows title, date, attribution source (channel_mapping/keyword/llm), and confidence.
+
+Examples:
+  penf project content MTC
+  penf project content MTC --since 2026-01-01
+  penf project content MTC -o json`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProjectContent(cmd.Context(), deps, args[0], since, until, pageSize)
+		},
+	}
+
+	cmd.Flags().StringVar(&since, "since", "", "Show content created after this date (YYYY-MM-DD)")
+	cmd.Flags().StringVar(&until, "until", "", "Show content created before this date (YYYY-MM-DD)")
+	cmd.Flags().Int32Var(&pageSize, "limit", 50, "Maximum number of results")
+
+	return cmd
+}
+
+// newProjectStatsCommand creates 'project stats <project>' — attribution breakdown.
+func newProjectStatsCommand(deps *ProjectCommandDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "stats <project>",
+		Short: "Show attribution statistics for a project",
+		Long: `Show attribution statistics for a project.
+
+Displays total attributed content and assertions, broken down by attribution source
+(channel_mapping, keyword, participant, llm).
+
+Examples:
+  penf project stats MTC
+  penf project stats MTC -o json`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProjectStats(cmd.Context(), deps, args[0])
+		},
+	}
+
+	return cmd
+}
+
+// newProjectUnattributedCommand creates 'project unattributed' — list unattributed content.
+func newProjectUnattributedCommand(deps *ProjectCommandDeps) *cobra.Command {
+	var since string
+	var limit int32
+
+	cmd := &cobra.Command{
+		Use:   "unattributed",
+		Short: "List content with no project attribution",
+		Long: `List content items that have not been attributed to any project.
+
+Useful for finding content that should be tagged but isn't — helps identify
+sources that need 'penf source tag' mappings.
+
+Examples:
+  penf project unattributed
+  penf project unattributed --since 2026-01-01
+  penf project unattributed --limit 20 -o json`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProjectUnattributed(cmd.Context(), deps, since, limit)
+		},
+	}
+
+	cmd.Flags().StringVar(&since, "since", "", "Show content created after this date (YYYY-MM-DD)")
+	cmd.Flags().Int32Var(&limit, "limit", 50, "Maximum number of results")
+
+	return cmd
+}
+
+// runProjectContent implements 'penf project content'.
+func runProjectContent(ctx context.Context, deps *ProjectCommandDeps, identifier, since, until string, pageSize int32) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectProjectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	tenantID := getTenantIDForProject(deps)
+
+	// Resolve project name → ID
+	projClient := projectv1.NewProjectServiceClient(conn)
+	projResp, err := projClient.GetProject(ctx, &projectv1.GetProjectRequest{
+		TenantId:   tenantID,
+		Identifier: identifier,
+	})
+	if err != nil {
+		return fmt.Errorf("project not found: %s", identifier)
+	}
+	projectID := projResp.Project.Id
+
+	req := &contentv1.ListProjectContentRequest{
+		TenantId:  tenantID,
+		ProjectId: projectID,
+		PageSize:  pageSize,
+	}
+
+	if since != "" {
+		t, err := time.Parse("2006-01-02", since)
+		if err != nil {
+			return fmt.Errorf("invalid --since date (use YYYY-MM-DD): %w", err)
+		}
+		req.Since = timestamppb.New(t)
+	}
+	if until != "" {
+		t, err := time.Parse("2006-01-02", until)
+		if err != nil {
+			return fmt.Errorf("invalid --until date (use YYYY-MM-DD): %w", err)
+		}
+		req.Until = timestamppb.New(t)
+	}
+
+	contentClient := contentv1.NewContentProcessorServiceClient(conn)
+	resp, err := contentClient.ListProjectContent(ctx, req)
+	if err != nil {
+		return fmt.Errorf("listing project content: %w", err)
+	}
+
+	format := projectOutput
+	if f, _ := cmd_outputFormat(cfg); f != "" {
+		format = f
+	}
+
+	switch format {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]interface{}{
+			"project":     projResp.Project.Name,
+			"project_id":  projectID,
+			"total_count": resp.TotalCount,
+			"items":       resp.Items,
+		})
+	case "yaml":
+		return yaml.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+			"project":     projResp.Project.Name,
+			"project_id":  projectID,
+			"total_count": resp.TotalCount,
+			"items":       resp.Items,
+		})
+	default:
+		return outputProjectContentText(projResp.Project.Name, resp)
+	}
+}
+
+// runProjectStats implements 'penf project stats'.
+func runProjectStats(ctx context.Context, deps *ProjectCommandDeps, identifier string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectProjectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	tenantID := getTenantIDForProject(deps)
+
+	projClient := projectv1.NewProjectServiceClient(conn)
+	projResp, err := projClient.GetProject(ctx, &projectv1.GetProjectRequest{
+		TenantId:   tenantID,
+		Identifier: identifier,
+	})
+	if err != nil {
+		return fmt.Errorf("project not found: %s", identifier)
+	}
+	projectID := projResp.Project.Id
+
+	contentClient := contentv1.NewContentProcessorServiceClient(conn)
+	resp, err := contentClient.GetProjectStats(ctx, &contentv1.GetProjectStatsRequest{
+		TenantId:  tenantID,
+		ProjectId: projectID,
+	})
+	if err != nil {
+		return fmt.Errorf("getting project stats: %w", err)
+	}
+
+	format := projectOutput
+	if f, _ := cmd_outputFormat(cfg); f != "" {
+		format = f
+	}
+
+	switch format {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]interface{}{
+			"project":                   projResp.Project.Name,
+			"project_id":                projectID,
+			"total_attributed_sources":  resp.TotalAttributedSources,
+			"total_attributed_assertions": resp.TotalAttributedAssertions,
+			"breakdown":                 resp.Breakdown,
+		})
+	case "yaml":
+		return yaml.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+			"project":                   projResp.Project.Name,
+			"total_attributed_sources":  resp.TotalAttributedSources,
+			"total_attributed_assertions": resp.TotalAttributedAssertions,
+			"breakdown":                 resp.Breakdown,
+		})
+	default:
+		return outputProjectStatsText(projResp.Project.Name, resp)
+	}
+}
+
+// runProjectUnattributed implements 'penf project unattributed'.
+func runProjectUnattributed(ctx context.Context, deps *ProjectCommandDeps, since string, limit int32) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectProjectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	tenantID := getTenantIDForProject(deps)
+
+	req := &contentv1.ListUnattributedContentRequest{
+		TenantId: tenantID,
+		Limit:    limit,
+	}
+
+	if since != "" {
+		t, err := time.Parse("2006-01-02", since)
+		if err != nil {
+			return fmt.Errorf("invalid --since date (use YYYY-MM-DD): %w", err)
+		}
+		req.Since = timestamppb.New(t)
+	}
+
+	contentClient := contentv1.NewContentProcessorServiceClient(conn)
+	resp, err := contentClient.ListUnattributedContent(ctx, req)
+	if err != nil {
+		return fmt.Errorf("listing unattributed content: %w", err)
+	}
+
+	format := projectOutput
+	if f, _ := cmd_outputFormat(cfg); f != "" {
+		format = f
+	}
+
+	switch format {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]interface{}{
+			"total_count": resp.TotalCount,
+			"items":       resp.Items,
+		})
+	case "yaml":
+		return yaml.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+			"total_count": resp.TotalCount,
+			"items":       resp.Items,
+		})
+	default:
+		return outputProjectUnattributedText(resp)
+	}
+}
+
+// cmd_outputFormat returns the output format from config (helper to avoid import cycle).
+func cmd_outputFormat(cfg *config.CLIConfig) (string, error) {
+	if projectOutput != "" {
+		return projectOutput, nil
+	}
+	if cfg != nil {
+		return string(cfg.OutputFormat), nil
+	}
+	return "", nil
+}
+
+// ==================== Output Formatters ====================
+
+func outputProjectContentText(projectName string, resp *contentv1.ListProjectContentResponse) error {
+	if len(resp.Items) == 0 {
+		fmt.Printf("No content attributed to project '%s'.\n", projectName)
+		fmt.Println("Tip: run 'penf source tag <identifier> --project <name>' to map a source.")
+		return nil
+	}
+
+	fmt.Printf("Content attributed to %s (%d items):\n\n", projectName, resp.TotalCount)
+	fmt.Printf("  %-8s  %-45s  %-12s  %-16s  %s\n",
+		"ID", "TITLE", "DATE", "ATTRIBUTION", "CONF")
+	fmt.Printf("  %-8s  %-45s  %-12s  %-16s  %s\n",
+		"--", "-----", "----", "-----------", "----")
+
+	for _, item := range resp.Items {
+		dateStr := "-"
+		if item.CreatedAt != nil {
+			dateStr = item.CreatedAt.AsTime().Format("2006-01-02")
+		}
+		fmt.Printf("  %-8d  %-45s  %-12s  %-16s  %.2f\n",
+			item.SourceId,
+			truncateString(item.Title, 45),
+			dateStr,
+			item.AttributionSource,
+			item.AttributionConfidence)
+	}
+	fmt.Println()
+	return nil
+}
+
+func outputProjectStatsText(projectName string, resp *contentv1.GetProjectStatsResponse) error {
+	fmt.Printf("Attribution stats for %s:\n\n", projectName)
+	fmt.Printf("  Total attributed content:    %d\n", resp.TotalAttributedSources)
+	fmt.Printf("  Total attributed assertions: %d\n\n", resp.TotalAttributedAssertions)
+
+	if len(resp.Breakdown) == 0 {
+		fmt.Println("  No attribution data yet.")
+		fmt.Println("  Tip: run 'penf pipeline reprocess <id>' on recent content to trigger attribution.")
+		return nil
+	}
+
+	fmt.Printf("  %-20s  %10s  %10s\n", "ATTRIBUTION SOURCE", "ASSERTIONS", "SOURCES")
+	fmt.Printf("  %-20s  %10s  %10s\n", "------------------", "----------", "-------")
+	for _, b := range resp.Breakdown {
+		fmt.Printf("  %-20s  %10d  %10d\n", b.AttributionSource, b.AssertionCount, b.SourceCount)
+	}
+	fmt.Println()
+	return nil
+}
+
+func outputProjectUnattributedText(resp *contentv1.ListUnattributedContentResponse) error {
+	if len(resp.Items) == 0 {
+		fmt.Println("No unattributed content found.")
+		return nil
+	}
+
+	fmt.Printf("Unattributed content (%d items):\n\n", resp.TotalCount)
+	fmt.Printf("  %-8s  %-45s  %-12s  %-12s  %s\n",
+		"ID", "TITLE", "DATE", "TYPE", "ASSERTIONS")
+	fmt.Printf("  %-8s  %-45s  %-12s  %-12s  %s\n",
+		"--", "-----", "----", "----", "----------")
+
+	for _, item := range resp.Items {
+		dateStr := "-"
+		if item.CreatedAt != nil {
+			dateStr = item.CreatedAt.AsTime().Format("2006-01-02")
+		}
+		fmt.Printf("  %-8d  %-45s  %-12s  %-12s  %d\n",
+			item.SourceId,
+			truncateString(item.Title, 45),
+			dateStr,
+			item.ContentType,
+			item.AssertionCount)
+	}
+	fmt.Println()
+	fmt.Println("Tip: use 'penf source tag <identifier> --project <name>' to attribute these.")
 	return nil
 }

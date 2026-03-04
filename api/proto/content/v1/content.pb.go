@@ -3664,6 +3664,626 @@ func (x *ClearErrorResponse) GetMessage() string {
 	return ""
 }
 
+type ListProjectContentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ProjectId     int64                  `protobuf:"varint,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=since,proto3,oneof" json:"since,omitempty"`
+	Until         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=until,proto3,oneof" json:"until,omitempty"`
+	PageSize      int32                  `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken     string                 `protobuf:"bytes,6,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectContentRequest) Reset() {
+	*x = ListProjectContentRequest{}
+	mi := &file_content_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectContentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectContentRequest) ProtoMessage() {}
+
+func (x *ListProjectContentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectContentRequest.ProtoReflect.Descriptor instead.
+func (*ListProjectContentRequest) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *ListProjectContentRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *ListProjectContentRequest) GetProjectId() int64 {
+	if x != nil {
+		return x.ProjectId
+	}
+	return 0
+}
+
+func (x *ListProjectContentRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+func (x *ListProjectContentRequest) GetUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Until
+	}
+	return nil
+}
+
+func (x *ListProjectContentRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListProjectContentRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type ProjectContentItem struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	SourceId              int64                  `protobuf:"varint,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	ContentId             string                 `protobuf:"bytes,2,opt,name=content_id,json=contentId,proto3" json:"content_id,omitempty"`
+	Title                 string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	CreatedAt             *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	AttributionSource     string                 `protobuf:"bytes,5,opt,name=attribution_source,json=attributionSource,proto3" json:"attribution_source,omitempty"`
+	AttributionConfidence float32                `protobuf:"fixed32,6,opt,name=attribution_confidence,json=attributionConfidence,proto3" json:"attribution_confidence,omitempty"`
+	ContentType           string                 `protobuf:"bytes,7,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ProjectContentItem) Reset() {
+	*x = ProjectContentItem{}
+	mi := &file_content_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectContentItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectContentItem) ProtoMessage() {}
+
+func (x *ProjectContentItem) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectContentItem.ProtoReflect.Descriptor instead.
+func (*ProjectContentItem) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *ProjectContentItem) GetSourceId() int64 {
+	if x != nil {
+		return x.SourceId
+	}
+	return 0
+}
+
+func (x *ProjectContentItem) GetContentId() string {
+	if x != nil {
+		return x.ContentId
+	}
+	return ""
+}
+
+func (x *ProjectContentItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ProjectContentItem) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *ProjectContentItem) GetAttributionSource() string {
+	if x != nil {
+		return x.AttributionSource
+	}
+	return ""
+}
+
+func (x *ProjectContentItem) GetAttributionConfidence() float32 {
+	if x != nil {
+		return x.AttributionConfidence
+	}
+	return 0
+}
+
+func (x *ProjectContentItem) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+type ListProjectContentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*ProjectContentItem  `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	TotalCount    int64                  `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectContentResponse) Reset() {
+	*x = ListProjectContentResponse{}
+	mi := &file_content_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectContentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectContentResponse) ProtoMessage() {}
+
+func (x *ListProjectContentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectContentResponse.ProtoReflect.Descriptor instead.
+func (*ListProjectContentResponse) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ListProjectContentResponse) GetItems() []*ProjectContentItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListProjectContentResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+func (x *ListProjectContentResponse) GetTotalCount() int64 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+type GetProjectStatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ProjectId     int64                  `protobuf:"varint,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectStatsRequest) Reset() {
+	*x = GetProjectStatsRequest{}
+	mi := &file_content_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectStatsRequest) ProtoMessage() {}
+
+func (x *GetProjectStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetProjectStatsRequest) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GetProjectStatsRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *GetProjectStatsRequest) GetProjectId() int64 {
+	if x != nil {
+		return x.ProjectId
+	}
+	return 0
+}
+
+type ProjectAttributionBreakdown struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	AttributionSource string                 `protobuf:"bytes,1,opt,name=attribution_source,json=attributionSource,proto3" json:"attribution_source,omitempty"`
+	AssertionCount    int64                  `protobuf:"varint,2,opt,name=assertion_count,json=assertionCount,proto3" json:"assertion_count,omitempty"`
+	SourceCount       int64                  `protobuf:"varint,3,opt,name=source_count,json=sourceCount,proto3" json:"source_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ProjectAttributionBreakdown) Reset() {
+	*x = ProjectAttributionBreakdown{}
+	mi := &file_content_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectAttributionBreakdown) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectAttributionBreakdown) ProtoMessage() {}
+
+func (x *ProjectAttributionBreakdown) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectAttributionBreakdown.ProtoReflect.Descriptor instead.
+func (*ProjectAttributionBreakdown) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ProjectAttributionBreakdown) GetAttributionSource() string {
+	if x != nil {
+		return x.AttributionSource
+	}
+	return ""
+}
+
+func (x *ProjectAttributionBreakdown) GetAssertionCount() int64 {
+	if x != nil {
+		return x.AssertionCount
+	}
+	return 0
+}
+
+func (x *ProjectAttributionBreakdown) GetSourceCount() int64 {
+	if x != nil {
+		return x.SourceCount
+	}
+	return 0
+}
+
+type GetProjectStatsResponse struct {
+	state                     protoimpl.MessageState         `protogen:"open.v1"`
+	TotalAttributedSources    int64                          `protobuf:"varint,1,opt,name=total_attributed_sources,json=totalAttributedSources,proto3" json:"total_attributed_sources,omitempty"`
+	TotalAttributedAssertions int64                          `protobuf:"varint,2,opt,name=total_attributed_assertions,json=totalAttributedAssertions,proto3" json:"total_attributed_assertions,omitempty"`
+	Breakdown                 []*ProjectAttributionBreakdown `protobuf:"bytes,3,rep,name=breakdown,proto3" json:"breakdown,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *GetProjectStatsResponse) Reset() {
+	*x = GetProjectStatsResponse{}
+	mi := &file_content_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectStatsResponse) ProtoMessage() {}
+
+func (x *GetProjectStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetProjectStatsResponse) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GetProjectStatsResponse) GetTotalAttributedSources() int64 {
+	if x != nil {
+		return x.TotalAttributedSources
+	}
+	return 0
+}
+
+func (x *GetProjectStatsResponse) GetTotalAttributedAssertions() int64 {
+	if x != nil {
+		return x.TotalAttributedAssertions
+	}
+	return 0
+}
+
+func (x *GetProjectStatsResponse) GetBreakdown() []*ProjectAttributionBreakdown {
+	if x != nil {
+		return x.Breakdown
+	}
+	return nil
+}
+
+type ListUnattributedContentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=since,proto3,oneof" json:"since,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	PageToken     string                 `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUnattributedContentRequest) Reset() {
+	*x = ListUnattributedContentRequest{}
+	mi := &file_content_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUnattributedContentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUnattributedContentRequest) ProtoMessage() {}
+
+func (x *ListUnattributedContentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUnattributedContentRequest.ProtoReflect.Descriptor instead.
+func (*ListUnattributedContentRequest) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ListUnattributedContentRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *ListUnattributedContentRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+func (x *ListUnattributedContentRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListUnattributedContentRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type UnattributedContentItem struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SourceId       int64                  `protobuf:"varint,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	ContentId      string                 `protobuf:"bytes,2,opt,name=content_id,json=contentId,proto3" json:"content_id,omitempty"`
+	Title          string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ContentType    string                 `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	AssertionCount int64                  `protobuf:"varint,6,opt,name=assertion_count,json=assertionCount,proto3" json:"assertion_count,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UnattributedContentItem) Reset() {
+	*x = UnattributedContentItem{}
+	mi := &file_content_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnattributedContentItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnattributedContentItem) ProtoMessage() {}
+
+func (x *UnattributedContentItem) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnattributedContentItem.ProtoReflect.Descriptor instead.
+func (*UnattributedContentItem) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *UnattributedContentItem) GetSourceId() int64 {
+	if x != nil {
+		return x.SourceId
+	}
+	return 0
+}
+
+func (x *UnattributedContentItem) GetContentId() string {
+	if x != nil {
+		return x.ContentId
+	}
+	return ""
+}
+
+func (x *UnattributedContentItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *UnattributedContentItem) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *UnattributedContentItem) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *UnattributedContentItem) GetAssertionCount() int64 {
+	if x != nil {
+		return x.AssertionCount
+	}
+	return 0
+}
+
+type ListUnattributedContentResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Items         []*UnattributedContentItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextPageToken string                     `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	TotalCount    int64                      `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUnattributedContentResponse) Reset() {
+	*x = ListUnattributedContentResponse{}
+	mi := &file_content_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUnattributedContentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUnattributedContentResponse) ProtoMessage() {}
+
+func (x *ListUnattributedContentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUnattributedContentResponse.ProtoReflect.Descriptor instead.
+func (*ListUnattributedContentResponse) Descriptor() ([]byte, []int) {
+	return file_content_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ListUnattributedContentResponse) GetItems() []*UnattributedContentItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListUnattributedContentResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+func (x *ListUnattributedContentResponse) GetTotalCount() int64 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
 var File_content_proto protoreflect.FileDescriptor
 
 const file_content_proto_rawDesc = "" +
@@ -4009,7 +4629,66 @@ const file_content_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1d\n" +
 	"\n" +
 	"content_id\x18\x02 \x01(\tR\tcontentId\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\xc9\x02\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x95\x02\n" +
+	"\x19ListProjectContentRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\x03R\tprojectId\x125\n" +
+	"\x05since\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\x05since\x88\x01\x01\x125\n" +
+	"\x05until\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\x05until\x88\x01\x01\x12\x1b\n" +
+	"\tpage_size\x18\x05 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x06 \x01(\tR\tpageTokenB\b\n" +
+	"\x06_sinceB\b\n" +
+	"\x06_until\"\xaa\x02\n" +
+	"\x12ProjectContentItem\x12\x1b\n" +
+	"\tsource_id\x18\x01 \x01(\x03R\bsourceId\x12\x1d\n" +
+	"\n" +
+	"content_id\x18\x02 \x01(\tR\tcontentId\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12-\n" +
+	"\x12attribution_source\x18\x05 \x01(\tR\x11attributionSource\x125\n" +
+	"\x16attribution_confidence\x18\x06 \x01(\x02R\x15attributionConfidence\x12!\n" +
+	"\fcontent_type\x18\a \x01(\tR\vcontentType\"\xa3\x01\n" +
+	"\x1aListProjectContentResponse\x12<\n" +
+	"\x05items\x18\x01 \x03(\v2&.penfold.content.v1.ProjectContentItemR\x05items\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x03R\n" +
+	"totalCount\"T\n" +
+	"\x16GetProjectStatsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\x03R\tprojectId\"\x98\x01\n" +
+	"\x1bProjectAttributionBreakdown\x12-\n" +
+	"\x12attribution_source\x18\x01 \x01(\tR\x11attributionSource\x12'\n" +
+	"\x0fassertion_count\x18\x02 \x01(\x03R\x0eassertionCount\x12!\n" +
+	"\fsource_count\x18\x03 \x01(\x03R\vsourceCount\"\xe2\x01\n" +
+	"\x17GetProjectStatsResponse\x128\n" +
+	"\x18total_attributed_sources\x18\x01 \x01(\x03R\x16totalAttributedSources\x12>\n" +
+	"\x1btotal_attributed_assertions\x18\x02 \x01(\x03R\x19totalAttributedAssertions\x12M\n" +
+	"\tbreakdown\x18\x03 \x03(\v2/.penfold.content.v1.ProjectAttributionBreakdownR\tbreakdown\"\xb3\x01\n" +
+	"\x1eListUnattributedContentRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x125\n" +
+	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\x05since\x88\x01\x01\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tR\tpageTokenB\b\n" +
+	"\x06_since\"\xf2\x01\n" +
+	"\x17UnattributedContentItem\x12\x1b\n" +
+	"\tsource_id\x18\x01 \x01(\x03R\bsourceId\x12\x1d\n" +
+	"\n" +
+	"content_id\x18\x02 \x01(\tR\tcontentId\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12!\n" +
+	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\x12'\n" +
+	"\x0fassertion_count\x18\x06 \x01(\x03R\x0eassertionCount\"\xad\x01\n" +
+	"\x1fListUnattributedContentResponse\x12A\n" +
+	"\x05items\x18\x01 \x03(\v2+.penfold.content.v1.UnattributedContentItemR\x05items\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x03R\n" +
+	"totalCount*\xc9\x02\n" +
 	"\x0fProcessingStage\x12 \n" +
 	"\x1cPROCESSING_STAGE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PROCESSING_STAGE_PARSE\x10\x01\x12\x1c\n" +
@@ -4078,7 +4757,7 @@ const file_content_proto_rawDesc = "" +
 	"\x17PROCESSING_STATE_FAILED\x10\x04\x12\x1e\n" +
 	"\x1aPROCESSING_STATE_CANCELLED\x10\x05\x12\x1d\n" +
 	"\x19PROCESSING_STATE_REJECTED\x10\x06\x12\x1c\n" +
-	"\x18PROCESSING_STATE_SKIPPED\x10\a2\xca\r\n" +
+	"\x18PROCESSING_STATE_SKIPPED\x10\a2\xb0\x10\n" +
 	"\x17ContentProcessorService\x12g\n" +
 	"\x0eProcessContent\x12).penfold.content.v1.ProcessContentRequest\x1a*.penfold.content.v1.ProcessContentResponse\x12k\n" +
 	"\x13GetProcessingStatus\x12..penfold.content.v1.GetProcessingStatusRequest\x1a$.penfold.content.v1.ProcessingStatus\x12\\\n" +
@@ -4096,7 +4775,10 @@ const file_content_proto_rawDesc = "" +
 	"\x10PurgeContentItem\x12+.penfold.content.v1.PurgeContentItemRequest\x1a,.penfold.content.v1.PurgeContentItemResponse\x12p\n" +
 	"\x11PurgeContentItems\x12,.penfold.content.v1.PurgeContentItemsRequest\x1a-.penfold.content.v1.PurgeContentItemsResponse\x12[\n" +
 	"\n" +
-	"ClearError\x12%.penfold.content.v1.ClearErrorRequest\x1a&.penfold.content.v1.ClearErrorResponseBDZBgithub.com/otherjamesbrown/penf-cli/api/proto/content/v1;contentv1b\x06proto3"
+	"ClearError\x12%.penfold.content.v1.ClearErrorRequest\x1a&.penfold.content.v1.ClearErrorResponse\x12s\n" +
+	"\x12ListProjectContent\x12-.penfold.content.v1.ListProjectContentRequest\x1a..penfold.content.v1.ListProjectContentResponse\x12j\n" +
+	"\x0fGetProjectStats\x12*.penfold.content.v1.GetProjectStatsRequest\x1a+.penfold.content.v1.GetProjectStatsResponse\x12\x82\x01\n" +
+	"\x17ListUnattributedContent\x122.penfold.content.v1.ListUnattributedContentRequest\x1a3.penfold.content.v1.ListUnattributedContentResponseBDZBgithub.com/otherjamesbrown/penf-cli/api/proto/content/v1;contentv1b\x06proto3"
 
 var (
 	file_content_proto_rawDescOnce sync.Once
@@ -4111,70 +4793,79 @@ func file_content_proto_rawDescGZIP() []byte {
 }
 
 var file_content_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_content_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_content_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_content_proto_goTypes = []any{
-	(ProcessingStage)(0),                  // 0: penfold.content.v1.ProcessingStage
-	(StageStatus)(0),                      // 1: penfold.content.v1.StageStatus
-	(ContentType)(0),                      // 2: penfold.content.v1.ContentType
-	(ContentSubtype)(0),                   // 3: penfold.content.v1.ContentSubtype
-	(ContentStructure)(0),                 // 4: penfold.content.v1.ContentStructure
-	(TriageCategory)(0),                   // 5: penfold.content.v1.TriageCategory
-	(TriageImportance)(0),                 // 6: penfold.content.v1.TriageImportance
-	(ProcessingState)(0),                  // 7: penfold.content.v1.ProcessingState
-	(*StageResult)(nil),                   // 8: penfold.content.v1.StageResult
-	(*ContentItem)(nil),                   // 9: penfold.content.v1.ContentItem
-	(*ProcessContentRequest)(nil),         // 10: penfold.content.v1.ProcessContentRequest
-	(*ProcessingOptions)(nil),             // 11: penfold.content.v1.ProcessingOptions
-	(*ProcessContentResponse)(nil),        // 12: penfold.content.v1.ProcessContentResponse
-	(*GetProcessingStatusRequest)(nil),    // 13: penfold.content.v1.GetProcessingStatusRequest
-	(*ProcessingStatus)(nil),              // 14: penfold.content.v1.ProcessingStatus
-	(*ProcessingError)(nil),               // 15: penfold.content.v1.ProcessingError
-	(*GetContentItemRequest)(nil),         // 16: penfold.content.v1.GetContentItemRequest
-	(*ListContentItemsRequest)(nil),       // 17: penfold.content.v1.ListContentItemsRequest
-	(*ListContentItemsResponse)(nil),      // 18: penfold.content.v1.ListContentItemsResponse
-	(*ReprocessContentRequest)(nil),       // 19: penfold.content.v1.ReprocessContentRequest
-	(*ReprocessContentResponse)(nil),      // 20: penfold.content.v1.ReprocessContentResponse
-	(*DeleteContentItemRequest)(nil),      // 21: penfold.content.v1.DeleteContentItemRequest
-	(*DeleteContentItemResponse)(nil),     // 22: penfold.content.v1.DeleteContentItemResponse
-	(*DeleteContentItemsRequest)(nil),     // 23: penfold.content.v1.DeleteContentItemsRequest
-	(*DeleteContentItemsResponse)(nil),    // 24: penfold.content.v1.DeleteContentItemsResponse
-	(*GetContentStatsRequest)(nil),        // 25: penfold.content.v1.GetContentStatsRequest
-	(*ContentStats)(nil),                  // 26: penfold.content.v1.ContentStats
-	(*GetContentTextRequest)(nil),         // 27: penfold.content.v1.GetContentTextRequest
-	(*GetContentTextResponse)(nil),        // 28: penfold.content.v1.GetContentTextResponse
-	(*ListAvailableInsightsRequest)(nil),  // 29: penfold.content.v1.ListAvailableInsightsRequest
-	(*ListAvailableInsightsResponse)(nil), // 30: penfold.content.v1.ListAvailableInsightsResponse
-	(*GetInsightsRequest)(nil),            // 31: penfold.content.v1.GetInsightsRequest
-	(*Insight)(nil),                       // 32: penfold.content.v1.Insight
-	(*GetInsightsResponse)(nil),           // 33: penfold.content.v1.GetInsightsResponse
-	(*GetContentTraceRequest)(nil),        // 34: penfold.content.v1.GetContentTraceRequest
-	(*LangfuseTrace)(nil),                 // 35: penfold.content.v1.LangfuseTrace
-	(*LangfuseObservation)(nil),           // 36: penfold.content.v1.LangfuseObservation
-	(*GetContentTraceResponse)(nil),       // 37: penfold.content.v1.GetContentTraceResponse
-	(*GetAssertionsRequest)(nil),          // 38: penfold.content.v1.GetAssertionsRequest
-	(*Assertion)(nil),                     // 39: penfold.content.v1.Assertion
-	(*GetAssertionsResponse)(nil),         // 40: penfold.content.v1.GetAssertionsResponse
-	(*PurgeContentItemRequest)(nil),       // 41: penfold.content.v1.PurgeContentItemRequest
-	(*PurgeContentItemResponse)(nil),      // 42: penfold.content.v1.PurgeContentItemResponse
-	(*PurgeContentItemsRequest)(nil),      // 43: penfold.content.v1.PurgeContentItemsRequest
-	(*PurgeContentItemsResponse)(nil),     // 44: penfold.content.v1.PurgeContentItemsResponse
-	(*ClearErrorRequest)(nil),             // 45: penfold.content.v1.ClearErrorRequest
-	(*ClearErrorResponse)(nil),            // 46: penfold.content.v1.ClearErrorResponse
-	nil,                                   // 47: penfold.content.v1.ContentItem.MetadataEntry
-	nil,                                   // 48: penfold.content.v1.ContentStats.CountByTypeEntry
-	nil,                                   // 49: penfold.content.v1.ContentStats.CountByStateEntry
-	nil,                                   // 50: penfold.content.v1.GetContentTextResponse.MetadataEntry
-	(*timestamppb.Timestamp)(nil),         // 51: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),               // 52: google.protobuf.Struct
+	(ProcessingStage)(0),                    // 0: penfold.content.v1.ProcessingStage
+	(StageStatus)(0),                        // 1: penfold.content.v1.StageStatus
+	(ContentType)(0),                        // 2: penfold.content.v1.ContentType
+	(ContentSubtype)(0),                     // 3: penfold.content.v1.ContentSubtype
+	(ContentStructure)(0),                   // 4: penfold.content.v1.ContentStructure
+	(TriageCategory)(0),                     // 5: penfold.content.v1.TriageCategory
+	(TriageImportance)(0),                   // 6: penfold.content.v1.TriageImportance
+	(ProcessingState)(0),                    // 7: penfold.content.v1.ProcessingState
+	(*StageResult)(nil),                     // 8: penfold.content.v1.StageResult
+	(*ContentItem)(nil),                     // 9: penfold.content.v1.ContentItem
+	(*ProcessContentRequest)(nil),           // 10: penfold.content.v1.ProcessContentRequest
+	(*ProcessingOptions)(nil),               // 11: penfold.content.v1.ProcessingOptions
+	(*ProcessContentResponse)(nil),          // 12: penfold.content.v1.ProcessContentResponse
+	(*GetProcessingStatusRequest)(nil),      // 13: penfold.content.v1.GetProcessingStatusRequest
+	(*ProcessingStatus)(nil),                // 14: penfold.content.v1.ProcessingStatus
+	(*ProcessingError)(nil),                 // 15: penfold.content.v1.ProcessingError
+	(*GetContentItemRequest)(nil),           // 16: penfold.content.v1.GetContentItemRequest
+	(*ListContentItemsRequest)(nil),         // 17: penfold.content.v1.ListContentItemsRequest
+	(*ListContentItemsResponse)(nil),        // 18: penfold.content.v1.ListContentItemsResponse
+	(*ReprocessContentRequest)(nil),         // 19: penfold.content.v1.ReprocessContentRequest
+	(*ReprocessContentResponse)(nil),        // 20: penfold.content.v1.ReprocessContentResponse
+	(*DeleteContentItemRequest)(nil),        // 21: penfold.content.v1.DeleteContentItemRequest
+	(*DeleteContentItemResponse)(nil),       // 22: penfold.content.v1.DeleteContentItemResponse
+	(*DeleteContentItemsRequest)(nil),       // 23: penfold.content.v1.DeleteContentItemsRequest
+	(*DeleteContentItemsResponse)(nil),      // 24: penfold.content.v1.DeleteContentItemsResponse
+	(*GetContentStatsRequest)(nil),          // 25: penfold.content.v1.GetContentStatsRequest
+	(*ContentStats)(nil),                    // 26: penfold.content.v1.ContentStats
+	(*GetContentTextRequest)(nil),           // 27: penfold.content.v1.GetContentTextRequest
+	(*GetContentTextResponse)(nil),          // 28: penfold.content.v1.GetContentTextResponse
+	(*ListAvailableInsightsRequest)(nil),    // 29: penfold.content.v1.ListAvailableInsightsRequest
+	(*ListAvailableInsightsResponse)(nil),   // 30: penfold.content.v1.ListAvailableInsightsResponse
+	(*GetInsightsRequest)(nil),              // 31: penfold.content.v1.GetInsightsRequest
+	(*Insight)(nil),                         // 32: penfold.content.v1.Insight
+	(*GetInsightsResponse)(nil),             // 33: penfold.content.v1.GetInsightsResponse
+	(*GetContentTraceRequest)(nil),          // 34: penfold.content.v1.GetContentTraceRequest
+	(*LangfuseTrace)(nil),                   // 35: penfold.content.v1.LangfuseTrace
+	(*LangfuseObservation)(nil),             // 36: penfold.content.v1.LangfuseObservation
+	(*GetContentTraceResponse)(nil),         // 37: penfold.content.v1.GetContentTraceResponse
+	(*GetAssertionsRequest)(nil),            // 38: penfold.content.v1.GetAssertionsRequest
+	(*Assertion)(nil),                       // 39: penfold.content.v1.Assertion
+	(*GetAssertionsResponse)(nil),           // 40: penfold.content.v1.GetAssertionsResponse
+	(*PurgeContentItemRequest)(nil),         // 41: penfold.content.v1.PurgeContentItemRequest
+	(*PurgeContentItemResponse)(nil),        // 42: penfold.content.v1.PurgeContentItemResponse
+	(*PurgeContentItemsRequest)(nil),        // 43: penfold.content.v1.PurgeContentItemsRequest
+	(*PurgeContentItemsResponse)(nil),       // 44: penfold.content.v1.PurgeContentItemsResponse
+	(*ClearErrorRequest)(nil),               // 45: penfold.content.v1.ClearErrorRequest
+	(*ClearErrorResponse)(nil),              // 46: penfold.content.v1.ClearErrorResponse
+	(*ListProjectContentRequest)(nil),       // 47: penfold.content.v1.ListProjectContentRequest
+	(*ProjectContentItem)(nil),              // 48: penfold.content.v1.ProjectContentItem
+	(*ListProjectContentResponse)(nil),      // 49: penfold.content.v1.ListProjectContentResponse
+	(*GetProjectStatsRequest)(nil),          // 50: penfold.content.v1.GetProjectStatsRequest
+	(*ProjectAttributionBreakdown)(nil),     // 51: penfold.content.v1.ProjectAttributionBreakdown
+	(*GetProjectStatsResponse)(nil),         // 52: penfold.content.v1.GetProjectStatsResponse
+	(*ListUnattributedContentRequest)(nil),  // 53: penfold.content.v1.ListUnattributedContentRequest
+	(*UnattributedContentItem)(nil),         // 54: penfold.content.v1.UnattributedContentItem
+	(*ListUnattributedContentResponse)(nil), // 55: penfold.content.v1.ListUnattributedContentResponse
+	nil,                                     // 56: penfold.content.v1.ContentItem.MetadataEntry
+	nil,                                     // 57: penfold.content.v1.ContentStats.CountByTypeEntry
+	nil,                                     // 58: penfold.content.v1.ContentStats.CountByStateEntry
+	nil,                                     // 59: penfold.content.v1.GetContentTextResponse.MetadataEntry
+	(*timestamppb.Timestamp)(nil),           // 60: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                 // 61: google.protobuf.Struct
 }
 var file_content_proto_depIdxs = []int32{
 	0,  // 0: penfold.content.v1.StageResult.stage:type_name -> penfold.content.v1.ProcessingStage
 	1,  // 1: penfold.content.v1.StageResult.status:type_name -> penfold.content.v1.StageStatus
-	47, // 2: penfold.content.v1.ContentItem.metadata:type_name -> penfold.content.v1.ContentItem.MetadataEntry
+	56, // 2: penfold.content.v1.ContentItem.metadata:type_name -> penfold.content.v1.ContentItem.MetadataEntry
 	7,  // 3: penfold.content.v1.ContentItem.state:type_name -> penfold.content.v1.ProcessingState
-	51, // 4: penfold.content.v1.ContentItem.created_at:type_name -> google.protobuf.Timestamp
-	51, // 5: penfold.content.v1.ContentItem.updated_at:type_name -> google.protobuf.Timestamp
-	51, // 6: penfold.content.v1.ContentItem.processed_at:type_name -> google.protobuf.Timestamp
+	60, // 4: penfold.content.v1.ContentItem.created_at:type_name -> google.protobuf.Timestamp
+	60, // 5: penfold.content.v1.ContentItem.updated_at:type_name -> google.protobuf.Timestamp
+	60, // 6: penfold.content.v1.ContentItem.processed_at:type_name -> google.protobuf.Timestamp
 	2,  // 7: penfold.content.v1.ContentItem.content_type_enum:type_name -> penfold.content.v1.ContentType
 	3,  // 8: penfold.content.v1.ContentItem.content_subtype_enum:type_name -> penfold.content.v1.ContentSubtype
 	4,  // 9: penfold.content.v1.ContentItem.content_structure:type_name -> penfold.content.v1.ContentStructure
@@ -4182,74 +4873,88 @@ var file_content_proto_depIdxs = []int32{
 	14, // 11: penfold.content.v1.ProcessContentResponse.status:type_name -> penfold.content.v1.ProcessingStatus
 	7,  // 12: penfold.content.v1.ProcessingStatus.state:type_name -> penfold.content.v1.ProcessingState
 	8,  // 13: penfold.content.v1.ProcessingStatus.stages:type_name -> penfold.content.v1.StageResult
-	51, // 14: penfold.content.v1.ProcessingStatus.started_at:type_name -> google.protobuf.Timestamp
-	51, // 15: penfold.content.v1.ProcessingStatus.finished_at:type_name -> google.protobuf.Timestamp
+	60, // 14: penfold.content.v1.ProcessingStatus.started_at:type_name -> google.protobuf.Timestamp
+	60, // 15: penfold.content.v1.ProcessingStatus.finished_at:type_name -> google.protobuf.Timestamp
 	5,  // 16: penfold.content.v1.ProcessingStatus.triage_category_enum:type_name -> penfold.content.v1.TriageCategory
 	6,  // 17: penfold.content.v1.ProcessingStatus.triage_importance_enum:type_name -> penfold.content.v1.TriageImportance
 	0,  // 18: penfold.content.v1.ProcessingError.stage:type_name -> penfold.content.v1.ProcessingStage
-	51, // 19: penfold.content.v1.ProcessingError.occurred_at:type_name -> google.protobuf.Timestamp
+	60, // 19: penfold.content.v1.ProcessingError.occurred_at:type_name -> google.protobuf.Timestamp
 	7,  // 20: penfold.content.v1.ListContentItemsRequest.state:type_name -> penfold.content.v1.ProcessingState
-	51, // 21: penfold.content.v1.ListContentItemsRequest.created_after:type_name -> google.protobuf.Timestamp
-	51, // 22: penfold.content.v1.ListContentItemsRequest.created_before:type_name -> google.protobuf.Timestamp
+	60, // 21: penfold.content.v1.ListContentItemsRequest.created_after:type_name -> google.protobuf.Timestamp
+	60, // 22: penfold.content.v1.ListContentItemsRequest.created_before:type_name -> google.protobuf.Timestamp
 	2,  // 23: penfold.content.v1.ListContentItemsRequest.content_type_filter:type_name -> penfold.content.v1.ContentType
 	9,  // 24: penfold.content.v1.ListContentItemsResponse.items:type_name -> penfold.content.v1.ContentItem
 	11, // 25: penfold.content.v1.ReprocessContentRequest.options:type_name -> penfold.content.v1.ProcessingOptions
 	0,  // 26: penfold.content.v1.ReprocessContentRequest.stages_to_reprocess:type_name -> penfold.content.v1.ProcessingStage
 	14, // 27: penfold.content.v1.ReprocessContentResponse.status:type_name -> penfold.content.v1.ProcessingStatus
 	7,  // 28: penfold.content.v1.DeleteContentItemsRequest.state:type_name -> penfold.content.v1.ProcessingState
-	51, // 29: penfold.content.v1.DeleteContentItemsRequest.before:type_name -> google.protobuf.Timestamp
-	48, // 30: penfold.content.v1.ContentStats.count_by_type:type_name -> penfold.content.v1.ContentStats.CountByTypeEntry
-	49, // 31: penfold.content.v1.ContentStats.count_by_state:type_name -> penfold.content.v1.ContentStats.CountByStateEntry
-	51, // 32: penfold.content.v1.GetContentTextResponse.created_at:type_name -> google.protobuf.Timestamp
-	50, // 33: penfold.content.v1.GetContentTextResponse.metadata:type_name -> penfold.content.v1.GetContentTextResponse.MetadataEntry
-	52, // 34: penfold.content.v1.Insight.data:type_name -> google.protobuf.Struct
-	51, // 35: penfold.content.v1.Insight.extracted_at:type_name -> google.protobuf.Timestamp
+	60, // 29: penfold.content.v1.DeleteContentItemsRequest.before:type_name -> google.protobuf.Timestamp
+	57, // 30: penfold.content.v1.ContentStats.count_by_type:type_name -> penfold.content.v1.ContentStats.CountByTypeEntry
+	58, // 31: penfold.content.v1.ContentStats.count_by_state:type_name -> penfold.content.v1.ContentStats.CountByStateEntry
+	60, // 32: penfold.content.v1.GetContentTextResponse.created_at:type_name -> google.protobuf.Timestamp
+	59, // 33: penfold.content.v1.GetContentTextResponse.metadata:type_name -> penfold.content.v1.GetContentTextResponse.MetadataEntry
+	61, // 34: penfold.content.v1.Insight.data:type_name -> google.protobuf.Struct
+	60, // 35: penfold.content.v1.Insight.extracted_at:type_name -> google.protobuf.Timestamp
 	32, // 36: penfold.content.v1.GetInsightsResponse.insights:type_name -> penfold.content.v1.Insight
-	51, // 37: penfold.content.v1.LangfuseTrace.start_time:type_name -> google.protobuf.Timestamp
-	51, // 38: penfold.content.v1.LangfuseTrace.end_time:type_name -> google.protobuf.Timestamp
+	60, // 37: penfold.content.v1.LangfuseTrace.start_time:type_name -> google.protobuf.Timestamp
+	60, // 38: penfold.content.v1.LangfuseTrace.end_time:type_name -> google.protobuf.Timestamp
 	36, // 39: penfold.content.v1.LangfuseTrace.observations:type_name -> penfold.content.v1.LangfuseObservation
-	51, // 40: penfold.content.v1.LangfuseObservation.start_time:type_name -> google.protobuf.Timestamp
-	51, // 41: penfold.content.v1.LangfuseObservation.end_time:type_name -> google.protobuf.Timestamp
+	60, // 40: penfold.content.v1.LangfuseObservation.start_time:type_name -> google.protobuf.Timestamp
+	60, // 41: penfold.content.v1.LangfuseObservation.end_time:type_name -> google.protobuf.Timestamp
 	35, // 42: penfold.content.v1.GetContentTraceResponse.traces:type_name -> penfold.content.v1.LangfuseTrace
-	51, // 43: penfold.content.v1.Assertion.created_at:type_name -> google.protobuf.Timestamp
+	60, // 43: penfold.content.v1.Assertion.created_at:type_name -> google.protobuf.Timestamp
 	39, // 44: penfold.content.v1.GetAssertionsResponse.assertions:type_name -> penfold.content.v1.Assertion
-	10, // 45: penfold.content.v1.ContentProcessorService.ProcessContent:input_type -> penfold.content.v1.ProcessContentRequest
-	13, // 46: penfold.content.v1.ContentProcessorService.GetProcessingStatus:input_type -> penfold.content.v1.GetProcessingStatusRequest
-	16, // 47: penfold.content.v1.ContentProcessorService.GetContentItem:input_type -> penfold.content.v1.GetContentItemRequest
-	17, // 48: penfold.content.v1.ContentProcessorService.ListContentItems:input_type -> penfold.content.v1.ListContentItemsRequest
-	19, // 49: penfold.content.v1.ContentProcessorService.ReprocessContent:input_type -> penfold.content.v1.ReprocessContentRequest
-	21, // 50: penfold.content.v1.ContentProcessorService.DeleteContentItem:input_type -> penfold.content.v1.DeleteContentItemRequest
-	23, // 51: penfold.content.v1.ContentProcessorService.DeleteContentItems:input_type -> penfold.content.v1.DeleteContentItemsRequest
-	25, // 52: penfold.content.v1.ContentProcessorService.GetContentStats:input_type -> penfold.content.v1.GetContentStatsRequest
-	27, // 53: penfold.content.v1.ContentProcessorService.GetContentText:input_type -> penfold.content.v1.GetContentTextRequest
-	29, // 54: penfold.content.v1.ContentProcessorService.ListAvailableInsights:input_type -> penfold.content.v1.ListAvailableInsightsRequest
-	31, // 55: penfold.content.v1.ContentProcessorService.GetInsights:input_type -> penfold.content.v1.GetInsightsRequest
-	34, // 56: penfold.content.v1.ContentProcessorService.GetContentTrace:input_type -> penfold.content.v1.GetContentTraceRequest
-	38, // 57: penfold.content.v1.ContentProcessorService.GetAssertions:input_type -> penfold.content.v1.GetAssertionsRequest
-	41, // 58: penfold.content.v1.ContentProcessorService.PurgeContentItem:input_type -> penfold.content.v1.PurgeContentItemRequest
-	43, // 59: penfold.content.v1.ContentProcessorService.PurgeContentItems:input_type -> penfold.content.v1.PurgeContentItemsRequest
-	45, // 60: penfold.content.v1.ContentProcessorService.ClearError:input_type -> penfold.content.v1.ClearErrorRequest
-	12, // 61: penfold.content.v1.ContentProcessorService.ProcessContent:output_type -> penfold.content.v1.ProcessContentResponse
-	14, // 62: penfold.content.v1.ContentProcessorService.GetProcessingStatus:output_type -> penfold.content.v1.ProcessingStatus
-	9,  // 63: penfold.content.v1.ContentProcessorService.GetContentItem:output_type -> penfold.content.v1.ContentItem
-	18, // 64: penfold.content.v1.ContentProcessorService.ListContentItems:output_type -> penfold.content.v1.ListContentItemsResponse
-	20, // 65: penfold.content.v1.ContentProcessorService.ReprocessContent:output_type -> penfold.content.v1.ReprocessContentResponse
-	22, // 66: penfold.content.v1.ContentProcessorService.DeleteContentItem:output_type -> penfold.content.v1.DeleteContentItemResponse
-	24, // 67: penfold.content.v1.ContentProcessorService.DeleteContentItems:output_type -> penfold.content.v1.DeleteContentItemsResponse
-	26, // 68: penfold.content.v1.ContentProcessorService.GetContentStats:output_type -> penfold.content.v1.ContentStats
-	28, // 69: penfold.content.v1.ContentProcessorService.GetContentText:output_type -> penfold.content.v1.GetContentTextResponse
-	30, // 70: penfold.content.v1.ContentProcessorService.ListAvailableInsights:output_type -> penfold.content.v1.ListAvailableInsightsResponse
-	33, // 71: penfold.content.v1.ContentProcessorService.GetInsights:output_type -> penfold.content.v1.GetInsightsResponse
-	37, // 72: penfold.content.v1.ContentProcessorService.GetContentTrace:output_type -> penfold.content.v1.GetContentTraceResponse
-	40, // 73: penfold.content.v1.ContentProcessorService.GetAssertions:output_type -> penfold.content.v1.GetAssertionsResponse
-	42, // 74: penfold.content.v1.ContentProcessorService.PurgeContentItem:output_type -> penfold.content.v1.PurgeContentItemResponse
-	44, // 75: penfold.content.v1.ContentProcessorService.PurgeContentItems:output_type -> penfold.content.v1.PurgeContentItemsResponse
-	46, // 76: penfold.content.v1.ContentProcessorService.ClearError:output_type -> penfold.content.v1.ClearErrorResponse
-	61, // [61:77] is the sub-list for method output_type
-	45, // [45:61] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	60, // 45: penfold.content.v1.ListProjectContentRequest.since:type_name -> google.protobuf.Timestamp
+	60, // 46: penfold.content.v1.ListProjectContentRequest.until:type_name -> google.protobuf.Timestamp
+	60, // 47: penfold.content.v1.ProjectContentItem.created_at:type_name -> google.protobuf.Timestamp
+	48, // 48: penfold.content.v1.ListProjectContentResponse.items:type_name -> penfold.content.v1.ProjectContentItem
+	51, // 49: penfold.content.v1.GetProjectStatsResponse.breakdown:type_name -> penfold.content.v1.ProjectAttributionBreakdown
+	60, // 50: penfold.content.v1.ListUnattributedContentRequest.since:type_name -> google.protobuf.Timestamp
+	60, // 51: penfold.content.v1.UnattributedContentItem.created_at:type_name -> google.protobuf.Timestamp
+	54, // 52: penfold.content.v1.ListUnattributedContentResponse.items:type_name -> penfold.content.v1.UnattributedContentItem
+	10, // 53: penfold.content.v1.ContentProcessorService.ProcessContent:input_type -> penfold.content.v1.ProcessContentRequest
+	13, // 54: penfold.content.v1.ContentProcessorService.GetProcessingStatus:input_type -> penfold.content.v1.GetProcessingStatusRequest
+	16, // 55: penfold.content.v1.ContentProcessorService.GetContentItem:input_type -> penfold.content.v1.GetContentItemRequest
+	17, // 56: penfold.content.v1.ContentProcessorService.ListContentItems:input_type -> penfold.content.v1.ListContentItemsRequest
+	19, // 57: penfold.content.v1.ContentProcessorService.ReprocessContent:input_type -> penfold.content.v1.ReprocessContentRequest
+	21, // 58: penfold.content.v1.ContentProcessorService.DeleteContentItem:input_type -> penfold.content.v1.DeleteContentItemRequest
+	23, // 59: penfold.content.v1.ContentProcessorService.DeleteContentItems:input_type -> penfold.content.v1.DeleteContentItemsRequest
+	25, // 60: penfold.content.v1.ContentProcessorService.GetContentStats:input_type -> penfold.content.v1.GetContentStatsRequest
+	27, // 61: penfold.content.v1.ContentProcessorService.GetContentText:input_type -> penfold.content.v1.GetContentTextRequest
+	29, // 62: penfold.content.v1.ContentProcessorService.ListAvailableInsights:input_type -> penfold.content.v1.ListAvailableInsightsRequest
+	31, // 63: penfold.content.v1.ContentProcessorService.GetInsights:input_type -> penfold.content.v1.GetInsightsRequest
+	34, // 64: penfold.content.v1.ContentProcessorService.GetContentTrace:input_type -> penfold.content.v1.GetContentTraceRequest
+	38, // 65: penfold.content.v1.ContentProcessorService.GetAssertions:input_type -> penfold.content.v1.GetAssertionsRequest
+	41, // 66: penfold.content.v1.ContentProcessorService.PurgeContentItem:input_type -> penfold.content.v1.PurgeContentItemRequest
+	43, // 67: penfold.content.v1.ContentProcessorService.PurgeContentItems:input_type -> penfold.content.v1.PurgeContentItemsRequest
+	45, // 68: penfold.content.v1.ContentProcessorService.ClearError:input_type -> penfold.content.v1.ClearErrorRequest
+	47, // 69: penfold.content.v1.ContentProcessorService.ListProjectContent:input_type -> penfold.content.v1.ListProjectContentRequest
+	50, // 70: penfold.content.v1.ContentProcessorService.GetProjectStats:input_type -> penfold.content.v1.GetProjectStatsRequest
+	53, // 71: penfold.content.v1.ContentProcessorService.ListUnattributedContent:input_type -> penfold.content.v1.ListUnattributedContentRequest
+	12, // 72: penfold.content.v1.ContentProcessorService.ProcessContent:output_type -> penfold.content.v1.ProcessContentResponse
+	14, // 73: penfold.content.v1.ContentProcessorService.GetProcessingStatus:output_type -> penfold.content.v1.ProcessingStatus
+	9,  // 74: penfold.content.v1.ContentProcessorService.GetContentItem:output_type -> penfold.content.v1.ContentItem
+	18, // 75: penfold.content.v1.ContentProcessorService.ListContentItems:output_type -> penfold.content.v1.ListContentItemsResponse
+	20, // 76: penfold.content.v1.ContentProcessorService.ReprocessContent:output_type -> penfold.content.v1.ReprocessContentResponse
+	22, // 77: penfold.content.v1.ContentProcessorService.DeleteContentItem:output_type -> penfold.content.v1.DeleteContentItemResponse
+	24, // 78: penfold.content.v1.ContentProcessorService.DeleteContentItems:output_type -> penfold.content.v1.DeleteContentItemsResponse
+	26, // 79: penfold.content.v1.ContentProcessorService.GetContentStats:output_type -> penfold.content.v1.ContentStats
+	28, // 80: penfold.content.v1.ContentProcessorService.GetContentText:output_type -> penfold.content.v1.GetContentTextResponse
+	30, // 81: penfold.content.v1.ContentProcessorService.ListAvailableInsights:output_type -> penfold.content.v1.ListAvailableInsightsResponse
+	33, // 82: penfold.content.v1.ContentProcessorService.GetInsights:output_type -> penfold.content.v1.GetInsightsResponse
+	37, // 83: penfold.content.v1.ContentProcessorService.GetContentTrace:output_type -> penfold.content.v1.GetContentTraceResponse
+	40, // 84: penfold.content.v1.ContentProcessorService.GetAssertions:output_type -> penfold.content.v1.GetAssertionsResponse
+	42, // 85: penfold.content.v1.ContentProcessorService.PurgeContentItem:output_type -> penfold.content.v1.PurgeContentItemResponse
+	44, // 86: penfold.content.v1.ContentProcessorService.PurgeContentItems:output_type -> penfold.content.v1.PurgeContentItemsResponse
+	46, // 87: penfold.content.v1.ContentProcessorService.ClearError:output_type -> penfold.content.v1.ClearErrorResponse
+	49, // 88: penfold.content.v1.ContentProcessorService.ListProjectContent:output_type -> penfold.content.v1.ListProjectContentResponse
+	52, // 89: penfold.content.v1.ContentProcessorService.GetProjectStats:output_type -> penfold.content.v1.GetProjectStatsResponse
+	55, // 90: penfold.content.v1.ContentProcessorService.ListUnattributedContent:output_type -> penfold.content.v1.ListUnattributedContentResponse
+	72, // [72:91] is the sub-list for method output_type
+	53, // [53:72] is the sub-list for method input_type
+	53, // [53:53] is the sub-list for extension type_name
+	53, // [53:53] is the sub-list for extension extendee
+	0,  // [0:53] is the sub-list for field type_name
 }
 
 func init() { file_content_proto_init() }
@@ -4273,13 +4978,15 @@ func file_content_proto_init() {
 	file_content_proto_msgTypes[30].OneofWrappers = []any{}
 	file_content_proto_msgTypes[31].OneofWrappers = []any{}
 	file_content_proto_msgTypes[35].OneofWrappers = []any{}
+	file_content_proto_msgTypes[39].OneofWrappers = []any{}
+	file_content_proto_msgTypes[45].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_proto_rawDesc), len(file_content_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   43,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
