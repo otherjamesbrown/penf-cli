@@ -94,6 +94,7 @@ Examples:
 	cmd.AddCommand(newSourceTagCommand(deps))
 	cmd.AddCommand(newSourceListCommand(deps))
 	cmd.AddCommand(newSourceRemoveCommand(deps))
+	cmd.AddCommand(newSourceGraphCommand(deps))
 
 	return cmd
 }

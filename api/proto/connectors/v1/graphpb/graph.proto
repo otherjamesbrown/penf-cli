@@ -1,0 +1,160 @@
+// Microsoft Graph Connector Service Protobuf Definitions
+// Defines the gRPC service for managing Microsoft Graph (Outlook + Teams) integration.
+
+syntax = "proto3";
+
+package penfold.connectors.graph.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/connectors/v1/graphpb;graphpb";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Service Definition
+// =============================================================================
+
+// GraphConnectorService provides gRPC endpoints for managing Microsoft Graph
+// synchronization (Outlook email and Teams messages) for the Penfold system.
+service GraphConnectorService {
+  // GetGraphStatus retrieves the current integration and sync status for a tenant.
+  rpc GetGraphStatus(GetGraphStatusRequest) returns (GetGraphStatusResponse);
+
+  // TriggerGraphSync starts Temporal workflows to sync the specified data type.
+  rpc TriggerGraphSync(TriggerGraphSyncRequest) returns (TriggerGraphSyncResponse);
+
+  // ListGraphChannels lists Microsoft Teams channels for the tenant's configured teams.
+  rpc ListGraphChannels(ListGraphChannelsRequest) returns (ListGraphChannelsResponse);
+
+  // InitiateGraphAuth starts the Microsoft device code authorization flow.
+  rpc InitiateGraphAuth(InitiateGraphAuthRequest) returns (InitiateGraphAuthResponse);
+}
+
+// =============================================================================
+// GetGraphStatus
+// =============================================================================
+
+// GetGraphStatusRequest queries the integration status for a tenant.
+message GetGraphStatusRequest {
+  // Tenant identifier (UUID or slug)
+  string tenant_id = 1;
+}
+
+// GetGraphStatusResponse contains the integration and sync status for a tenant.
+message GetGraphStatusResponse {
+  // Authentication status: connected, disconnected, or expired
+  string auth_status = 1;
+
+  // Overall sync status: healthy, error, syncing, or never_synced
+  string sync_status = 2;
+
+  // Sync error message (empty if no error)
+  string sync_error = 3;
+
+  // When the last sync occurred
+  google.protobuf.Timestamp last_sync_at = 4;
+
+  // Whether the integration is enabled
+  bool enabled = 5;
+
+  // Sync stats for Outlook email (outlook_mail sources)
+  SyncStats email_stats = 6;
+
+  // Sync stats for Teams messages (teams_channel sources)
+  SyncStats teams_stats = 7;
+
+  // Sync stats for org/user data
+  SyncStats org_stats = 8;
+}
+
+// SyncStats holds statistics for a particular sync type.
+message SyncStats {
+  // When the last sync for this type occurred
+  google.protobuf.Timestamp last_sync_at = 1;
+
+  // Number of items synced
+  int64 items_synced = 2;
+
+  // Status for this type: healthy, error, syncing, never_synced
+  string status = 3;
+}
+
+// =============================================================================
+// TriggerGraphSync
+// =============================================================================
+
+// TriggerGraphSyncRequest initiates a sync for the specified data type.
+message TriggerGraphSyncRequest {
+  // Tenant identifier (UUID or slug)
+  string tenant_id = 1;
+
+  // Type of sync to trigger: email, teams, transcripts, org, or all
+  string sync_type = 2;
+}
+
+// TriggerGraphSyncResponse contains the result of triggering a sync.
+message TriggerGraphSyncResponse {
+  // Human-readable message about the triggered sync
+  string message = 1;
+
+  // IDs of the started Temporal workflows
+  repeated string workflow_ids = 2;
+}
+
+// =============================================================================
+// ListGraphChannels
+// =============================================================================
+
+// ListGraphChannelsRequest lists Teams channels for the tenant.
+message ListGraphChannelsRequest {
+  // Tenant identifier (UUID or slug)
+  string tenant_id = 1;
+}
+
+// ListGraphChannelsResponse contains the list of Teams channels.
+message ListGraphChannelsResponse {
+  // List of Teams channels configured for this tenant
+  repeated GraphChannel channels = 1;
+}
+
+// GraphChannel represents a Microsoft Teams channel with optional project mapping.
+message GraphChannel {
+  // Team display name
+  string team_name = 1;
+
+  // Microsoft Teams team ID
+  string team_id = 2;
+
+  // Channel display name
+  string channel_name = 3;
+
+  // Microsoft Teams channel ID
+  string channel_id = 4;
+
+  // Mapped Penfold project (empty if not mapped)
+  string mapped_project = 5;
+}
+
+// =============================================================================
+// InitiateGraphAuth
+// =============================================================================
+
+// InitiateGraphAuthRequest starts the device code authorization flow.
+message InitiateGraphAuthRequest {
+  // Tenant identifier (UUID or slug)
+  string tenant_id = 1;
+}
+
+// InitiateGraphAuthResponse contains the device code flow details for the user.
+message InitiateGraphAuthResponse {
+  // Short code the user enters at the verification URL
+  string user_code = 1;
+
+  // URL the user visits to complete authentication
+  string verification_url = 2;
+
+  // Human-readable message with instructions
+  string message = 3;
+
+  // Number of seconds until the device code expires
+  int32 expires_in = 4;
+}
