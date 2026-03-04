@@ -8,7 +8,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
@@ -17,23 +16,23 @@ import (
 func newPipelineConfigCmd(deps *PipelineCommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Manage pipeline timeout configuration",
-		Long: `Manage runtime timeout configuration for the pipeline.
+		Short: "Manage pipeline operational configuration",
+		Long: `Manage runtime operational configuration for the pipeline.
 
-View and update timeout values for activities, HTTP backends, and workflow stages.
+View and update configuration values for timeouts, embedding, concurrency, and other pipeline parameters.
 
 Examples:
-  # List all timeout configs
+  # List all operational config
   penf pipeline config
+
+  # View embedding config
+  penf pipeline config --key embedding
 
   # View activity timeouts
   penf pipeline config --key timeout.activity
 
-  # Show single config
-  penf pipeline config --key timeout.ai_client.request
-
-  # Update a timeout
-  penf pipeline config set timeout.ai_client.request 180s --reason "Increased for longer requests"`,
+  # Update a value
+  penf pipeline config set embedding.chunk_max_tokens 512 --reason "Testing larger chunks"`,
 	}
 
 	cmd.AddCommand(newPipelineConfigListCmd(deps))
@@ -53,14 +52,15 @@ func newPipelineConfigListCmd(deps *PipelineCommandDeps) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List timeout configuration entries",
-		Long: `List all timeout configuration entries or filter by key prefix.
+		Short: "List operational configuration entries",
+		Long: `List all operational configuration entries or filter by key prefix.
 
 Examples:
-  # List all timeouts
+  # List all config
   penf pipeline config list
 
   # Filter by key prefix
+  penf pipeline config list --key embedding
   penf pipeline config list --key timeout.activity
 
   # Output as JSON
@@ -83,18 +83,15 @@ func newPipelineConfigSetCmd(deps *PipelineCommandDeps) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "set <key> <value>",
-		Short: "Update a timeout configuration value",
-		Long: `Update a timeout configuration value.
-
-The value must be a valid Go duration string (e.g., "30s", "5m", "2h").
-The new value must be within the configured min/max bounds.
+		Short: "Update an operational configuration value",
+		Long: `Update an operational configuration value.
 
 Examples:
+  # Set embedding chunk size
+  penf pipeline config set embedding.chunk_max_tokens 512 --reason "Testing larger chunks"
+
   # Set AI client timeout
   penf pipeline config set timeout.ai_client.request 180s --reason "Increased for longer requests"
-
-  # Set activity timeout
-  penf pipeline config set timeout.activity.llm.start_to_close 10m --reason "Extended for slow models"
 
   # Set with custom updated_by
   penf pipeline config set timeout.http.backend.gemini 2m --reason "Gemini timeout" --updated-by "admin@example.com"`,
@@ -106,11 +103,9 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&reason, "reason", "", "Reason for the change (required)")
+	cmd.Flags().StringVar(&reason, "reason", "", "Reason for the change")
 	cmd.Flags().StringVar(&updatedBy, "updated-by", "", "User making the change (default: CLI user)")
 	cmd.Flags().StringVarP(&outputFormat, "output", "o", "text", "Output format: text, json")
-
-	cmd.MarkFlagRequired("reason")
 
 	return cmd
 }
@@ -161,9 +156,8 @@ func runPipelineConfigSet(ctx context.Context, deps *PipelineCommandDeps, key st
 		}
 	}
 
-	// Validate the value is a parseable duration
-	if _, err := time.ParseDuration(value); err != nil {
-		return fmt.Errorf("invalid duration value '%s': %v", value, err)
+	if reason == "" {
+		reason = "CLI update"
 	}
 
 	conn, err := connectPipelineToGateway(cfg)
@@ -196,9 +190,9 @@ func runPipelineConfigSet(ctx context.Context, deps *PipelineCommandDeps, key st
 func outputTimeoutConfigListHuman(entries []*pipelinev1.TimeoutEntry, keyFilter string) error {
 	if len(entries) == 0 {
 		if keyFilter != "" {
-			fmt.Printf("No timeout configs found matching key '%s'.\n", keyFilter)
+			fmt.Printf("No config entries found matching key '%s'.\n", keyFilter)
 		} else {
-			fmt.Println("No timeout configs found.")
+			fmt.Println("No config entries found.")
 		}
 		return nil
 	}
@@ -225,7 +219,7 @@ func outputTimeoutConfigListHuman(entries []*pipelinev1.TimeoutEntry, keyFilter 
 	sort.Strings(groupKeys)
 
 	// Display each group
-	fmt.Println("Pipeline Timeout Configuration")
+	fmt.Println("Pipeline Operational Configuration")
 	fmt.Println("=" + strings.Repeat("=", 79))
 	fmt.Println()
 
@@ -267,7 +261,7 @@ func outputTimeoutConfigListHuman(entries []*pipelinev1.TimeoutEntry, keyFilter 
 		}
 	}
 
-	fmt.Printf("Total: %d timeout configuration%s\n", len(entries), pluralize(len(entries)))
+	fmt.Printf("Total: %d configuration entr%s\n", len(entries), func() string { if len(entries) == 1 { return "y" }; return "ies" }())
 	if keyFilter != "" {
 		fmt.Printf("(filtered by key: %s)\n", keyFilter)
 	}
