@@ -222,11 +222,33 @@ func runScheduleCreate(ctx context.Context, deps *ScheduleCommandDeps) error {
 		return fmt.Errorf("creating schedule: %w", err)
 	}
 
-	fmt.Printf("\033[32mCreated schedule:\033[0m %s (ID: %s)\n", scheduleName, resp.ScheduleId)
-	fmt.Printf("  Type:     %s\n", scheduleType)
-	fmt.Printf("  Cron:     %s\n", scheduleCronExpr)
-	fmt.Printf("  Workflow: %s\n", scheduleWorkflow)
-	fmt.Printf("  Overlap:  %s\n", scheduleOverlap)
+	format := getScheduleOutputFormat(cfg)
+	switch format {
+	case config.OutputFormatJSON:
+		return scheduleJSON(map[string]interface{}{
+			"id":        resp.ScheduleId,
+			"name":      scheduleName,
+			"type":      scheduleType,
+			"cron_expr": scheduleCronExpr,
+			"workflow":  scheduleWorkflow,
+			"overlap":   scheduleOverlap,
+		})
+	case config.OutputFormatYAML:
+		return scheduleYAML(map[string]interface{}{
+			"id":        resp.ScheduleId,
+			"name":      scheduleName,
+			"type":      scheduleType,
+			"cron_expr": scheduleCronExpr,
+			"workflow":  scheduleWorkflow,
+			"overlap":   scheduleOverlap,
+		})
+	default:
+		fmt.Printf("\033[32mCreated schedule:\033[0m %s (ID: %s)\n", scheduleName, resp.ScheduleId)
+		fmt.Printf("  Type:     %s\n", scheduleType)
+		fmt.Printf("  Cron:     %s\n", scheduleCronExpr)
+		fmt.Printf("  Workflow: %s\n", scheduleWorkflow)
+		fmt.Printf("  Overlap:  %s\n", scheduleOverlap)
+	}
 	return nil
 }
 
