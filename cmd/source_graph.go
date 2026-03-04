@@ -13,8 +13,6 @@ import (
 	graphpb "github.com/otherjamesbrown/penf-cli/api/proto/connectors/v1/graphpb"
 )
 
-var graphSyncType string
-
 // newSourceGraphCommand creates the `penf source graph` subcommand group.
 func newSourceGraphCommand(deps *SourceCommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
@@ -52,14 +50,15 @@ func newSourceGraphStatusCommand(deps *SourceCommandDeps) *cobra.Command {
 
 // newSourceGraphSyncCommand creates `penf source graph sync`.
 func newSourceGraphSyncCommand(deps *SourceCommandDeps) *cobra.Command {
+	var syncType string
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Trigger a manual Microsoft Graph sync",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGraphSync(cmd.Context(), deps)
+			return runGraphSync(cmd.Context(), deps, syncType)
 		},
 	}
-	cmd.Flags().StringVar(&graphSyncType, "type", "all", "Sync type: email, teams, transcripts, org, all")
+	cmd.Flags().StringVar(&syncType, "type", "all", "Sync type: email, teams, transcripts, org, all")
 	return cmd
 }
 
@@ -106,7 +105,7 @@ func runGraphStatus(ctx context.Context, deps *SourceCommandDeps) error {
 
 	client := graphpb.NewGraphConnectorServiceClient(conn)
 	resp, err := client.GetGraphStatus(ctx, &graphpb.GetGraphStatusRequest{
-		TenantId: getTenantID(),
+		TenantId: getTenantIDForSource(deps),
 	})
 	if err != nil {
 		return fmt.Errorf("getting graph status: %w", err)
@@ -148,7 +147,7 @@ func printSyncStats(w *tabwriter.Writer, name string, s *graphpb.SyncStats) {
 	fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", name, s.Status, lastSync, s.ItemsSynced)
 }
 
-func runGraphSync(ctx context.Context, deps *SourceCommandDeps) error {
+func runGraphSync(ctx context.Context, deps *SourceCommandDeps, syncType string) error {
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -162,8 +161,8 @@ func runGraphSync(ctx context.Context, deps *SourceCommandDeps) error {
 
 	client := graphpb.NewGraphConnectorServiceClient(conn)
 	resp, err := client.TriggerGraphSync(ctx, &graphpb.TriggerGraphSyncRequest{
-		TenantId: getTenantID(),
-		SyncType: graphSyncType,
+		TenantId: getTenantIDForSource(deps),
+		SyncType: syncType,
 	})
 	if err != nil {
 		return fmt.Errorf("triggering sync: %w", err)
@@ -198,7 +197,7 @@ func runGraphChannels(ctx context.Context, deps *SourceCommandDeps) error {
 
 	client := graphpb.NewGraphConnectorServiceClient(conn)
 	resp, err := client.ListGraphChannels(ctx, &graphpb.ListGraphChannelsRequest{
-		TenantId: getTenantID(),
+		TenantId: getTenantIDForSource(deps),
 	})
 	if err != nil {
 		return fmt.Errorf("listing channels: %w", err)
@@ -249,7 +248,7 @@ func runGraphAuth(ctx context.Context, deps *SourceCommandDeps) error {
 
 	client := graphpb.NewGraphConnectorServiceClient(conn)
 	resp, err := client.InitiateGraphAuth(ctx, &graphpb.InitiateGraphAuthRequest{
-		TenantId: getTenantID(),
+		TenantId: getTenantIDForSource(deps),
 	})
 	if err != nil {
 		return fmt.Errorf("initiating auth: %w", err)
