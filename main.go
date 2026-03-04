@@ -1212,6 +1212,10 @@ func init() {
 	digestCmd.GroupID = "query"
 	rootCmd.AddCommand(digestCmd)
 
+	alertCmd := cmd.NewAlertCommand(nil)
+	alertCmd.GroupID = "query"
+	rootCmd.AddCommand(alertCmd)
+
 	assertionsCmd := cmd.NewAssertionsCommand(nil)
 	assertionsCmd.GroupID = "query"
 	rootCmd.AddCommand(assertionsCmd)

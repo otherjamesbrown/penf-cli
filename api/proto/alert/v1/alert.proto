@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package penfold.alert.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/alert/v1;alertv1";
+
+service AlertService {
+  rpc ListAlerts(ListAlertsRequest) returns (ListAlertsResponse);
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse);
+}
+
+message ListAlertsRequest {
+  string tenant_id = 1;
+  string project_name = 2;
+  int64 project_id = 3;
+  bool unacked_only = 4;
+  string severity = 5;
+  int32 limit = 6;
+}
+
+message ListAlertsResponse {
+  repeated AlertSummary alerts = 1;
+}
+
+message AlertSummary {
+  string id = 1;
+  int64 project_id = 2;
+  string project_name = 3;
+  int64 instruction_id = 4;
+  string instruction_name = 5;
+  string severity = 6;
+  string title = 7;
+  string body = 8;
+  bool acknowledged = 9;
+  string created_at = 10;
+}
+
+message AcknowledgeAlertRequest {
+  string tenant_id = 1;
+  string alert_id = 2;
+}
+
+message AcknowledgeAlertResponse {
+  bool success = 1;
+}
