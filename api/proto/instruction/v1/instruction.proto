@@ -1,0 +1,105 @@
+// Instruction Service Protobuf Definitions
+// Provides gRPC service for watch instruction management — CRUD, enable/disable, match history.
+
+syntax = "proto3";
+
+package penfold.instruction.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/instruction/v1;instructionv1";
+
+import "google/protobuf/timestamp.proto";
+
+service InstructionService {
+  rpc CreateInstruction(CreateInstructionRequest) returns (CreateInstructionResponse);
+  rpc GetInstruction(GetInstructionRequest) returns (GetInstructionResponse);
+  rpc UpdateInstruction(UpdateInstructionRequest) returns (UpdateInstructionResponse);
+  rpc DeleteInstruction(DeleteInstructionRequest) returns (DeleteInstructionResponse);
+  rpc ListInstructions(ListInstructionsRequest) returns (ListInstructionsResponse);
+  rpc EnableInstruction(EnableInstructionRequest) returns (EnableInstructionResponse);
+  rpc DisableInstruction(DisableInstructionRequest) returns (DisableInstructionResponse);
+  rpc ListInstructionMatches(ListInstructionMatchesRequest) returns (ListInstructionMatchesResponse);
+}
+
+message Instruction {
+  int64 id = 1;
+  string tenant_id = 2;
+  int64 project_id = 3;
+  string project_name = 4;
+  string name = 5;
+  string instruction = 6;
+  string priority = 7;
+  bool enabled = 8;
+  string model_hint = 9;
+  string created_by = 10;
+  int32 version = 11;
+  google.protobuf.Timestamp last_matched_at = 12;
+  int32 match_count = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+message InstructionMatch {
+  int64 id = 1;
+  string tenant_id = 2;
+  int64 instruction_id = 3;
+  string instruction_name = 4;
+  string content_id = 5;
+  int64 source_id = 6;
+  double confidence = 7;
+  string explanation = 8;
+  google.protobuf.Timestamp matched_at = 9;
+}
+
+message CreateInstructionRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string instruction = 3;
+  int64 project_id = 4;
+  string project_name = 5;
+  string priority = 6;
+  string model_hint = 7;
+  string created_by = 8;
+}
+message CreateInstructionResponse { Instruction instruction = 1; }
+
+message GetInstructionRequest { string tenant_id = 1; int64 id = 2; }
+message GetInstructionResponse { Instruction instruction = 1; }
+
+message UpdateInstructionRequest {
+  string tenant_id = 1;
+  int64 id = 2;
+  string name = 3;
+  string instruction = 4;
+  string priority = 5;
+  string model_hint = 6;
+  int64 project_id = 7;
+}
+message UpdateInstructionResponse { Instruction instruction = 1; }
+
+message DeleteInstructionRequest { string tenant_id = 1; int64 id = 2; }
+message DeleteInstructionResponse {}
+
+message ListInstructionsRequest {
+  string tenant_id = 1;
+  bool enabled_only = 2;
+  int64 project_id = 3;
+  string project_name = 4;
+  string priority = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+message ListInstructionsResponse { repeated Instruction instructions = 1; int32 total = 2; }
+
+message EnableInstructionRequest { string tenant_id = 1; int64 id = 2; }
+message EnableInstructionResponse { Instruction instruction = 1; }
+
+message DisableInstructionRequest { string tenant_id = 1; int64 id = 2; }
+message DisableInstructionResponse { Instruction instruction = 1; }
+
+message ListInstructionMatchesRequest {
+  string tenant_id = 1;
+  int64 instruction_id = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+message ListInstructionMatchesResponse { repeated InstructionMatch matches = 1; int32 total = 2; }
