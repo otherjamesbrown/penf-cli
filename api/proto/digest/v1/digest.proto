@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package penfold.digest.v1;
+
+option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/digest/v1;digestv1";
+
+service DigestService {
+  rpc TriggerDigest(TriggerDigestRequest) returns (TriggerDigestResponse);
+  rpc GetDigest(GetDigestRequest) returns (GetDigestResponse);
+  rpc GetLatestDigest(GetLatestDigestRequest) returns (GetLatestDigestResponse);
+  rpc ListDigests(ListDigestsRequest) returns (ListDigestsResponse);
+}
+
+message TriggerDigestRequest {
+  string tenant_id = 1;
+  string project_name = 2;
+  int64 project_id = 3;
+  string date = 4;        // YYYY-MM-DD
+  string digest_type = 5; // "daily" (default)
+}
+
+message TriggerDigestResponse {
+  string workflow_id = 1;
+  bool already_exists = 2;
+  string digest_id = 3;
+}
+
+message GetDigestRequest {
+  string tenant_id = 1;
+  string digest_id = 2;
+}
+
+message GetDigestResponse {
+  DigestDetail digest = 1;
+}
+
+message GetLatestDigestRequest {
+  string tenant_id = 1;
+  string project_name = 2;
+  int64 project_id = 3;
+  string digest_type = 4;
+}
+
+message GetLatestDigestResponse {
+  DigestDetail digest = 1;
+}
+
+message ListDigestsRequest {
+  string tenant_id = 1;
+  string project_name = 2;
+  int64 project_id = 3;
+  string since = 4;
+  string until = 5;
+  string digest_type = 6;
+  int32 limit = 7;
+}
+
+message ListDigestsResponse {
+  repeated DigestSummary digests = 1;
+}
+
+message DigestDetail {
+  string id = 1;
+  string tenant_id = 2;
+  int64 project_id = 3;
+  string project_name = 4;
+  string digest_type = 5;
+  string period_start = 6;
+  string period_end = 7;
+  string body = 8;
+  string model_used = 9;
+  int32 input_token_count = 10;
+  int32 output_token_count = 11;
+  string created_at = 12;
+}
+
+message DigestSummary {
+  string id = 1;
+  int64 project_id = 2;
+  string project_name = 3;
+  string digest_type = 4;
+  string period_start = 5;
+  string period_end = 6;
+  string created_at = 7;
+}

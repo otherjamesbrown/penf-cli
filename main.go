@@ -1208,6 +1208,10 @@ func init() {
 	briefingCmd.GroupID = "query"
 	rootCmd.AddCommand(briefingCmd)
 
+	digestCmd := cmd.NewDigestCommand(nil)
+	digestCmd.GroupID = "query"
+	rootCmd.AddCommand(digestCmd)
+
 	assertionsCmd := cmd.NewAssertionsCommand(nil)
 	assertionsCmd.GroupID = "query"
 	rootCmd.AddCommand(assertionsCmd)
