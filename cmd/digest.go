@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -98,7 +97,7 @@ func runDigestGenerate(ctx context.Context, deps *DigestCommandDeps, project str
 
 	client := digestv1.NewDigestServiceClient(conn)
 
-	tenantID, err := getTenantIDForDigest(deps)
+	tenantID, err := resolveTenantID(deps.Config)
 	if err != nil {
 		return err
 	}
@@ -118,7 +117,7 @@ func runDigestGenerate(ctx context.Context, deps *DigestCommandDeps, project str
 		return fmt.Errorf("triggering digest: %w", err)
 	}
 
-	format := getDigestOutputFormat(cfg)
+	format := resolveOutputFormat(digestOutput, cfg)
 
 	if resp.AlreadyExists {
 		switch format {
@@ -194,7 +193,7 @@ func runDigestShow(ctx context.Context, deps *DigestCommandDeps, digestID string
 
 	client := digestv1.NewDigestServiceClient(conn)
 
-	tenantID, err := getTenantIDForDigest(deps)
+	tenantID, err := resolveTenantID(deps.Config)
 	if err != nil {
 		return err
 	}
@@ -207,7 +206,7 @@ func runDigestShow(ctx context.Context, deps *DigestCommandDeps, digestID string
 		return fmt.Errorf("getting digest: %w", err)
 	}
 
-	outputDigestDetail(resp.Digest, getDigestOutputFormat(cfg))
+	outputDigestDetail(resp.Digest, resolveOutputFormat(digestOutput, cfg))
 	return nil
 }
 
@@ -243,7 +242,7 @@ func runDigestLatest(ctx context.Context, deps *DigestCommandDeps, project strin
 
 	client := digestv1.NewDigestServiceClient(conn)
 
-	tenantID, err := getTenantIDForDigest(deps)
+	tenantID, err := resolveTenantID(deps.Config)
 	if err != nil {
 		return err
 	}
@@ -257,7 +256,7 @@ func runDigestLatest(ctx context.Context, deps *DigestCommandDeps, project strin
 		return fmt.Errorf("getting latest digest: %w", err)
 	}
 
-	outputDigestDetail(resp.Digest, getDigestOutputFormat(cfg))
+	outputDigestDetail(resp.Digest, resolveOutputFormat(digestOutput, cfg))
 	return nil
 }
 
@@ -298,7 +297,7 @@ func runDigestList(ctx context.Context, deps *DigestCommandDeps) error {
 
 	client := digestv1.NewDigestServiceClient(conn)
 
-	tenantID, err := getTenantIDForDigest(deps)
+	tenantID, err := resolveTenantID(deps.Config)
 	if err != nil {
 		return err
 	}
@@ -315,7 +314,7 @@ func runDigestList(ctx context.Context, deps *DigestCommandDeps) error {
 		return fmt.Errorf("listing digests: %w", err)
 	}
 
-	format := getDigestOutputFormat(cfg)
+	format := resolveOutputFormat(digestOutput, cfg)
 
 	switch format {
 	case config.OutputFormatJSON:
@@ -354,10 +353,10 @@ func runDigestList(ctx context.Context, deps *DigestCommandDeps) error {
 		fmt.Printf("%-16s %-8s %-12s %-20s %s\n", "ID", "TYPE", "PERIOD", "PROJECT", "CREATED")
 		for _, d := range resp.Digests {
 			fmt.Printf("%-16s %-8s %-12s %-20s %s\n",
-				digestTruncate(d.Id, 16),
+				truncateString(d.Id, 16),
 				d.DigestType,
 				d.PeriodStart,
-				digestTruncate(d.ProjectName, 20),
+				truncateString(d.ProjectName, 20),
 				d.CreatedAt,
 			)
 		}
@@ -366,26 +365,6 @@ func runDigestList(ctx context.Context, deps *DigestCommandDeps) error {
 }
 
 // ==================== Helpers ====================
-
-func getTenantIDForDigest(deps *DigestCommandDeps) (string, error) {
-	if deps.Config != nil && deps.Config.TenantID != "" {
-		return deps.Config.TenantID, nil
-	}
-	if envTenant := os.Getenv("PENF_TENANT_ID"); envTenant != "" {
-		return envTenant, nil
-	}
-	return "", fmt.Errorf("tenant ID required: set PENF_TENANT_ID env var or tenant_id in config")
-}
-
-func getDigestOutputFormat(cfg *config.CLIConfig) config.OutputFormat {
-	if digestOutput != "" {
-		return config.OutputFormat(digestOutput)
-	}
-	if cfg != nil {
-		return cfg.OutputFormat
-	}
-	return config.OutputFormatText
-}
 
 func outputDigestDetail(d *digestv1.DigestDetail, format config.OutputFormat) {
 	if d == nil {
@@ -444,9 +423,3 @@ func outputDigestDetail(d *digestv1.DigestDetail, format config.OutputFormat) {
 	}
 }
 
-func digestTruncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-1] + "…"
-}

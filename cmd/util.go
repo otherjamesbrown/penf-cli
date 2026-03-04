@@ -135,6 +135,28 @@ func connectToGateway(cfg *config.CLIConfig) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
+// resolveTenantID returns the tenant ID from config or PENF_TENANT_ID env var.
+func resolveTenantID(cfg *config.CLIConfig) (string, error) {
+	if cfg != nil && cfg.TenantID != "" {
+		return cfg.TenantID, nil
+	}
+	if envTenant := os.Getenv("PENF_TENANT_ID"); envTenant != "" {
+		return envTenant, nil
+	}
+	return "", fmt.Errorf("tenant ID required: set PENF_TENANT_ID env var or tenant_id in config")
+}
+
+// resolveOutputFormat returns the output format from the flag override, config, or default.
+func resolveOutputFormat(flagOverride string, cfg *config.CLIConfig) config.OutputFormat {
+	if flagOverride != "" {
+		return config.OutputFormat(flagOverride)
+	}
+	if cfg != nil {
+		return cfg.OutputFormat
+	}
+	return config.OutputFormatText
+}
+
 // formatDurationMs formats milliseconds as a human-readable duration.
 func formatDurationMs(ms int) string {
 	if ms < 1000 {
