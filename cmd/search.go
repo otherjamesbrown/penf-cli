@@ -273,7 +273,7 @@ When to Use:
 	cmd.Flags().StringVar(&searchTenant, "tenant", "", "Tenant ID (overrides config)")
 	cmd.Flags().BoolVar(&searchSemantic, "semantic", false, "Use semantic (vector) search only")
 	cmd.Flags().BoolVar(&searchExact, "exact", false, "Exact match only (no fuzzy matching)")
-	cmd.Flags().StringSliceVarP(&searchFilters, "filter", "f", nil, "Field filters (from:email, to:email, cc:email, recipient:email, participant:email, mentioned:email)")
+	cmd.Flags().StringSliceVarP(&searchFilters, "filter", "f", nil, "Field filters (from:name/email, to:name/email, after:date, before:date, participant:name/email)")
 
 	// Add subcommands.
 	cmd.AddCommand(newSearchAdvancedCommand(deps))
@@ -384,11 +384,18 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 		protoSortOrder = searchv1.SortOrder_SORT_ORDER_RELEVANCE
 	}
 
-	// Parse role filters from --filter flag.
-	var roleFilters []*searchv1.EntityRoleFilter
-	var clientSideFilters []string
+	// Parse structured filters from --filter flag.
+	var parsed parsedFilters
 	if len(searchFilters) > 0 {
-		roleFilters, clientSideFilters = parseRoleFilters(searchFilters)
+		parsed = parseFilters(searchFilters)
+	}
+
+	// Merge date filters: --filter after:/before: override --after/--before flags.
+	if parsed.dateFrom != nil {
+		dateFrom = parsed.dateFrom
+	}
+	if parsed.dateTo != nil {
+		dateTo = parsed.dateTo
 	}
 
 	// Build search request.
@@ -401,7 +408,7 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 		Limit:             int32(searchLimit),
 		Offset:            int32(searchOffset),
 		SortOrder:         protoSortOrder,
-		EntityRoleFilters: roleFilters,
+		EntityRoleFilters: parsed.roleFilters,
 	}
 
 	// Execute the search based on mode.
@@ -427,8 +434,8 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 	results := convertSearchResults(searchResp.Results, searchVerbose)
 
 	// Apply remaining client-side filters (subject, tag, etc.)
-	if len(clientSideFilters) > 0 {
-		results = applyFieldFilters(results, clientSideFilters)
+	if len(parsed.remaining) > 0 {
+		results = applyFieldFilters(results, parsed.remaining)
 	}
 
 	// Build response.
@@ -989,32 +996,62 @@ var roleFilterMapping = map[string][]mentionsv1.ParticipationRole{
 	"speaker":   {mentionsv1.ParticipationRole_PARTICIPATION_ROLE_SPEAKER},
 }
 
-// parseRoleFilters separates role-based filters (handled server-side) from
-// other field filters (handled client-side).
+// parsedFilters holds the results of parsing --filter values into their respective categories.
+type parsedFilters struct {
+	roleFilters []*searchv1.EntityRoleFilter
+	dateFrom    *time.Time
+	dateTo      *time.Time
+	remaining   []string
+}
+
+// parseRoleFilters separates role-based filters (handled server-side), date filters,
+// and other field filters (handled client-side).
 func parseRoleFilters(filters []string) ([]*searchv1.EntityRoleFilter, []string) {
-	var roleFilters []*searchv1.EntityRoleFilter
-	var remaining []string
+	parsed := parseFilters(filters)
+	return parsed.roleFilters, parsed.remaining
+}
+
+// parseFilters parses all --filter values into role filters, date filters, and remaining client-side filters.
+func parseFilters(filters []string) parsedFilters {
+	var result parsedFilters
+	parser := query.NewParser()
 
 	for _, filter := range filters {
 		parts := strings.SplitN(filter, ":", 2)
 		if len(parts) != 2 {
-			remaining = append(remaining, filter)
+			result.remaining = append(result.remaining, filter)
 			continue
 		}
 		field, value := strings.ToLower(parts[0]), parts[1]
 
-		if roles, ok := roleFilterMapping[field]; ok {
-			rf := &searchv1.EntityRoleFilter{
-				Entity: &searchv1.EntityRoleFilter_Email{Email: strings.ToLower(value)},
-				Roles:  roles,
+		switch {
+		case field == "after" || field == "since":
+			if d, err := parseSearchDate(parser, value); err == nil {
+				result.dateFrom = &d
 			}
-			roleFilters = append(roleFilters, rf)
-		} else {
-			remaining = append(remaining, filter)
+		case field == "before" || field == "until":
+			if d, err := parseSearchDate(parser, value); err == nil {
+				result.dateTo = &d
+			}
+		default:
+			if roles, ok := roleFilterMapping[field]; ok {
+				rf := &searchv1.EntityRoleFilter{
+					Roles: roles,
+				}
+				// If value contains @, treat as email; otherwise treat as entity name.
+				if strings.Contains(value, "@") {
+					rf.Entity = &searchv1.EntityRoleFilter_Email{Email: strings.ToLower(value)}
+				} else {
+					rf.Entity = &searchv1.EntityRoleFilter_EntityName{EntityName: value}
+				}
+				result.roleFilters = append(result.roleFilters, rf)
+			} else {
+				result.remaining = append(result.remaining, filter)
+			}
 		}
 	}
 
-	return roleFilters, remaining
+	return result
 }
 
 // applyFieldFilters applies non-role field filters to results client-side.
@@ -1229,8 +1266,11 @@ func ValidateFieldFilter(filter string) bool {
 	}
 
 	validFields := map[string]bool{
-		"type": true, "source": true, "from": true,
-		"to": true, "subject": true, "tag": true,
+		"type": true, "source": true, "from": true, "sender": true,
+		"to": true, "cc": true, "subject": true, "tag": true,
+		"recipient": true, "participant": true, "mentioned": true,
+		"attendee": true, "organizer": true, "speaker": true,
+		"after": true, "since": true, "before": true, "until": true,
 	}
 
 	return validFields[strings.ToLower(parts[0])]
