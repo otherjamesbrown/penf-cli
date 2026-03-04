@@ -27,7 +27,8 @@ type TriggerDigestRequest struct {
 	ProjectName   string                 `protobuf:"bytes,2,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
 	ProjectId     int64                  `protobuf:"varint,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	Date          string                 `protobuf:"bytes,4,opt,name=date,proto3" json:"date,omitempty"`                               // YYYY-MM-DD
-	DigestType    string                 `protobuf:"bytes,5,opt,name=digest_type,json=digestType,proto3" json:"digest_type,omitempty"` // "daily" (default)
+	DigestType    string                 `protobuf:"bytes,5,opt,name=digest_type,json=digestType,proto3" json:"digest_type,omitempty"` // "daily" (default), "weekly", "journal"
+	Focus         string                 `protobuf:"bytes,6,opt,name=focus,proto3" json:"focus,omitempty"`                             // optional focus/question for journal entries
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -93,6 +94,13 @@ func (x *TriggerDigestRequest) GetDate() string {
 func (x *TriggerDigestRequest) GetDigestType() string {
 	if x != nil {
 		return x.DigestType
+	}
+	return ""
+}
+
+func (x *TriggerDigestRequest) GetFocus() string {
+	if x != nil {
+		return x.Focus
 	}
 	return ""
 }
@@ -729,7 +737,7 @@ var File_api_proto_digest_v1_digest_proto protoreflect.FileDescriptor
 
 const file_api_proto_digest_v1_digest_proto_rawDesc = "" +
 	"\n" +
-	" api/proto/digest/v1/digest.proto\x12\x11penfold.digest.v1\"\xaa\x01\n" +
+	" api/proto/digest/v1/digest.proto\x12\x11penfold.digest.v1\"\xc0\x01\n" +
 	"\x14TriggerDigestRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12!\n" +
 	"\fproject_name\x18\x02 \x01(\tR\vprojectName\x12\x1d\n" +
@@ -737,7 +745,8 @@ const file_api_proto_digest_v1_digest_proto_rawDesc = "" +
 	"project_id\x18\x03 \x01(\x03R\tprojectId\x12\x12\n" +
 	"\x04date\x18\x04 \x01(\tR\x04date\x12\x1f\n" +
 	"\vdigest_type\x18\x05 \x01(\tR\n" +
-	"digestType\"|\n" +
+	"digestType\x12\x14\n" +
+	"\x05focus\x18\x06 \x01(\tR\x05focus\"|\n" +
 	"\x15TriggerDigestResponse\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12%\n" +

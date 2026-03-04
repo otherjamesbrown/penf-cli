@@ -16,7 +16,8 @@ message TriggerDigestRequest {
   string project_name = 2;
   int64 project_id = 3;
   string date = 4;        // YYYY-MM-DD
-  string digest_type = 5; // "daily" (default)
+  string digest_type = 5; // "daily" (default), "weekly", "journal"
+  string focus = 6;       // optional focus/question for journal entries
 }
 
 message TriggerDigestResponse {
