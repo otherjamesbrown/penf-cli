@@ -591,8 +591,9 @@ func runDeployBridge() error {
 		fmt.Sprintf("%s:%s/", host, remoteDir),
 	}
 	if isLocalHost(host) {
-		// Local copy: just rsync without SSH
-		if err := runCmd("rsync", rsyncArgs...); err != nil {
+		// Local copy: replace remote "host:path" destination with plain local path
+		localArgs := append(rsyncArgs[:len(rsyncArgs)-1:len(rsyncArgs)-1], remoteDir+"/")
+		if err := runCmd("rsync", localArgs...); err != nil {
 			return fmt.Errorf("rsync failed: %w", err)
 		}
 		// Also copy package-lock.json if it exists
@@ -621,7 +622,7 @@ func runDeployBridge() error {
 	// 3. Restart service via launchd
 	fmt.Printf("[3/4] Restarting %s via launchd on %s...\n", launchdLabel, host)
 	// Stop if running, then start (kickstart -k kills and restarts)
-	if err := runRemoteCmd(host, fmt.Sprintf("launchctl kickstart -k system/%s 2>/dev/null || launchctl load /Library/LaunchDaemons/%s.plist", launchdLabel, launchdLabel)); err != nil {
+	if err := runRemoteCmd(host, fmt.Sprintf("sudo launchctl kickstart -k system/%s 2>/dev/null || sudo launchctl load /Library/LaunchDaemons/%s.plist", launchdLabel, launchdLabel)); err != nil {
 		return fmt.Errorf("launchctl restart failed: %w", err)
 	}
 
