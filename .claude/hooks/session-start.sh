@@ -19,7 +19,7 @@ echo "[Instance: ${CLAUDE_SESSION_ID}]"
 
 # Board
 echo ""
-cxp session board 2>/dev/null || true
+cxp board -o text 2>/dev/null || true
 
 # Playbook
 echo ""
@@ -28,7 +28,7 @@ echo ""
 cxp knowledge show pf-34494b 2>/dev/null || true
 
 # Phased work
-PHASED_PARENTS=$(cxp shard list --label phased -o json 2>/dev/null | jq -r '.results[]?.id // empty' 2>/dev/null)
+PHASED_PARENTS=$(cxp shard list --label phased -o json 2>/dev/null | jq -r '.results[]?.id // empty' 2>/dev/null) || true
 if [ -n "$PHASED_PARENTS" ]; then
   echo ""
   echo "# Phased Work #"
@@ -48,7 +48,7 @@ if [ -n "$PHASED_PARENTS" ]; then
 fi
 
 # Last handoff from session ledger
-HANDOFF=$(penf ledger list --type handoff --limit 1 -o json 2>/dev/null | jq -r '.entries[0] // empty' 2>/dev/null)
+HANDOFF=$(penf ledger list --type handoff --limit 1 -o json 2>/dev/null | jq -r '.entries[0] // empty' 2>/dev/null) || true
 if [ -n "$HANDOFF" ] && [ "$HANDOFF" != "null" ]; then
   echo ""
   echo "# Last Handoff #"
@@ -56,7 +56,7 @@ if [ -n "$HANDOFF" ] && [ "$HANDOFF" != "null" ]; then
 fi
 
 # Focus shard details
-FOCUS_IDS=$(cxp session board -o json 2>/dev/null | jq -r '.focus[]?.id // empty' 2>/dev/null)
+FOCUS_IDS=$(cxp board -o json 2>/dev/null | jq -r '.focus[]?.id // empty' 2>/dev/null) || true
 if [ -n "$FOCUS_IDS" ]; then
   echo ""
   echo "# Focus Shard Details #"
