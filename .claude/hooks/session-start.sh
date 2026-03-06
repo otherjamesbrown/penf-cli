@@ -11,7 +11,7 @@ SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
 CLAUDE_SESSION_ID="penfold:${SESSION_ID:0:8}"
 
 # Persist session ID for all subsequent penf commands in this session
-if [ -n "$CLAUDE_ENV_FILE" ] && [ -n "$SESSION_ID" ]; then
+if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$SESSION_ID" ]; then
   echo "export CLAUDE_SESSION_ID=\"${CLAUDE_SESSION_ID}\"" >> "$CLAUDE_ENV_FILE"
 fi
 
