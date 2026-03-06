@@ -58,6 +58,7 @@ func NewScheduleCommand(deps *ScheduleCommandDeps) *cobra.Command {
 	cmd.AddCommand(newScheduleCreateCommand(deps))
 	cmd.AddCommand(newSchedulePauseCommand(deps))
 	cmd.AddCommand(newScheduleResumeCommand(deps))
+	cmd.AddCommand(newScheduleTriggerCommand(deps))
 	cmd.AddCommand(newScheduleDeleteCommand(deps))
 	cmd.AddCommand(newScheduleHistoryCommand(deps))
 
@@ -347,6 +348,56 @@ func runScheduleResume(ctx context.Context, deps *ScheduleCommandDeps, input str
 	}
 
 	fmt.Printf("\033[32mResumed schedule:\033[0m %s\n", input)
+	return nil
+}
+
+// ==================== trigger ====================
+
+func newScheduleTriggerCommand(deps *ScheduleCommandDeps) *cobra.Command {
+	return &cobra.Command{
+		Use:   "trigger <id-or-name>",
+		Short: "Trigger an immediate run of a schedule",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runScheduleTrigger(cmd.Context(), deps, args[0])
+		},
+	}
+}
+
+func runScheduleTrigger(ctx context.Context, deps *ScheduleCommandDeps, input string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := schedulev1.NewScheduleServiceClient(conn)
+	tenantID, err := getTenantIDForSchedule(deps)
+	if err != nil {
+		return err
+	}
+
+	scheduleID, err := scheduleResolveID(ctx, client, tenantID, input)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.TriggerSchedule(ctx, &schedulev1.TriggerScheduleRequest{
+		TenantId:   tenantID,
+		ScheduleId: scheduleID,
+	})
+	if err != nil {
+		return fmt.Errorf("triggering schedule: %w", err)
+	}
+
+	fmt.Printf("\033[32mTriggered schedule:\033[0m %s\n", input)
+	fmt.Printf("Use 'penf schedule history %s' to check execution status.\n", input)
 	return nil
 }
 

@@ -17,6 +17,7 @@ service ScheduleService {
   rpc PauseSchedule(PauseScheduleRequest) returns (PauseScheduleResponse);
   rpc ResumeSchedule(ResumeScheduleRequest) returns (ResumeScheduleResponse);
   rpc GetScheduleHistory(GetScheduleHistoryRequest) returns (GetScheduleHistoryResponse);
+  rpc TriggerSchedule(TriggerScheduleRequest) returns (TriggerScheduleResponse);
 }
 
 message CreateScheduleRequest {
@@ -111,3 +112,10 @@ message ScheduleExecution {
   string error = 5;
   string workflow_run_id = 6;
 }
+
+message TriggerScheduleRequest {
+  string tenant_id = 1;
+  string schedule_id = 2;
+}
+
+message TriggerScheduleResponse {}
