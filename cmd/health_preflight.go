@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/otherjamesbrown/penf-cli/config"
+	"github.com/otherjamesbrown/penf-cli/pkg/db"
 )
 
 // AICoordinatorHealthStatus represents the health status from the AI coordinator.
@@ -67,6 +70,7 @@ Checks performed:
   2. Critical service health (database must be healthy)
   3. Circuit breaker states (all must be closed)
   4. AI coordinator health
+  5. Database migrations (schema must be current)
 
 Exit codes:
   0 - All critical services healthy and circuit breakers closed
@@ -258,7 +262,105 @@ func runPreflightCheck(gatewayURL, coordinatorURL string, timeout time.Duration)
 		}
 	}
 
+	// Check 3: Database migrations.
+	checkMigrations(&result, timeout)
+
 	return result
+}
+
+// checkMigrations checks for pending database migrations.
+// Pending migrations are a critical failure — the schema must be current before ingestion.
+func checkMigrations(result *PreflightResult, timeout time.Duration) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Migrations",
+			Status: "unknown",
+			Error:  "could not load config",
+		})
+		result.Warnings = append(result.Warnings, "Migrations: could not load config to check")
+		return
+	}
+
+	if cfg.Database == nil || !cfg.Database.IsConfigured() {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Migrations",
+			Status: "skipped",
+			Error:  "no database config",
+		})
+		result.Warnings = append(result.Warnings, "Migrations: no database config — add 'database' section to ~/.penf/config.yaml")
+		return
+	}
+
+	migDir := ""
+	if cfg.Database != nil {
+		migDir = cfg.Database.GetMigrationsDir()
+	}
+	if migDir == "" {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Migrations",
+			Status: "skipped",
+			Error:  "no migrations_dir configured",
+		})
+		result.Warnings = append(result.Warnings, "Migrations: no migrations_dir in database config")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pool, err := connectToDatabase(ctx, cfg)
+	if err != nil {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:     "Migrations",
+			Status:   "unreachable",
+			Critical: true,
+			Error:    err.Error(),
+		})
+		result.Passed = false
+		result.ExitCode = 1
+		result.Message = "Preflight check failed"
+		result.Failures = append(result.Failures, fmt.Sprintf("Migrations: DB unreachable — %v [critical]", err))
+		return
+	}
+	defer pool.Close()
+
+	pending, err := db.GetPendingMigrations(ctx, pool, migDir)
+	if err != nil {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Migrations",
+			Status: "error",
+			Error:  err.Error(),
+		})
+		result.Warnings = append(result.Warnings, fmt.Sprintf("Migrations: check failed — %v", err))
+		return
+	}
+
+	if len(pending) == 0 {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:     "Migrations",
+			Status:   "healthy",
+			Critical: true,
+		})
+		return
+	}
+
+	// Pending migrations = critical failure
+	names := make([]string, len(pending))
+	for i, m := range pending {
+		names[i] = m.Version
+	}
+	result.Passed = false
+	result.ExitCode = 1
+	result.Message = "Preflight check failed"
+	result.Checks = append(result.Checks, PreflightCheck{
+		Name:     "Migrations",
+		Status:   "pending",
+		Critical: true,
+		Error:    fmt.Sprintf("%d pending: %s", len(pending), strings.Join(names, ", ")),
+	})
+	result.Failures = append(result.Failures,
+		fmt.Sprintf("Migrations: %d pending — run 'penf db migrate' or 'penf deploy gateway' [critical]", len(pending)))
 }
 
 // checkGatewayHealth checks the gateway health endpoint.

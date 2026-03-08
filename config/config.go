@@ -179,6 +179,95 @@ func (c *ContextPalaceConfig) GetAgent() string {
 	return c.Agent
 }
 
+// DatabaseConfig holds Penfold database connection settings.
+type DatabaseConfig struct {
+	// Host is the database server hostname.
+	Host string `yaml:"host,omitempty"`
+
+	// Port is the database server port (default: 5432).
+	Port int `yaml:"port,omitempty"`
+
+	// Database is the database name (default: penfold).
+	Database string `yaml:"database,omitempty"`
+
+	// User is the database username (default: penfold).
+	User string `yaml:"user,omitempty"`
+
+	// Password is the database password (optional, for password-based auth).
+	Password string `yaml:"password,omitempty"`
+
+	// SSLMode is the SSL connection mode (disable, require, verify-ca, verify-full).
+	SSLMode string `yaml:"sslmode,omitempty"`
+
+	// SSLRootCert is the path to the SSL root certificate file.
+	SSLRootCert string `yaml:"sslrootcert,omitempty"`
+
+	// MigrationsDir is the path to the SQL migration files.
+	MigrationsDir string `yaml:"migrations_dir,omitempty"`
+}
+
+// ConnectionString returns the PostgreSQL connection string.
+func (c *DatabaseConfig) ConnectionString() string {
+	if c == nil || c.Host == "" {
+		return ""
+	}
+
+	host := c.Host
+	port := c.Port
+	if port == 0 {
+		port = 5432
+	}
+	user := c.User
+	if user == "" {
+		user = "penfold"
+	}
+	dbname := c.Database
+	if dbname == "" {
+		dbname = "penfold"
+	}
+	sslmode := c.SSLMode
+	if sslmode == "" {
+		sslmode = "verify-full"
+	}
+
+	connStr := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
+		host, port, dbname, user, sslmode)
+
+	if c.Password != "" {
+		connStr += fmt.Sprintf(" password=%s", c.Password)
+	}
+
+	if sslmode == "verify-ca" || sslmode == "verify-full" {
+		sslrootcert := c.SSLRootCert
+		if sslrootcert == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				defaultCert := filepath.Join(home, ".postgresql", "root.crt")
+				if _, err := os.Stat(defaultCert); err == nil {
+					sslrootcert = defaultCert
+				}
+			}
+		}
+		if sslrootcert != "" {
+			connStr += fmt.Sprintf(" sslrootcert=%s", sslrootcert)
+		}
+	}
+
+	return connStr
+}
+
+// IsConfigured returns true if database is configured with at least a host.
+func (c *DatabaseConfig) IsConfigured() bool {
+	return c != nil && c.Host != ""
+}
+
+// GetMigrationsDir returns the migrations directory, expanding ~ if needed.
+func (c *DatabaseConfig) GetMigrationsDir() string {
+	if c == nil || c.MigrationsDir == "" {
+		return ""
+	}
+	return expandPath(c.MigrationsDir)
+}
+
 // CLIConfig holds the CLI configuration settings.
 type CLIConfig struct {
 	// ServerAddress is the address of the API Gateway (host:port).
@@ -211,6 +300,9 @@ type CLIConfig struct {
 
 	// Insecure disables TLS verification (for development only).
 	Insecure bool `yaml:"insecure,omitempty"`
+
+	// Database holds Penfold database connection settings for direct DB commands.
+	Database *DatabaseConfig `yaml:"database,omitempty"`
 
 	// ContextPalace holds Context-Palace connection settings for command logging.
 	ContextPalace *ContextPalaceConfig `yaml:"context_palace,omitempty"`
@@ -302,6 +394,7 @@ func loadFromFile(cfg *CLIConfig, path string) error {
 		InstallPath          string               `yaml:"install_path"`
 		Debug                bool                 `yaml:"debug"`
 		Insecure             bool                 `yaml:"insecure"`
+		Database             *DatabaseConfig      `yaml:"database"`
 		ContextPalace        *ContextPalaceConfig `yaml:"context_palace"`
 		TLS                  TLSConfig            `yaml:"tls"`
 	}
@@ -335,6 +428,9 @@ func loadFromFile(cfg *CLIConfig, path string) error {
 	}
 	if fileCfg.InstallPath != "" {
 		cfg.InstallPath = fileCfg.InstallPath
+	}
+	if fileCfg.Database != nil {
+		cfg.Database = fileCfg.Database
 	}
 	if fileCfg.ContextPalace != nil {
 		cfg.ContextPalace = fileCfg.ContextPalace
@@ -407,8 +503,68 @@ func loadFromEnv(cfg *CLIConfig) {
 		cfg.TLS.SkipVerify = true
 	}
 
+	// Database environment variables.
+	loadDatabaseFromEnv(cfg)
+
 	// Context-Palace environment variables.
 	loadContextPalaceFromEnv(cfg)
+}
+
+// loadDatabaseFromEnv overlays database environment variables.
+func loadDatabaseFromEnv(cfg *CLIConfig) {
+	// DATABASE_URL takes precedence as a full connection string.
+	if v := os.Getenv("DATABASE_URL"); v != "" {
+		if cfg.Database == nil {
+			cfg.Database = &DatabaseConfig{}
+		}
+		// Parse host from URL to mark as configured; connectToDatabase
+		// will use DATABASE_URL directly when set.
+		cfg.Database.Host = v
+		return
+	}
+
+	host := os.Getenv("PENF_DB_HOST")
+	if host == "" {
+		host = os.Getenv("DB_HOST")
+	}
+	if host == "" {
+		return // No env vars set.
+	}
+
+	if cfg.Database == nil {
+		cfg.Database = &DatabaseConfig{}
+	}
+
+	cfg.Database.Host = host
+	if v := os.Getenv("PENF_DB_PORT"); v != "" {
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Database.Port = port
+		}
+	} else if v := os.Getenv("DB_PORT"); v != "" {
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Database.Port = port
+		}
+	}
+	if v := os.Getenv("PENF_DB_USER"); v != "" {
+		cfg.Database.User = v
+	} else if v := os.Getenv("DB_USER"); v != "" {
+		cfg.Database.User = v
+	}
+	if v := os.Getenv("PENF_DB_NAME"); v != "" {
+		cfg.Database.Database = v
+	} else if v := os.Getenv("DB_NAME"); v != "" {
+		cfg.Database.Database = v
+	}
+	if v := os.Getenv("PENF_DB_PASSWORD"); v != "" {
+		cfg.Database.Password = v
+	} else if v := os.Getenv("DB_PASSWORD"); v != "" {
+		cfg.Database.Password = v
+	}
+	if v := os.Getenv("PENF_DB_SSLMODE"); v != "" {
+		cfg.Database.SSLMode = v
+	} else if v := os.Getenv("DB_SSLMODE"); v != "" {
+		cfg.Database.SSLMode = v
+	}
 }
 
 // loadContextPalaceFromEnv overlays Context-Palace environment variables.
@@ -509,6 +665,7 @@ func SaveConfig(cfg *CLIConfig) error {
 		InstallPath          string               `yaml:"install_path,omitempty"`
 		Debug                bool                 `yaml:"debug,omitempty"`
 		Insecure             bool                 `yaml:"insecure,omitempty"`
+		Database             *DatabaseConfig      `yaml:"database,omitempty"`
 		ContextPalace        *ContextPalaceConfig `yaml:"context_palace,omitempty"`
 		TLS                  TLSConfig            `yaml:"tls,omitempty"`
 	}
@@ -523,6 +680,7 @@ func SaveConfig(cfg *CLIConfig) error {
 		InstallPath:          cfg.InstallPath,
 		Debug:                cfg.Debug,
 		Insecure:             cfg.Insecure,
+		Database:             cfg.Database,
 		ContextPalace:        cfg.ContextPalace,
 		TLS:                  cfg.TLS,
 	}

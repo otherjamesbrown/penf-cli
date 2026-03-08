@@ -16,6 +16,7 @@ import (
 
 	"github.com/otherjamesbrown/penf-cli/config"
 	"github.com/otherjamesbrown/penf-cli/contextpalace"
+	"github.com/otherjamesbrown/penf-cli/pkg/db"
 )
 
 // serviceConfig defines the build and deploy configuration for a service.
@@ -422,6 +423,89 @@ func buildLDFlags() (ldflags string, commit string, err error) {
 	return flags, cmt, nil
 }
 
+// runPreDeployMigrations applies pending database migrations before deploying.
+// Uses the database config from ~/.penf/config.yaml and the migrations directory
+// from the penfold repo (resolved via config or the project root).
+func runPreDeployMigrations(projectRoot string) error {
+	fmt.Println("[0/4] Checking database migrations...")
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	if cfg.Database == nil || !cfg.Database.IsConfigured() {
+		fmt.Println("  ⚠ No database config — skipping migration check")
+		fmt.Println("  Add 'database' section to ~/.penf/config.yaml to enable")
+		fmt.Println()
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	pool, err := connectToDatabase(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("connecting to database: %w", err)
+	}
+	defer pool.Close()
+
+	// Resolve migrations directory
+	migDir := ""
+	if cfg.Database != nil {
+		migDir = cfg.Database.GetMigrationsDir()
+	}
+	if migDir == "" {
+		migDir = filepath.Join(projectRoot, "migrations")
+	}
+
+	pending, err := db.GetPendingMigrations(ctx, pool, migDir)
+	if err != nil {
+		return fmt.Errorf("checking migrations: %w", err)
+	}
+
+	if len(pending) == 0 {
+		fmt.Println("  ✓ All migrations applied")
+		fmt.Println()
+		return nil
+	}
+
+	fmt.Printf("  Applying %d pending migration(s)...\n", len(pending))
+	for _, m := range pending {
+		fmt.Printf("    %s - %s\n", m.Version, m.Name)
+	}
+
+	result, err := db.RunMigrations(ctx, pool, migDir)
+	if err != nil {
+		return fmt.Errorf("applying migrations: %w", err)
+	}
+
+	fmt.Printf("  ✓ Applied %d migration(s)\n\n", len(result.Applied))
+	return nil
+}
+
+// runPostDeployPreflight runs a full preflight check after deploy to verify the system is ready.
+// This is informational — deploy already succeeded, but we want to confirm everything is clean
+// before handing off to workflows like /ingest.run.
+func runPostDeployPreflight(host string) {
+	fmt.Println("Running post-deploy preflight check...")
+
+	// Derive health URLs from the deploy host.
+	gatewayURL := fmt.Sprintf("http://%s:8080/health", host)
+	coordinatorURL := fmt.Sprintf("http://%s:8090/health", host)
+
+	result := runPreflightCheck(gatewayURL, coordinatorURL, 10*time.Second)
+	outputPreflightHuman(result)
+	fmt.Println()
+
+	if !result.Passed {
+		fmt.Println("\033[33m⚠ Post-deploy preflight has failures — check before running workflows\033[0m")
+	} else {
+		fmt.Println("\033[32m✓ System ready for workflows\033[0m")
+	}
+	fmt.Println()
+}
+
 func runDeploy(svc serviceConfig) error {
 	root, err := projectRoot()
 	if err != nil {
@@ -431,6 +515,13 @@ func runDeploy(svc serviceConfig) error {
 	host := hostForService(svc)
 
 	fmt.Printf("=== Deploying %s (%s) ===\n\n", svc.Name, svc.ProcessManager)
+
+	// Pre-step: run pending migrations for gateway deploys
+	if svc.Name == "gateway" {
+		if err := runPreDeployMigrations(root); err != nil {
+			return fmt.Errorf("pre-deploy migrations failed: %w", err)
+		}
+	}
 
 	// 1. Build
 	fmt.Printf("[1/4] Building %s (%s/%s)...\n", svc.Name, svc.GOOS, svc.GOARCH)
@@ -495,7 +586,12 @@ func runDeploy(svc serviceConfig) error {
 		return fmt.Errorf("health check failed, rolled back: %w", err)
 	}
 
-	fmt.Printf("\n=== %s deployed successfully ===\n", svc.Name)
+	fmt.Printf("\n=== %s deployed successfully ===\n\n", svc.Name)
+
+	// Post-deploy: run full preflight to verify system is ready
+	if svc.Name == "gateway" {
+		runPostDeployPreflight(host)
+	}
 
 	// Fire-and-forget activity log
 	if cfg, err := config.LoadConfig(); err == nil {

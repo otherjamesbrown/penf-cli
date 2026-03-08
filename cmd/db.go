@@ -19,6 +19,7 @@ import (
 // Database command flags
 var (
 	dbDryRun      bool
+	dbCheck       bool
 	dbTarget      string
 	dbOutput      string
 	dbMigrationDir string
@@ -111,10 +112,14 @@ Examples:
   # Apply migrations up to version 040
   penf db migrate --target 040
 
+  # Check for pending migrations (exit 1 if any pending)
+  penf db migrate --check
+
   # Use a custom migrations directory
   penf db migrate --migrations ./db/migrations`,
 		Example: `  penf db migrate
   penf db migrate --dry-run
+  penf db migrate --check
   penf db migrate --target 040`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDbMigrate(cmd.Context(), deps)
@@ -122,6 +127,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolVar(&dbDryRun, "dry-run", false, "Show what would be applied without executing")
+	cmd.Flags().BoolVar(&dbCheck, "check", false, "Check for pending migrations (exit 1 if any pending)")
 	cmd.Flags().StringVarP(&dbTarget, "target", "t", "", "Target version to migrate to (e.g., 040)")
 
 	return cmd
@@ -170,6 +176,22 @@ Examples:
 	return cmd
 }
 
+// resolveMigrationsDir returns the migrations directory, checking the flag, config, then default.
+func resolveMigrationsDir(cfg *config.CLIConfig) string {
+	// Explicit --migrations flag takes precedence
+	if dbMigrationDir != "migrations" {
+		return dbMigrationDir
+	}
+	// Config file migrations_dir
+	if cfg != nil && cfg.Database != nil {
+		if dir := cfg.Database.GetMigrationsDir(); dir != "" {
+			return dir
+		}
+	}
+	// Default
+	return "migrations"
+}
+
 // runDbMigrate executes the db migrate command.
 func runDbMigrate(ctx context.Context, deps *DbCommandDeps) error {
 	cfg, err := deps.LoadConfig()
@@ -185,8 +207,10 @@ func runDbMigrate(ctx context.Context, deps *DbCommandDeps) error {
 	}
 	defer pool.Close()
 
+	migDir := resolveMigrationsDir(cfg)
+
 	// Get pending migrations first
-	pending, err := db.GetPendingMigrations(ctx, pool, dbMigrationDir)
+	pending, err := db.GetPendingMigrations(ctx, pool, migDir)
 	if err != nil {
 		return fmt.Errorf("getting pending migrations: %w", err)
 	}
@@ -202,6 +226,11 @@ func runDbMigrate(ctx context.Context, deps *DbCommandDeps) error {
 		fmt.Printf("  %s - %s\n", m.Version, m.Name)
 	}
 	fmt.Println()
+
+	// --check mode: report pending and exit with error
+	if dbCheck {
+		return fmt.Errorf("%d pending migration(s) — run 'penf db migrate' to apply", len(pending))
+	}
 
 	if dbDryRun {
 		fmt.Println("Dry run mode: no migrations applied.")
@@ -221,10 +250,10 @@ func runDbMigrate(ctx context.Context, deps *DbCommandDeps) error {
 	var result *db.MigrationResult
 	if dbTarget != "" {
 		fmt.Printf("Applying migrations up to version %s...\n", dbTarget)
-		result, err = db.RunMigrationsToTarget(ctx, pool, dbMigrationDir, dbTarget)
+		result, err = db.RunMigrationsToTarget(ctx, pool, migDir, dbTarget)
 	} else {
 		fmt.Println("Applying all pending migrations...")
-		result, err = db.RunMigrations(ctx, pool, dbMigrationDir)
+		result, err = db.RunMigrations(ctx, pool, migDir)
 	}
 
 	if err != nil {
@@ -273,8 +302,10 @@ func runDbStatus(ctx context.Context, deps *DbCommandDeps) error {
 	}
 	defer pool.Close()
 
+	migDir := resolveMigrationsDir(cfg)
+
 	// Get migration status
-	status, err := db.GetMigrationStatus(ctx, pool, dbMigrationDir)
+	status, err := db.GetMigrationStatus(ctx, pool, migDir)
 	if err != nil {
 		return fmt.Errorf("getting migration status: %w", err)
 	}

@@ -25,37 +25,23 @@ func getEnvOrDefault(key, defaultVal string) string {
 }
 
 // connectToDatabase establishes a database connection.
+// Connection is resolved in order: DATABASE_URL env var > config file database section > DB_* env vars.
 func connectToDatabase(ctx context.Context, cfg *config.CLIConfig) (*pgxpool.Pool, error) {
-	// Build connection string from config or environment
-	connStr := os.Getenv("DATABASE_URL")
+	connStr := ""
+
+	// 1. DATABASE_URL env var (full connection string)
+	if v := os.Getenv("DATABASE_URL"); v != "" {
+		connStr = v
+	}
+
+	// 2. Config file database section
+	if connStr == "" && cfg != nil && cfg.Database != nil && cfg.Database.IsConfigured() {
+		connStr = cfg.Database.ConnectionString()
+	}
+
+	// 3. No database configured
 	if connStr == "" {
-		// Build from individual components
-		host := getEnvOrDefault("DB_HOST", "localhost")
-		port := getEnvOrDefault("DB_PORT", "5432")
-		user := getEnvOrDefault("DB_USER", "penfold")
-		pass := os.Getenv("DB_PASSWORD")
-		dbname := getEnvOrDefault("DB_NAME", "penfold")
-		sslmode := getEnvOrDefault("DB_SSLMODE", "prefer")
-
-		// Start with base connection string
-		if pass != "" {
-			connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-				host, port, user, pass, dbname, sslmode)
-		} else {
-			connStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
-				host, port, user, dbname, sslmode)
-		}
-
-		// Add SSL cert paths if provided (for cert-based auth)
-		if sslcert := os.Getenv("DB_SSLCERT"); sslcert != "" {
-			connStr += fmt.Sprintf(" sslcert=%s", sslcert)
-		}
-		if sslkey := os.Getenv("DB_SSLKEY"); sslkey != "" {
-			connStr += fmt.Sprintf(" sslkey=%s", sslkey)
-		}
-		if sslrootcert := os.Getenv("DB_SSLROOTCERT"); sslrootcert != "" {
-			connStr += fmt.Sprintf(" sslrootcert=%s", sslrootcert)
-		}
+		return nil, fmt.Errorf("database not configured: add 'database' section to ~/.penf/config.yaml or set DATABASE_URL")
 	}
 
 	poolCfg, err := pgxpool.ParseConfig(connStr)
@@ -63,8 +49,8 @@ func connectToDatabase(ctx context.Context, cfg *config.CLIConfig) (*pgxpool.Poo
 		return nil, fmt.Errorf("parsing connection string: %w", err)
 	}
 
-	poolCfg.MaxConns = 25
-	poolCfg.MinConns = 2
+	poolCfg.MaxConns = 5
+	poolCfg.MinConns = 1
 	poolCfg.MaxConnLifetime = time.Hour
 	poolCfg.MaxConnIdleTime = 30 * time.Minute
 
