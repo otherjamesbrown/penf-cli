@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
 )
 
@@ -252,9 +255,13 @@ func connectAndGetClient(deps *PipelineCommandDeps) (pipelinev1.PipelineServiceC
 }
 
 // fetchWhitelist retrieves the current whitelist for key from the gateway.
+// Returns an empty slice if the key does not exist yet.
 func fetchWhitelist(ctx context.Context, client pipelinev1.PipelineServiceClient, key string) ([]string, error) {
 	resp, err := client.GetOperationalConfig(ctx, &pipelinev1.GetOperationalConfigRequest{Key: key})
 	if err != nil {
+		if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
+			return []string{}, nil
+		}
 		return nil, fmt.Errorf("fetching %s: %w", key, err)
 	}
 	return parseWhitelist(resp.GetValue())

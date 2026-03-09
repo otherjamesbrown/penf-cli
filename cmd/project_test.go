@@ -346,9 +346,9 @@ func TestProjectTruncateString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := projectTruncateString(tt.input, tt.maxLen)
+		result := truncateString(tt.input, tt.maxLen)
 		if result != tt.expected {
-			t.Errorf("projectTruncateString(%q, %d) = %q, want %q",
+			t.Errorf("truncateString(%q, %d) = %q, want %q",
 				tt.input, tt.maxLen, result, tt.expected)
 		}
 	}
