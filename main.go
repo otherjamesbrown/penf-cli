@@ -1408,6 +1408,7 @@ func init() {
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configInitCmd)
 	configCmd.AddCommand(configSetCmd)
+	configCmd.AddCommand(cmd.NewConfigEmailCmd(cmd.DefaultPipelineDeps()))
 }
 
 func main() {
