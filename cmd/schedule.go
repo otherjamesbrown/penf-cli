@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -24,6 +25,9 @@ var (
 	scheduleParams      string
 	scheduleOverlap     string
 	scheduleLimit       int
+	scheduleTriggerDate string
+	scheduleDeliver     []string
+	scheduleDeliverTo   string
 )
 
 // ScheduleCommandDeps holds dependencies for schedule commands.
@@ -56,6 +60,7 @@ func NewScheduleCommand(deps *ScheduleCommandDeps) *cobra.Command {
 	cmd.AddCommand(newScheduleListCommand(deps))
 	cmd.AddCommand(newScheduleShowCommand(deps))
 	cmd.AddCommand(newScheduleCreateCommand(deps))
+	cmd.AddCommand(newScheduleUpdateCommand(deps))
 	cmd.AddCommand(newSchedulePauseCommand(deps))
 	cmd.AddCommand(newScheduleResumeCommand(deps))
 	cmd.AddCommand(newScheduleTriggerCommand(deps))
@@ -183,6 +188,8 @@ func newScheduleCreateCommand(deps *ScheduleCommandDeps) *cobra.Command {
 	cmd.Flags().StringVar(&scheduleWorkflow, "workflow", "", "Temporal workflow type (required)")
 	cmd.Flags().StringVar(&scheduleParams, "params", "{}", "Workflow parameters as JSON")
 	cmd.Flags().StringVar(&scheduleOverlap, "overlap", "skip", "Overlap policy: skip, buffer_one, cancel_other, allow_all")
+	cmd.Flags().StringSliceVar(&scheduleDeliver, "deliver", nil, "Delivery channels (repeatable): store, email")
+	cmd.Flags().StringVar(&scheduleDeliverTo, "deliver-to", "", "Delivery target (e.g., email address)")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("cron")
 	_ = cmd.MarkFlagRequired("workflow")
@@ -209,6 +216,12 @@ func runScheduleCreate(ctx context.Context, deps *ScheduleCommandDeps) error {
 		return err
 	}
 
+	// Merge delivery flags into workflow_params
+	mergedParams, err := mergeDeliveryIntoParams(scheduleParams, scheduleDeliver, scheduleDeliverTo)
+	if err != nil {
+		return fmt.Errorf("merging delivery config: %w", err)
+	}
+
 	resp, err := client.CreateSchedule(ctx, &schedulev1.CreateScheduleRequest{
 		TenantId:       tenantID,
 		Name:           scheduleName,
@@ -216,7 +229,7 @@ func runScheduleCreate(ctx context.Context, deps *ScheduleCommandDeps) error {
 		Type:           scheduleType,
 		CronExpr:       scheduleCronExpr,
 		WorkflowType:   scheduleWorkflow,
-		WorkflowParams: scheduleParams,
+		WorkflowParams: mergedParams,
 		OverlapPolicy:  scheduleOverlap,
 	})
 	if err != nil {
@@ -249,6 +262,111 @@ func runScheduleCreate(ctx context.Context, deps *ScheduleCommandDeps) error {
 		fmt.Printf("  Cron:     %s\n", scheduleCronExpr)
 		fmt.Printf("  Workflow: %s\n", scheduleWorkflow)
 		fmt.Printf("  Overlap:  %s\n", scheduleOverlap)
+		delivery := formatDeliveryDisplay(mergedParams)
+		if delivery != "" {
+			fmt.Printf("  Delivery: %s\n", delivery)
+		}
+	}
+	return nil
+}
+
+// ==================== update ====================
+
+func newScheduleUpdateCommand(deps *ScheduleCommandDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update <id-or-name>",
+		Short: "Update an existing schedule",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runScheduleUpdate(cmd.Context(), deps, args[0])
+		},
+	}
+
+	cmd.Flags().StringVar(&scheduleDescription, "description", "", "Schedule description")
+	cmd.Flags().StringVar(&scheduleCronExpr, "cron", "", "Cron expression")
+	cmd.Flags().StringVar(&scheduleWorkflow, "workflow", "", "Temporal workflow type")
+	cmd.Flags().StringVar(&scheduleParams, "params", "", "Workflow parameters as JSON (replaces existing)")
+	cmd.Flags().StringVar(&scheduleOverlap, "overlap", "", "Overlap policy")
+	cmd.Flags().StringSliceVar(&scheduleDeliver, "deliver", nil, "Delivery channels (repeatable): store, email")
+	cmd.Flags().StringVar(&scheduleDeliverTo, "deliver-to", "", "Delivery target (e.g., email address)")
+
+	return cmd
+}
+
+func runScheduleUpdate(ctx context.Context, deps *ScheduleCommandDeps, input string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := schedulev1.NewScheduleServiceClient(conn)
+	tenantID, err := getTenantIDForSchedule(deps)
+	if err != nil {
+		return err
+	}
+
+	scheduleID, err := scheduleResolveID(ctx, client, tenantID, input)
+	if err != nil {
+		return err
+	}
+
+	// Build workflow_params: if --deliver flags provided, merge into existing or provided params
+	workflowParams := scheduleParams
+	if len(scheduleDeliver) > 0 || scheduleDeliverTo != "" {
+		// If no --params provided, fetch existing params from the schedule
+		if workflowParams == "" {
+			existing, err := scheduleGetWorkflowParams(ctx, client, tenantID, scheduleID)
+			if err != nil {
+				return fmt.Errorf("fetching existing schedule params: %w", err)
+			}
+			workflowParams = existing
+		}
+		workflowParams, err = mergeDeliveryIntoParams(workflowParams, scheduleDeliver, scheduleDeliverTo)
+		if err != nil {
+			return fmt.Errorf("merging delivery config: %w", err)
+		}
+	}
+
+	req := &schedulev1.UpdateScheduleRequest{
+		TenantId:   tenantID,
+		ScheduleId: scheduleID,
+	}
+
+	// Only set fields that were explicitly provided
+	if scheduleDescription != "" {
+		req.Description = scheduleDescription
+	}
+	if scheduleCronExpr != "" {
+		req.CronExpr = scheduleCronExpr
+	}
+	if scheduleWorkflow != "" {
+		req.WorkflowType = scheduleWorkflow
+	}
+	if workflowParams != "" {
+		req.WorkflowParams = workflowParams
+	}
+	if scheduleOverlap != "" {
+		req.OverlapPolicy = scheduleOverlap
+	}
+
+	_, err = client.UpdateSchedule(ctx, req)
+	if err != nil {
+		return fmt.Errorf("updating schedule: %w", err)
+	}
+
+	fmt.Printf("\033[32mUpdated schedule:\033[0m %s\n", input)
+	if workflowParams != "" {
+		delivery := formatDeliveryDisplay(workflowParams)
+		if delivery != "" {
+			fmt.Printf("  Delivery: %s\n", delivery)
+		}
 	}
 	return nil
 }
@@ -354,7 +472,7 @@ func runScheduleResume(ctx context.Context, deps *ScheduleCommandDeps, input str
 // ==================== trigger ====================
 
 func newScheduleTriggerCommand(deps *ScheduleCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "trigger <id-or-name>",
 		Short: "Trigger an immediate run of a schedule",
 		Args:  cobra.ExactArgs(1),
@@ -362,9 +480,17 @@ func newScheduleTriggerCommand(deps *ScheduleCommandDeps) *cobra.Command {
 			return runScheduleTrigger(cmd.Context(), deps, args[0])
 		},
 	}
+	cmd.Flags().StringVar(&scheduleTriggerDate, "date", "", "Reference date (YYYY-MM-DD) for date simulation")
+	return cmd
 }
 
 func runScheduleTrigger(ctx context.Context, deps *ScheduleCommandDeps, input string) error {
+	if scheduleTriggerDate != "" {
+		if _, err := time.Parse("2006-01-02", scheduleTriggerDate); err != nil {
+			return fmt.Errorf("invalid date format %q (expected YYYY-MM-DD): %w", scheduleTriggerDate, err)
+		}
+	}
+
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
@@ -388,15 +514,24 @@ func runScheduleTrigger(ctx context.Context, deps *ScheduleCommandDeps, input st
 		return err
 	}
 
-	_, err = client.TriggerSchedule(ctx, &schedulev1.TriggerScheduleRequest{
+	req := &schedulev1.TriggerScheduleRequest{
 		TenantId:   tenantID,
 		ScheduleId: scheduleID,
-	})
+	}
+	if scheduleTriggerDate != "" {
+		req.ReferenceDate = &scheduleTriggerDate
+	}
+
+	_, err = client.TriggerSchedule(ctx, req)
 	if err != nil {
 		return fmt.Errorf("triggering schedule: %w", err)
 	}
 
-	fmt.Printf("\033[32mTriggered schedule:\033[0m %s\n", input)
+	if scheduleTriggerDate != "" {
+		fmt.Printf("\033[32mTriggered schedule:\033[0m %s (reference date: %s)\n", input, scheduleTriggerDate)
+	} else {
+		fmt.Printf("\033[32mTriggered schedule:\033[0m %s\n", input)
+	}
 	fmt.Printf("Use 'penf schedule history %s' to check execution status.\n", input)
 	return nil
 }
@@ -627,6 +762,14 @@ func outputScheduleDetailText(s *schedulev1.ScheduleSummary) error {
 	if s.LastError != "" {
 		fmt.Printf("%-16s %s\n", "Last Error:", s.LastError)
 	}
+
+	// Display delivery config from workflow_params
+	if s.WorkflowParams != "" {
+		delivery := formatDeliveryDisplay(s.WorkflowParams)
+		if delivery != "" {
+			fmt.Printf("%-16s %s\n", "Delivery:", delivery)
+		}
+	}
 	return nil
 }
 
@@ -669,6 +812,9 @@ func outputScheduleHistoryTable(scheduleID string, execs []*schedulev1.ScheduleE
 		}
 
 		fmt.Printf("  %-12s %-20s %-20s %s\n", e.Status, started, completed, errStr)
+		if e.ResultMetadata != "" && e.ResultMetadata != "{}" {
+			fmt.Printf("    metadata: %s\n", scheduleTruncate(e.ResultMetadata, 100))
+		}
 	}
 	fmt.Println()
 	return nil
@@ -695,6 +841,100 @@ func scheduleTruncate(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// mergeDeliveryIntoParams merges --deliver and --deliver-to flags into workflow_params JSON.
+// If no --deliver flags are provided, defaults to ["store"].
+func mergeDeliveryIntoParams(paramsJSON string, deliver []string, deliverTo string) (string, error) {
+	if paramsJSON == "" {
+		paramsJSON = "{}"
+	}
+
+	var params map[string]interface{}
+	if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+		return "", fmt.Errorf("invalid workflow params JSON: %w", err)
+	}
+
+	// Default to ["store"] if --deliver not specified
+	if len(deliver) == 0 {
+		deliver = []string{"store"}
+	}
+	params["delivery"] = deliver
+
+	if deliverTo != "" {
+		params["delivery_target"] = deliverTo
+	}
+
+	out, err := json.Marshal(params)
+	if err != nil {
+		return "", fmt.Errorf("marshalling params: %w", err)
+	}
+	return string(out), nil
+}
+
+// formatDeliveryDisplay extracts delivery config from workflow_params and formats for display.
+func formatDeliveryDisplay(paramsJSON string) string {
+	if paramsJSON == "" || paramsJSON == "{}" {
+		return ""
+	}
+
+	var params map[string]interface{}
+	if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+		return ""
+	}
+
+	deliveryRaw, ok := params["delivery"]
+	if !ok {
+		return ""
+	}
+
+	deliveryArr, ok := deliveryRaw.([]interface{})
+	if !ok {
+		return ""
+	}
+
+	var channels []string
+	for _, d := range deliveryArr {
+		if s, ok := d.(string); ok {
+			channels = append(channels, s)
+		}
+	}
+	if len(channels) == 0 {
+		return ""
+	}
+
+	target, _ := params["delivery_target"].(string)
+
+	var parts []string
+	for _, ch := range channels {
+		if ch == "email" && target != "" {
+			parts = append(parts, fmt.Sprintf("email → %s", target))
+		} else {
+			parts = append(parts, ch)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// scheduleGetWorkflowParams fetches the workflow_params for a schedule by listing and matching.
+func scheduleGetWorkflowParams(ctx context.Context, client schedulev1.ScheduleServiceClient, tenantID, scheduleID string) (string, error) {
+	resp, err := client.ListSchedules(ctx, &schedulev1.ListSchedulesRequest{
+		TenantId: tenantID,
+		Limit:    100,
+	})
+	if err != nil {
+		return "{}", fmt.Errorf("listing schedules: %w", err)
+	}
+
+	for _, s := range resp.Schedules {
+		if s.Id == scheduleID {
+			if s.WorkflowParams != "" {
+				return s.WorkflowParams, nil
+			}
+			return "{}", nil
+		}
+	}
+	return "{}", nil
 }
 
 // scheduleResolveID resolves a schedule by name or ID. If the input looks like
