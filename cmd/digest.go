@@ -268,19 +268,17 @@ func runDigestLatest(ctx context.Context, deps *DigestCommandDeps, project strin
 func newDigestListCommand(deps *DigestCommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List digests for a project",
+		Short: "List digests (optionally filtered by project)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDigestList(cmd.Context(), deps)
 		},
 	}
 
-	cmd.Flags().StringVar(&digestProject, "project", "", "Project name (required)")
+	cmd.Flags().StringVar(&digestProject, "project", "", "Project name (optional, omit to include rollups)")
 	cmd.Flags().StringVar(&digestSince, "since", "", "Start date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&digestUntil, "until", "", "End date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&digestType, "type", "", "Filter by digest type")
 	cmd.Flags().IntVar(&digestLimit, "limit", 20, "Maximum results")
-
-	_ = cmd.MarkFlagRequired("project")
 
 	return cmd
 }
