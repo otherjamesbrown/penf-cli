@@ -78,6 +78,7 @@ message ScheduleSummary {
   google.protobuf.Timestamp last_run_at = 10;
   google.protobuf.Timestamp next_run_at = 11;
   string last_error = 12;
+  string workflow_params = 13;
 }
 
 message PauseScheduleRequest {
@@ -111,11 +112,13 @@ message ScheduleExecution {
   google.protobuf.Timestamp completed_at = 4;
   string error = 5;
   string workflow_run_id = 6;
+  string result_metadata = 7; // JSON string with execution result details
 }
 
 message TriggerScheduleRequest {
   string tenant_id = 1;
   string schedule_id = 2;
+  optional string reference_date = 3; // YYYY-MM-DD date simulation, default: today
 }
 
 message TriggerScheduleResponse {}

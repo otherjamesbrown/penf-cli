@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package penfold.pipeline.v1;
 
-option go_package = "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1;pipelinev1";
+option go_package = "github.com/otherjamesbrown/penfold/api/proto/pipeline/v1;pipelinev1";
 
 import "google/protobuf/timestamp.proto";
 
@@ -87,8 +87,39 @@ service PipelineService {
   // DiffPipelineRuns compares two pipeline runs for a source to show what changed.
   rpc DiffPipelineRuns(DiffPipelineRunsRequest) returns (DiffPipelineRunsResponse);
 
+  // GetConcurrencyConfig retrieves current concurrency configuration and queue state.
+  rpc GetConcurrencyConfig(GetConcurrencyConfigRequest) returns (GetConcurrencyConfigResponse);
+
+  // SetConcurrencyConfig updates the maximum concurrent processing limit.
+  rpc SetConcurrencyConfig(SetConcurrencyConfigRequest) returns (SetConcurrencyConfigResponse);
+
+  // GetOperationalConfig retrieves a single operational config value by key.
+  rpc GetOperationalConfig(GetOperationalConfigRequest) returns (GetOperationalConfigResponse);
+
+  // SetOperationalConfig upserts an operational config value by key.
+  rpc SetOperationalConfig(SetOperationalConfigRequest) returns (SetOperationalConfigResponse);
+
+  // ListPendingSources lists pending sources in the processing queue.
+  rpc ListPendingSources(ListPendingSourcesRequest) returns (ListPendingSourcesResponse);
+
   // GetStageConfig retrieves unified per-stage configuration (model + timeout).
   rpc GetStageConfig(GetStageConfigRequest) returns (GetStageConfigResponse);
+
+  // StartBatchPipeline creates a batch processing job.
+  rpc StartBatchPipeline(StartBatchPipelineRequest) returns (StartBatchPipelineResponse);
+
+  // GetBatchStatus retrieves the status of a batch processing job.
+  rpc GetBatchStatus(GetBatchStatusRequest) returns (GetBatchStatusResponse);
+
+  // ListBatches lists recent batch processing jobs.
+  rpc ListBatches(ListBatchesRequest) returns (ListBatchesResponse);
+
+  // CancelBatch cancels a running batch processing job.
+  rpc CancelBatch(CancelBatchRequest) returns (CancelBatchResponse);
+
+  // ListModels returns the model registry: which models are configured, their
+  // backend, and which pipeline stages they are assigned to.
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
 
   // ListClassificationRules lists all classification rules in priority order.
   rpc ListClassificationRules(ListClassificationRulesRequest) returns (ListClassificationRulesResponse);
@@ -317,6 +348,15 @@ message KickProcessingResponse {
 
   // Human-readable message.
   string message = 2;
+
+  // Number of items currently being processed.
+  int32 in_flight_count = 3;
+
+  // Number of items still pending in the queue.
+  int64 pending_count = 4;
+
+  // Maximum concurrent processing limit.
+  int32 max_concurrent = 5;
 }
 
 // RetryFailedRequest retries failed pipeline items.
@@ -1024,6 +1064,110 @@ message DiffPipelineRunsResponse {
 }
 
 // =============================================================================
+// Concurrency Management Messages
+// =============================================================================
+
+// GetConcurrencyConfigRequest retrieves current concurrency configuration.
+message GetConcurrencyConfigRequest {}
+
+// GetConcurrencyConfigResponse contains concurrency configuration and state.
+message GetConcurrencyConfigResponse {
+  // Maximum number of concurrent processing jobs allowed.
+  int32 max_concurrent = 1;
+
+  // Number of jobs currently being processed.
+  int32 in_flight_count = 2;
+
+  // Number of jobs waiting in the queue.
+  int64 pending_count = 3;
+}
+
+// SetConcurrencyConfigRequest updates the concurrency limit.
+message SetConcurrencyConfigRequest {
+  // New maximum concurrent processing limit (required).
+  int32 max_concurrent = 1;
+
+  // Who is making this change (required for audit trail).
+  string updated_by = 2;
+}
+
+// SetConcurrencyConfigResponse confirms the concurrency update.
+message SetConcurrencyConfigResponse {
+  // New maximum concurrent limit.
+  int32 max_concurrent = 1;
+
+  // Previous maximum concurrent limit.
+  int32 previous_value = 2;
+
+  // Success message.
+  string message = 3;
+}
+
+// GetOperationalConfigRequest retrieves a single operational config value.
+message GetOperationalConfigRequest {
+  string key = 1;
+}
+
+// GetOperationalConfigResponse contains the value for the requested key.
+message GetOperationalConfigResponse {
+  string key = 1;
+  string value = 2;
+}
+
+// SetOperationalConfigRequest upserts an operational config value.
+message SetOperationalConfigRequest {
+  string key = 1;
+  string value = 2;
+}
+
+// SetOperationalConfigResponse confirms the upsert.
+message SetOperationalConfigResponse {
+  bool updated = 1;
+}
+
+// ListPendingSourcesRequest lists pending sources.
+message ListPendingSourcesRequest {
+  // Maximum number of sources to return (default: 50).
+  int32 limit = 1;
+
+  // Pagination offset.
+  int32 offset = 2;
+
+  // Filter by source tag (optional).
+  string source_tag = 3;
+}
+
+// PendingSourceSummary represents a pending source in the queue.
+message PendingSourceSummary {
+  // Source ID.
+  int64 id = 1;
+
+  // Content type (e.g., "email", "document").
+  string content_type = 2;
+
+  // Source tag identifying the data source.
+  string source_tag = 3;
+
+  // When the source was created.
+  google.protobuf.Timestamp created_at = 4;
+
+  // Size in bytes.
+  int64 size_bytes = 5;
+
+  // External ID from the source system.
+  string external_id = 6;
+}
+
+// ListPendingSourcesResponse contains the list of pending sources.
+message ListPendingSourcesResponse {
+  // The pending sources.
+  repeated PendingSourceSummary sources = 1;
+
+  // Total count of pending sources.
+  int64 total_count = 2;
+}
+
+// =============================================================================
 // Per-Stage Configuration Messages
 // =============================================================================
 
@@ -1032,7 +1176,7 @@ message GetStageConfigRequest {
   // Optional: filter by specific stage (empty = all stages).
   string stage = 1;
 
-  // Optional: tenant ID for tenant-specific config. Falls back to default tenant.
+  // Tenant ID (optional, defaults to server-side default tenant).
   string tenant_id = 2;
 }
 
@@ -1066,6 +1210,169 @@ message StageConfigEntry {
 message GetStageConfigResponse {
   // Configuration for each pipeline stage.
   repeated StageConfigEntry stages = 1;
+}
+
+// =============================================================================
+// Batch Pipeline Messages
+// =============================================================================
+
+// StartBatchPipelineRequest creates a new batch processing job.
+message StartBatchPipelineRequest {
+  // Tenant ID (required for multi-tenant support).
+  string tenant_id = 1;
+
+  // Specific source IDs to process (if empty, processes all pending).
+  repeated int64 content_ids = 2;
+
+  // Maximum concurrent pipelines (0 = use default from config).
+  int32 max_concurrent = 3;
+
+  // Filter by source tag when content_ids is empty (optional).
+  string source_tag = 4;
+}
+
+// StartBatchPipelineResponse contains the result of starting a batch.
+message StartBatchPipelineResponse {
+  // Unique batch identifier.
+  string batch_id = 1;
+
+  // Temporal workflow ID for the batch.
+  string workflow_id = 2;
+
+  // Total number of items in the batch.
+  int32 total_items = 3;
+
+  // Maximum concurrent processing limit being used.
+  int32 max_concurrent = 4;
+
+  // Human-readable message.
+  string message = 5;
+}
+
+// GetBatchStatusRequest retrieves batch status.
+message GetBatchStatusRequest {
+  // Batch ID to query (required).
+  string batch_id = 1;
+}
+
+// GetBatchStatusResponse contains batch status information.
+message GetBatchStatusResponse {
+  // Batch ID.
+  string batch_id = 1;
+
+  // Current status: running, completed, cancelled.
+  string status = 2;
+
+  // Total items in the batch.
+  int32 total_items = 3;
+
+  // Number of completed items.
+  int32 completed_items = 4;
+
+  // Number of failed items.
+  int32 failed_items = 5;
+
+  // Number of pending items.
+  int32 pending_items = 6;
+
+  // Number of currently active items.
+  int32 active_items = 7;
+
+  // Source IDs currently being processed.
+  repeated int64 active_source_ids = 8;
+
+  // When the batch was started.
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// ListBatchesRequest lists batch processing jobs.
+message ListBatchesRequest {
+  // Tenant ID filter (optional).
+  string tenant_id = 1;
+
+  // Maximum number of batches to return (default: 20).
+  int32 limit = 2;
+}
+
+// ListBatchesResponse contains the list of batches.
+message ListBatchesResponse {
+  // The batches.
+  repeated BatchSummary batches = 1;
+}
+
+// BatchSummary represents a batch processing job.
+message BatchSummary {
+  // Batch ID.
+  string id = 1;
+
+  // Temporal workflow ID.
+  string workflow_id = 2;
+
+  // Current status: running, completed, cancelled.
+  string status = 3;
+
+  // Total items in the batch.
+  int32 total_items = 4;
+
+  // Number of completed items.
+  int32 completed_items = 5;
+
+  // Number of failed items.
+  int32 failed_items = 6;
+
+  // When the batch was created.
+  google.protobuf.Timestamp created_at = 7;
+
+  // When the batch was last updated.
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// CancelBatchRequest cancels a running batch.
+message CancelBatchRequest {
+  // Batch ID to cancel (required).
+  string batch_id = 1;
+}
+
+// CancelBatchResponse confirms batch cancellation.
+message CancelBatchResponse {
+  // Whether the cancellation was accepted.
+  bool cancelled = 1;
+
+  // Human-readable message.
+  string message = 2;
+}
+
+// =============================================================================
+// Model Registry Messages
+// =============================================================================
+
+// ModelInfo describes a single model in the registry.
+message ModelInfo {
+  // Model name as used in configuration (e.g., "qwen2.5:7b", "gemini-2.0-flash").
+  string name = 1;
+
+  // Inference backend: "ollama" or "gemini".
+  string backend = 2;
+
+  // Pipeline stages this model is assigned to (e.g., "triage", "extract_entities").
+  // Empty if the model is not explicitly assigned to any stage (e.g., embedding models).
+  repeated string stages = 3;
+
+  // Whether this model is the global default LLM.
+  bool is_default = 4;
+
+  // Human-readable availability status: "available" (always reported as available;
+  // actual reachability is not checked at this layer).
+  string status = 5;
+}
+
+// ListModelsRequest requests the model registry.
+message ListModelsRequest {}
+
+// ListModelsResponse contains all known models and their configuration.
+message ListModelsResponse {
+  // All models known to the system (from DB config + hardcoded defaults).
+  repeated ModelInfo models = 1;
 }
 
 // =============================================================================
@@ -1261,6 +1568,15 @@ message PipelineStageDefinition {
 
   // Timeout in seconds for this stage.
   int32 timeout_seconds = 8;
+
+  // LLM temperature (0.0 - 2.0, null = use handler default).
+  optional float temperature = 9;
+
+  // Max output tokens (null = use handler default).
+  optional int32 max_tokens = 10;
+
+  // Max retry attempts (null = use handler default).
+  optional int32 max_retries = 11;
 }
 
 // PipelineDefinition represents a named pipeline with its ordered stages.
