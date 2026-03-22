@@ -268,6 +268,11 @@ func applyMigration(ctx context.Context, pool *pgxpool.Pool, m Migration) error 
 		return fmt.Errorf("migration file is empty")
 	}
 
+	// Strip goose Down section — only run the Up migration
+	if idx := strings.Index(sql, "-- +goose Down"); idx != -1 {
+		sql = sql[:idx]
+	}
+
 	// Execute in a transaction
 	tx, err := pool.Begin(ctx)
 	if err != nil {

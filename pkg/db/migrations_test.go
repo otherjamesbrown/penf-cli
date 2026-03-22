@@ -382,6 +382,61 @@ func TestGetMigrationStatus_Empty(t *testing.T) {
 	// but that's okay - we're just testing that the function works with no files
 }
 
+// TestApplyMigration_GooseDownNotExecuted verifies that the -- +goose Down
+// section of a migration file is NOT executed. Previously, the runner sent the
+// entire file content to PostgreSQL, causing the Down section (DROP/DELETE) to
+// run immediately after the Up section (CREATE/INSERT) in the same transaction.
+func TestApplyMigration_GooseDownNotExecuted(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	ctx := context.Background()
+	pool := setupTestDB(t)
+	defer pool.Close()
+
+	// Create a migration file with both Up and Down sections
+	tmpDir, err := os.MkdirTemp("", "migration_goose_down_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	migrationContent := `-- +goose Up
+CREATE TABLE test_goose_down_847 (id INT, name TEXT);
+
+-- +goose Down
+DROP TABLE IF EXISTS test_goose_down_847;
+`
+
+	migrationFilename := "847_test_goose_down.sql"
+	err = os.WriteFile(filepath.Join(tmpDir, migrationFilename), []byte(migrationContent), 0644)
+	require.NoError(t, err)
+
+	migration := Migration{
+		Version: "847_test_goose_down",
+		Name:    migrationFilename,
+		Path:    filepath.Join(tmpDir, migrationFilename),
+	}
+
+	// Apply the migration
+	err = applyMigration(ctx, pool, migration)
+	require.NoError(t, err)
+
+	// The table should exist — the Down section must NOT have been executed
+	var exists bool
+	err = pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.tables
+			WHERE table_name = 'test_goose_down_847'
+		)
+	`).Scan(&exists)
+	require.NoError(t, err)
+	assert.True(t, exists, "table should exist — goose Down section must not be executed during Up migration")
+
+	// Clean up
+	_, _ = pool.Exec(ctx, "DROP TABLE IF EXISTS test_goose_down_847")
+	_, _ = pool.Exec(ctx, "DELETE FROM schema_migrations WHERE version LIKE '%test_goose_down%'")
+}
+
 // setupTestDB creates a test database connection pool.
 func setupTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
