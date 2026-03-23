@@ -290,13 +290,10 @@ func TestMaxBodySize(t *testing.T) {
 	}
 }
 
-func TestPreserveHeaders(t *testing.T) {
-	opts := DefaultParseOptions()
-	opts.PreserveHeaders = []string{"X-Custom-Header", "Nonexistent-Header"}
-
+func TestAllHeadersPreserved(t *testing.T) {
 	rawEmail := []byte(`From: test@example.com
 To: recipient@example.com
-Subject: Custom Headers
+Subject: All Headers Test
 X-Custom-Header: custom-value
 Date: Fri, 19 Jan 2024 08:00:00 +0000
 Message-ID: <headers@example.com>
@@ -304,7 +301,7 @@ Message-ID: <headers@example.com>
 Body text.
 `)
 
-	parser := NewParser(opts)
+	parser := NewParser(DefaultParseOptions())
 	result, err := parser.ParseBytes(rawEmail)
 	if err != nil {
 		t.Fatalf("failed to parse: %v", err)
@@ -314,13 +311,55 @@ Body text.
 		t.Fatal("expected headers map to be initialized")
 	}
 
+	// All headers from the raw email should be present
 	if result.Email.Headers["X-Custom-Header"] != "custom-value" {
 		t.Errorf("expected X-Custom-Header=custom-value, got %s", result.Email.Headers["X-Custom-Header"])
 	}
+	if result.Email.Headers["Subject"] != "All Headers Test" {
+		t.Errorf("expected Subject in headers map, got %s", result.Email.Headers["Subject"])
+	}
+	if result.Email.Headers["From"] != "test@example.com" {
+		t.Errorf("expected From in headers map, got %s", result.Email.Headers["From"])
+	}
+}
 
-	// Nonexistent header should not be in map
-	if _, exists := result.Email.Headers["Nonexistent-Header"]; exists {
-		t.Error("nonexistent header should not be in map")
+func TestUncommonHeadersPreserved(t *testing.T) {
+	rawEmail := []byte(`From: test@example.com
+To: recipient@example.com
+Subject: Uncommon Headers
+X-Custom-Foo: foo-value
+X-Spam-Score: 3.2
+List-Unsubscribe: <mailto:unsub@example.com>
+X-Jira-Issue: PROJ-123
+Precedence: bulk
+Date: Fri, 19 Jan 2024 08:00:00 +0000
+Message-ID: <uncommon@example.com>
+
+Body text.
+`)
+
+	parser := NewParser(DefaultParseOptions())
+	result, err := parser.ParseBytes(rawEmail)
+	if err != nil {
+		t.Fatalf("failed to parse: %v", err)
+	}
+
+	headers := result.Email.Headers
+	if headers == nil {
+		t.Fatal("expected headers map to be initialized")
+	}
+
+	expected := map[string]string{
+		"X-Custom-Foo":     "foo-value",
+		"X-Spam-Score":     "3.2",
+		"List-Unsubscribe": "<mailto:unsub@example.com>",
+		"X-Jira-Issue":     "PROJ-123",
+		"Precedence":       "bulk",
+	}
+	for k, v := range expected {
+		if headers[k] != v {
+			t.Errorf("expected %s=%q, got %q", k, v, headers[k])
+		}
 	}
 }
 

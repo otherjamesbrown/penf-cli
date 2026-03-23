@@ -174,13 +174,11 @@ func (p *Parser) parseHeaders(msg *mail.Message, email *ParsedEmail, result *Par
 	// Content-Type
 	email.ContentType = msg.Header.Get("Content-Type")
 
-	// Preserve additional headers if requested
-	if len(p.opts.PreserveHeaders) > 0 {
-		email.Headers = make(map[string]string)
-		for _, h := range p.opts.PreserveHeaders {
-			if v := msg.Header.Get(h); v != "" {
-				email.Headers[h] = decodeRFC2047(v)
-			}
+	// Preserve all headers unconditionally
+	email.Headers = make(map[string]string)
+	for k, vs := range msg.Header {
+		if len(vs) > 0 {
+			email.Headers[k] = decodeRFC2047(vs[0])
 		}
 	}
 }

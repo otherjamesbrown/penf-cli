@@ -191,8 +191,6 @@ type ParseOptions struct {
 	// If nil, current time is used.
 	FallbackDate *time.Time
 
-	// PreserveHeaders lists additional headers to preserve in Headers map.
-	PreserveHeaders []string
 }
 
 // DefaultParseOptions returns the default parsing configuration.
@@ -201,7 +199,6 @@ func DefaultParseOptions() ParseOptions {
 		IncludeAttachmentContent: false,
 		MaxBodySize:              0,
 		FallbackDate:             nil,
-		PreserveHeaders:          nil,
 	}
 }
 
