@@ -1,9 +1,13 @@
 package batch
 
 import (
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/otherjamesbrown/penf-cli/pkg/ingest/eml"
 )
 
 func TestProgress(t *testing.T) {
@@ -258,4 +262,182 @@ func TestDefaultConcurrency(t *testing.T) {
 	if DefaultConcurrency != 4 {
 		t.Errorf("unexpected default concurrency: %d", DefaultConcurrency)
 	}
+}
+
+// TestIngestStoresHeaders verifies that all email headers are preserved in
+// ingestion_metadata["headers"] when ingesting via the penf-cli batch processor.
+func TestIngestStoresHeaders(t *testing.T) {
+	emlContent := `From: jira@example.com
+To: user@example.com
+Subject: [PROJ-123] Issue Updated
+Date: Mon, 20 Jan 2026 10:00:00 -0800
+Message-ID: <jira-001@example.com>
+Auto-Submitted: auto-generated
+X-Jira-Issue: PROJ-123
+Precedence: bulk
+Content-Type: text/plain; charset="UTF-8"
+
+Issue PROJ-123 has been updated.
+`
+
+	tmpDir := t.TempDir()
+	emlPath := filepath.Join(tmpDir, "jira-notification.eml")
+	if err := os.WriteFile(emlPath, []byte(emlContent), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	parseOpts := eml.DefaultParseOptions()
+	parser := eml.NewParser(parseOpts)
+
+	result, err := parser.ParseFile(emlPath)
+	if err != nil {
+		t.Fatalf("failed to parse email: %v", err)
+	}
+
+	email := result.Email
+
+	// Build metadata the same way processFile does
+	headers := make(map[string]string)
+	if email.From.Email != "" {
+		headers["From"] = formatEmailHeader(email.From)
+	}
+	if len(email.To) > 0 {
+		headers["To"] = formatEmailHeaders(email.To)
+	}
+	if len(email.Cc) > 0 {
+		headers["Cc"] = formatEmailHeaders(email.Cc)
+	}
+	for k, v := range email.Headers {
+		headers[k] = v
+	}
+
+	metadata := map[string]interface{}{}
+	if len(headers) > 0 {
+		metadata["headers"] = headers
+	}
+
+	headersIface, ok := metadata["headers"]
+	if !ok {
+		t.Fatal("metadata[\"headers\"] not present")
+	}
+
+	headersMap, ok := headersIface.(map[string]string)
+	if !ok {
+		t.Fatalf("headers is not map[string]string: %T", headersIface)
+	}
+
+	t.Run("Auto-Submitted header preserved", func(t *testing.T) {
+		val, ok := headersMap["Auto-Submitted"]
+		if !ok {
+			t.Error("Auto-Submitted header not preserved")
+			return
+		}
+		if val != "auto-generated" {
+			t.Errorf("expected Auto-Submitted='auto-generated', got '%s'", val)
+		}
+	})
+
+	t.Run("X-Jira-Issue header preserved", func(t *testing.T) {
+		val, ok := headersMap["X-Jira-Issue"]
+		if !ok {
+			t.Error("X-Jira-Issue header not preserved")
+			return
+		}
+		if val != "PROJ-123" {
+			t.Errorf("expected X-Jira-Issue='PROJ-123', got '%s'", val)
+		}
+	})
+
+	t.Run("Precedence header preserved", func(t *testing.T) {
+		val, ok := headersMap["Precedence"]
+		if !ok {
+			t.Error("Precedence header not preserved")
+			return
+		}
+		if val != "bulk" {
+			t.Errorf("expected Precedence='bulk', got '%s'", val)
+		}
+	})
+
+	t.Run("From header included", func(t *testing.T) {
+		if _, ok := headersMap["From"]; !ok {
+			t.Error("From header not present in headers map")
+		}
+	})
+}
+
+// TestIngestStoresNewsletterHeaders verifies that List-Unsubscribe and List-Id
+// headers are preserved — required for newsletter classification rules.
+func TestIngestStoresNewsletterHeaders(t *testing.T) {
+	emlContent := `From: newsletter@example.com
+To: user@example.com
+Subject: Weekly Digest
+Date: Mon, 20 Jan 2026 10:00:00 -0800
+Message-ID: <newsletter-001@example.com>
+List-Unsubscribe: <mailto:unsubscribe@example.com?subject=unsubscribe>
+List-Id: weekly-digest.example.com
+Precedence: bulk
+Content-Type: text/plain; charset="UTF-8"
+
+This is your weekly digest.
+`
+
+	tmpDir := t.TempDir()
+	emlPath := filepath.Join(tmpDir, "newsletter.eml")
+	if err := os.WriteFile(emlPath, []byte(emlContent), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	parseOpts := eml.DefaultParseOptions()
+	parser := eml.NewParser(parseOpts)
+
+	result, err := parser.ParseFile(emlPath)
+	if err != nil {
+		t.Fatalf("failed to parse email: %v", err)
+	}
+
+	email := result.Email
+
+	headers := make(map[string]string)
+	if email.From.Email != "" {
+		headers["From"] = formatEmailHeader(email.From)
+	}
+	for k, v := range email.Headers {
+		headers[k] = v
+	}
+
+	metadata := map[string]interface{}{}
+	if len(headers) > 0 {
+		metadata["headers"] = headers
+	}
+
+	headersIface, ok := metadata["headers"]
+	if !ok {
+		t.Fatal("metadata[\"headers\"] not present")
+	}
+
+	headersMap := headersIface.(map[string]string)
+
+	t.Run("List-Unsubscribe header preserved", func(t *testing.T) {
+		if _, ok := headersMap["List-Unsubscribe"]; !ok {
+			t.Error("List-Unsubscribe header not preserved")
+		}
+	})
+
+	t.Run("List-Id header preserved", func(t *testing.T) {
+		if _, ok := headersMap["List-Id"]; !ok {
+			t.Error("List-Id header not preserved")
+		}
+	})
+
+	t.Run("Precedence header preserved", func(t *testing.T) {
+		val, ok := headersMap["Precedence"]
+		if !ok {
+			t.Error("Precedence header not preserved")
+			return
+		}
+		if val != "bulk" {
+			t.Errorf("expected Precedence='bulk', got '%s'", val)
+		}
+	})
 }

@@ -417,6 +417,28 @@ func (p *Processor) processFile(ctx context.Context, jobID, filePath string) out
 		metadata["references"] = email.References
 	}
 
+	// Always include To/CC/From headers for pipeline classification.
+	// The triage activity uses metadata["headers"] for newsletter detection and
+	// header prepending. The parsed email has structured To/CC/From fields but
+	// they weren't flowing into the headers map that downstream expects.
+	headers := make(map[string]string)
+	if email.From.Email != "" {
+		headers["From"] = formatEmailHeader(email.From)
+	}
+	if len(email.To) > 0 {
+		headers["To"] = formatEmailHeaders(email.To)
+	}
+	if len(email.Cc) > 0 {
+		headers["Cc"] = formatEmailHeaders(email.Cc)
+	}
+	// Merge preserved headers (auto-submission, precedence, etc.)
+	for k, v := range email.Headers {
+		headers[k] = v
+	}
+	if len(headers) > 0 {
+		metadata["headers"] = headers
+	}
+
 	source := &storage.EmailSource{
 		TenantID:          p.cfg.TenantID,
 		SourceSystem:      storage.SourceSystemManualEML,
@@ -611,6 +633,24 @@ func (p *Processor) HandleEmbeddedEmail(ctx context.Context, params attachments.
 		metadata["references"] = email.References
 	}
 
+	// Always include To/CC/From headers for pipeline classification.
+	embeddedHeaders := make(map[string]string)
+	if email.From.Email != "" {
+		embeddedHeaders["From"] = formatEmailHeader(email.From)
+	}
+	if len(email.To) > 0 {
+		embeddedHeaders["To"] = formatEmailHeaders(email.To)
+	}
+	if len(email.Cc) > 0 {
+		embeddedHeaders["Cc"] = formatEmailHeaders(email.Cc)
+	}
+	for k, v := range email.Headers {
+		embeddedHeaders[k] = v
+	}
+	if len(embeddedHeaders) > 0 {
+		metadata["headers"] = embeddedHeaders
+	}
+
 	source := &storage.EmailSource{
 		TenantID:          params.TenantID,
 		SourceSystem:      "embedded_email",
@@ -676,4 +716,21 @@ func (p *Processor) HandleEmbeddedEmail(ctx context.Context, params attachments.
 		AttachmentCount: attachmentCount,
 		WasSkipped:      false,
 	}, nil
+}
+
+// formatEmailHeader formats an eml.Address as an RFC 5322 header value.
+func formatEmailHeader(addr eml.Address) string {
+	if addr.Name != "" {
+		return addr.Name + " <" + addr.Email + ">"
+	}
+	return addr.Email
+}
+
+// formatEmailHeaders formats a slice of addresses as a comma-separated header value.
+func formatEmailHeaders(addrs []eml.Address) string {
+	parts := make([]string, len(addrs))
+	for i, addr := range addrs {
+		parts[i] = formatEmailHeader(addr)
+	}
+	return strings.Join(parts, ", ")
 }
