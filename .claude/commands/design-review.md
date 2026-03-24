@@ -1,57 +1,58 @@
 # Design Review
 
-Run a structured design review before dispatching work to mycroft or steve.
+Review a design for CoBuild pipeline readiness. Pre-flight check before submission.
 
 ## Arguments: $ARGUMENTS
 
-The design shard ID to review (e.g. pf-XXXXX).
+The design work item ID to review (e.g. pf-XXXXX).
 
 ## Instructions
 
 ### Step 1: Run the review
 
-Launch the design-reviewer sub-agent with the provided shard ID.
+Launch the design-reviewer sub-agent with the provided ID.
 
 ```
 Use the Agent tool with subagent_type "general-purpose" and the following prompt:
 
 You are running a design review. Follow the instructions in .claude/agents/design-reviewer.md exactly.
 
-The design shard to review is: $ARGUMENTS
+The design work item to review is: $ARGUMENTS
 
 Read .claude/agents/design-reviewer.md first, then execute all steps.
 ```
 
 ### Step 2: Present findings
 
-Show James the agent's report summary:
-- Verdict (DISPATCH / FIX AND RE-REVIEW / REWORK DESIGN)
+Show the developer the agent's report:
+- Verdict (READY FOR PIPELINE / NOT READY / REWORK DESIGN)
 - Any CRITICAL or HIGH findings as a table
-- Metrics (criteria coverage, task count, open questions)
+- What needs fixing before submission
 
-### Step 3: Fix-and-iterate loop
+### Step 3: If NOT READY
 
-If the verdict is **FIX AND RE-REVIEW**:
+List the specific fixes needed. The developer addresses them and runs `/design-review <id>` again.
 
-1. Fix all CRITICAL and HIGH findings yourself:
-   - Research the codebase as needed (use Explore sub-agents for unknowns)
-   - Update the design shard content via `cxp shard update`
-   - Create missing child tasks via `cxp task create`
-   - Add missing edges via `cxp shard link`
-   - Resolve open questions with concrete answers
+Do NOT create child tasks — that happens after the design enters the pipeline.
+Do NOT fix the design yourself — report findings for the developer.
 
-2. Re-run the review sub-agent (go back to Step 1)
+### Step 4: If READY FOR PIPELINE
 
-3. Repeat until the verdict is **DISPATCH** (no CRITICAL or HIGH findings remain)
+> This design passes all readiness criteria.
+>
+> Submit to the CoBuild pipeline? This will:
+> 1. Initialize the pipeline (`cobuild init <design-id>`)
+> 2. Run the formal readiness gate (audit trail)
+> 3. Decompose into tasks automatically
+> 4. Dispatch agents to implement
+>
+> Submit? (yes/no)
 
-4. Present the final clean report to James with a summary of what was fixed across iterations.
+If yes:
+```bash
+cobuild init <design-id>
+```
 
-If the verdict is **REWORK DESIGN**, stop and present findings to James — the design needs fundamental changes that require his input.
+### Step 5: If REWORK DESIGN
 
-### Step 4: DISPATCH verdict reached
-
-Once clean, tell James the design is ready to dispatch and list the child tasks with their assignments.
-
-## Task sizing rule
-
-The review agent checks this, but also verify yourself: **no single task should require changes to more than 5 files or span more than ~300 lines of new code.** If a task is too large, split it. Agents that receive oversized tasks tend to fail on the first pass, wasting cycles. Prefer 2-3 small focused tasks over 1 large one.
+The design needs fundamental changes. Present findings and stop — the developer needs to rethink the approach.
