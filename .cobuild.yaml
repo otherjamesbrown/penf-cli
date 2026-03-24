@@ -1,0 +1,4 @@
+project: penfold
+prefix: pf-
+# Multi-repo: designs may span penf-cli and penfold
+# Tasks are tagged with target repo during decomposition
