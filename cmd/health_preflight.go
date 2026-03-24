@@ -71,6 +71,7 @@ Checks performed:
   3. Circuit breaker states (all must be closed)
   4. AI coordinator health
   5. Database migrations (schema must be current)
+  6. Pipeline definitions (all pipelines must have at least one enabled stage)
 
 Exit codes:
   0 - All critical services healthy and circuit breakers closed
@@ -265,6 +266,9 @@ func runPreflightCheck(gatewayURL, coordinatorURL string, timeout time.Duration)
 	// Check 3: Database migrations.
 	checkMigrations(&result, timeout)
 
+	// Check 4: Pipeline definitions.
+	checkPipelineDefinitions(&result, timeout)
+
 	return result
 }
 
@@ -361,6 +365,147 @@ func checkMigrations(result *PreflightResult, timeout time.Duration) {
 	})
 	result.Failures = append(result.Failures,
 		fmt.Sprintf("Migrations: %d pending — run 'penf db migrate' or 'penf deploy gateway' [critical]", len(pending)))
+}
+
+// pipelineDefinitionSummary holds the per-pipeline/tenant summary from pipeline_definitions.
+type pipelineDefinitionSummary struct {
+	TenantID      string
+	Pipeline      string
+	TotalStages   int
+	EnabledStages int
+}
+
+// validatePipelineDefinitions returns pass/fail details for each pipeline/tenant pair.
+// Extracted for unit testing.
+func validatePipelineDefinitions(defs []pipelineDefinitionSummary) (passes []pipelineDefinitionSummary, failures []pipelineDefinitionSummary) {
+	for _, d := range defs {
+		if d.EnabledStages == 0 {
+			failures = append(failures, d)
+		} else {
+			passes = append(passes, d)
+		}
+	}
+	return
+}
+
+// checkPipelineDefinitions verifies all pipeline definitions have at least one enabled stage.
+// Skipped with a warning if no database config is available.
+func checkPipelineDefinitions(result *PreflightResult, timeout time.Duration) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Pipeline Definitions",
+			Status: "unknown",
+			Error:  "could not load config",
+		})
+		result.Warnings = append(result.Warnings, "Pipeline Definitions: could not load config to check")
+		return
+	}
+
+	if cfg.Database == nil || !cfg.Database.IsConfigured() {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Pipeline Definitions",
+			Status: "skipped",
+			Error:  "no database config",
+		})
+		result.Warnings = append(result.Warnings, "Pipeline Definitions: no database config — add 'database' section to ~/.penf/config.yaml")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pool, err := connectToDatabase(ctx, cfg)
+	if err != nil {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:     "Pipeline Definitions",
+			Status:   "unreachable",
+			Critical: true,
+			Error:    err.Error(),
+		})
+		result.Passed = false
+		result.ExitCode = 1
+		result.Message = "Preflight check failed"
+		result.Failures = append(result.Failures, fmt.Sprintf("Pipeline Definitions: DB unreachable — %v [critical]", err))
+		return
+	}
+	defer pool.Close()
+
+	rows, err := pool.Query(ctx, `
+		SELECT tenant_id, pipeline,
+		       COUNT(*) AS total_stages,
+		       COUNT(*) FILTER (WHERE enabled) AS enabled_stages
+		FROM pipeline_definitions
+		GROUP BY tenant_id, pipeline
+		ORDER BY tenant_id, pipeline
+	`)
+	if err != nil {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Pipeline Definitions",
+			Status: "error",
+			Error:  err.Error(),
+		})
+		result.Warnings = append(result.Warnings, fmt.Sprintf("Pipeline Definitions: query failed — %v", err))
+		return
+	}
+	defer rows.Close()
+
+	var defs []pipelineDefinitionSummary
+	for rows.Next() {
+		var d pipelineDefinitionSummary
+		if err := rows.Scan(&d.TenantID, &d.Pipeline, &d.TotalStages, &d.EnabledStages); err != nil {
+			result.Checks = append(result.Checks, PreflightCheck{
+				Name:   "Pipeline Definitions",
+				Status: "error",
+				Error:  err.Error(),
+			})
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Pipeline Definitions: scan failed — %v", err))
+			return
+		}
+		defs = append(defs, d)
+	}
+	if err := rows.Err(); err != nil {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Pipeline Definitions",
+			Status: "error",
+			Error:  err.Error(),
+		})
+		result.Warnings = append(result.Warnings, fmt.Sprintf("Pipeline Definitions: iteration failed — %v", err))
+		return
+	}
+
+	if len(defs) == 0 {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:   "Pipeline Definitions",
+			Status: "skipped",
+			Error:  "no pipeline definitions found",
+		})
+		result.Warnings = append(result.Warnings, "Pipeline Definitions: no pipeline definitions found in database")
+		return
+	}
+
+	passes, failures := validatePipelineDefinitions(defs)
+
+	for _, d := range passes {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:     fmt.Sprintf("Pipeline %s/%s", d.TenantID, d.Pipeline),
+			Status:   "healthy",
+			Critical: true,
+		})
+	}
+	for _, d := range failures {
+		result.Checks = append(result.Checks, PreflightCheck{
+			Name:     fmt.Sprintf("Pipeline %s/%s", d.TenantID, d.Pipeline),
+			Status:   "unhealthy",
+			Critical: true,
+			Error:    fmt.Sprintf("0 enabled stages (total: %d)", d.TotalStages),
+		})
+		result.Passed = false
+		result.ExitCode = 1
+		result.Message = "Preflight check failed"
+		result.Failures = append(result.Failures,
+			fmt.Sprintf("Pipeline %s/%s: no enabled stages (total: %d) [critical]", d.TenantID, d.Pipeline, d.TotalStages))
+	}
 }
 
 // checkGatewayHealth checks the gateway health endpoint.

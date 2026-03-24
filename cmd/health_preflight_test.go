@@ -552,6 +552,94 @@ func TestPreflightResultJSON(t *testing.T) {
 	}
 }
 
+// TestValidatePipelineDefinitions tests the pipeline definition validation logic.
+func TestValidatePipelineDefinitions(t *testing.T) {
+	tests := []struct {
+		name         string
+		defs         []pipelineDefinitionSummary
+		wantPasses   int
+		wantFailures int
+	}{
+		{
+			name: "all pipelines have enabled stages",
+			defs: []pipelineDefinitionSummary{
+				{TenantID: "tenant-a", Pipeline: "standard", TotalStages: 5, EnabledStages: 5},
+				{TenantID: "tenant-a", Pipeline: "newsletter", TotalStages: 3, EnabledStages: 3},
+				{TenantID: "tenant-b", Pipeline: "standard", TotalStages: 5, EnabledStages: 4},
+			},
+			wantPasses:   3,
+			wantFailures: 0,
+		},
+		{
+			name: "one pipeline has no enabled stages",
+			defs: []pipelineDefinitionSummary{
+				{TenantID: "tenant-a", Pipeline: "standard", TotalStages: 5, EnabledStages: 5},
+				{TenantID: "tenant-a", Pipeline: "newsletter", TotalStages: 3, EnabledStages: 0},
+			},
+			wantPasses:   1,
+			wantFailures: 1,
+		},
+		{
+			name: "all pipelines have no enabled stages",
+			defs: []pipelineDefinitionSummary{
+				{TenantID: "tenant-a", Pipeline: "standard", TotalStages: 5, EnabledStages: 0},
+				{TenantID: "tenant-b", Pipeline: "standard", TotalStages: 3, EnabledStages: 0},
+			},
+			wantPasses:   0,
+			wantFailures: 2,
+		},
+		{
+			name:         "empty definitions",
+			defs:         []pipelineDefinitionSummary{},
+			wantPasses:   0,
+			wantFailures: 0,
+		},
+		{
+			name: "pipeline with stages all disabled",
+			defs: []pipelineDefinitionSummary{
+				{TenantID: "tenant-a", Pipeline: "broken", TotalStages: 4, EnabledStages: 0},
+			},
+			wantPasses:   0,
+			wantFailures: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			passes, failures := validatePipelineDefinitions(tc.defs)
+			if len(passes) != tc.wantPasses {
+				t.Errorf("passes = %d, want %d", len(passes), tc.wantPasses)
+			}
+			if len(failures) != tc.wantFailures {
+				t.Errorf("failures = %d, want %d", len(failures), tc.wantFailures)
+			}
+		})
+	}
+}
+
+// TestValidatePipelineDefinitionsFailureDetails tests that failure details are correct.
+func TestValidatePipelineDefinitionsFailureDetails(t *testing.T) {
+	defs := []pipelineDefinitionSummary{
+		{TenantID: "tenant-x", Pipeline: "broken_pipe", TotalStages: 3, EnabledStages: 0},
+		{TenantID: "tenant-x", Pipeline: "good_pipe", TotalStages: 5, EnabledStages: 5},
+	}
+
+	passes, failures := validatePipelineDefinitions(defs)
+
+	if len(passes) != 1 || passes[0].Pipeline != "good_pipe" {
+		t.Errorf("expected good_pipe to pass, got: %+v", passes)
+	}
+	if len(failures) != 1 || failures[0].Pipeline != "broken_pipe" {
+		t.Errorf("expected broken_pipe to fail, got: %+v", failures)
+	}
+	if failures[0].TenantID != "tenant-x" {
+		t.Errorf("expected TenantID = tenant-x, got: %s", failures[0].TenantID)
+	}
+	if failures[0].TotalStages != 3 {
+		t.Errorf("expected TotalStages = 3, got: %d", failures[0].TotalStages)
+	}
+}
+
 // PreflightTestHelper validates a preflight check result matches expected criteria.
 func validatePreflightResult(t *testing.T, result PreflightResult, wantPassed bool, wantExitCode int) {
 	t.Helper()

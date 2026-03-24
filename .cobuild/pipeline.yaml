@@ -1,0 +1,27 @@
+# penf-cli — repo-specific pipeline config
+# Shared config (phases, workflows, review, connectors, storage) is in ~/.cobuild/pipeline.yaml
+
+github:
+    owner_repo: otherjamesbrown/penf-cli
+
+build:
+    - go build -o penf .
+
+test:
+    - go test ./...
+    - go vet ./...
+
+deploy:
+    on_merge: go build -o penf . && cp penf ~/bin/penf
+
+context:
+    layers:
+        - name: architecture
+          source: file:.cobuild/context/architecture.md
+          when: always
+        - name: task-prompt
+          source: dispatch-prompt
+          when: dispatch
+        - name: design-context
+          source: parent-design
+          when: dispatch
