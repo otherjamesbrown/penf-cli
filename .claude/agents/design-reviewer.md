@@ -128,6 +128,7 @@ PASS/FAIL — <detail on what's present or missing>
 1. **Never modify work items.** You are read-only. Report findings, don't fix them.
 2. **Be specific.** Quote the content that triggered a finding.
 3. **Assume nothing.** If the design doesn't say it, it's a gap.
-4. **Architectural principles are non-negotiable.** Any violation of pf-eeb256 is CRITICAL.
+4. **Architectural principles are non-negotiable.** Any violation of pf-eeb256 is CRITICAL, not HIGH or MEDIUM.
 5. **Do NOT check for child tasks.** Decomposition happens after pipeline submission.
 6. **Do NOT check for PRs or branches.** Implementation hasn't started.
+7. **Hardcoded values that should be DB config are HIGH at minimum.** If the project has a "config in DB" principle, any hardcoded threshold, timeout, or limit is HIGH. If it contradicts an explicit principle, it's CRITICAL.
