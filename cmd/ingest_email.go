@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	ingestv1 "github.com/otherjamesbrown/penf-cli/api/proto/ingest/v1"
+	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
 	"github.com/otherjamesbrown/penf-cli/config"
 	"github.com/otherjamesbrown/penf-cli/pkg/contentid"
@@ -326,6 +327,20 @@ func runIngestEmail(ctx context.Context, deps *IngestCommandDeps, path string) e
 	if err != nil {
 		// Log warning but don't fail - files are already ingested
 		fmt.Fprintf(os.Stderr, "Warning: failed to complete job: %v\n", err)
+	}
+
+	// Kick pipeline processing if any emails were imported
+	if result.ImportedCount > 0 {
+		pipelineClient := pipelinev1.NewPipelineServiceClient(conn)
+		kickResp, kickErr := pipelineClient.KickProcessing(ctx, &pipelinev1.KickProcessingRequest{
+			TenantId:  tenantID,
+			SourceTag: emailSource,
+		})
+		if kickErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to kick pipeline processing: %v\n", kickErr)
+		} else {
+			fmt.Printf("Pipeline: queued %d items for processing\n", kickResp.QueuedCount)
+		}
 	}
 
 	// Display results
