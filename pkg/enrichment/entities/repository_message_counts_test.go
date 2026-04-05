@@ -2,7 +2,10 @@ package entities
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/otherjamesbrown/penf-cli/pkg/logging"
@@ -36,9 +39,9 @@ func TestIncrementSentCount(t *testing.T) {
 
 	// Create a test person
 	person := &Person{
-		TenantID:      "test-tenant",
+		TenantID:      "00000000-0000-0000-0000-000000000001",
 		CanonicalName: "Test Person",
-		PrimaryEmail:  "test@example.com",
+		PrimaryEmail:  fmt.Sprintf("test-%d@example.com", time.Now().UnixNano()),
 		IsInternal:    false,
 		AccountType:   AccountTypePerson,
 		Confidence:    0.8,
@@ -131,9 +134,9 @@ func TestIncrementReceivedCount(t *testing.T) {
 
 	// Create a test person
 	person := &Person{
-		TenantID:      "test-tenant",
+		TenantID:      "00000000-0000-0000-0000-000000000001",
 		CanonicalName: "Test Recipient",
-		PrimaryEmail:  "recipient@example.com",
+		PrimaryEmail:  fmt.Sprintf("recipient-%d@example.com", time.Now().UnixNano()),
 		IsInternal:    false,
 		AccountType:   AccountTypePerson,
 		Confidence:    0.8,
@@ -226,9 +229,9 @@ func TestIncrementMessageCounts_Independent(t *testing.T) {
 
 	// Create a test person
 	person := &Person{
-		TenantID:      "test-tenant",
+		TenantID:      "00000000-0000-0000-0000-000000000001",
 		CanonicalName: "Test Person Both Counts",
-		PrimaryEmail:  "both@example.com",
+		PrimaryEmail:  fmt.Sprintf("both-%d@example.com", time.Now().UnixNano()),
 		IsInternal:    false,
 		AccountType:   AccountTypePerson,
 		Confidence:    0.8,
@@ -277,8 +280,14 @@ func TestIncrementMessageCounts_Independent(t *testing.T) {
 // Helper functions for test setup/teardown
 
 func getTestDatabaseURL() string {
-	// TODO: Read from environment or test config
-	return "postgres://postgres:postgres@localhost:5432/penfold_test?sslmode=disable"
+	if url := os.Getenv("DATABASE_URL"); url != "" {
+		return url
+	}
+	home, _ := os.UserHomeDir()
+	return fmt.Sprintf(
+		"postgres://penfold@dev02.brown.chat:5432/penfold?sslmode=verify-full&sslcert=%s/.postgresql/postgresql.crt&sslkey=%s/.postgresql/postgresql.key&sslrootcert=%s/.postgresql/root.crt",
+		home, home, home,
+	)
 }
 
 func cleanupPerson(t *testing.T, ctx context.Context, pool *pgxpool.Pool, personID int64) {

@@ -284,7 +284,7 @@ func TestDefaultConfig(t *testing.T) {
 
 	assert.Equal(t, "mlx", cfg.LLM.Provider)
 	assert.Equal(t, "mistral-7b-instruct-v0.2", cfg.LLM.Model)
-	assert.Equal(t, "http://localhost:8081", cfg.LLM.BaseURL)
+	assert.Equal(t, "http://localhost:11434", cfg.LLM.BaseURL)
 	assert.Equal(t, float32(0.8), cfg.Thresholds.AutoResolve)
 	assert.Equal(t, float32(0.9), cfg.Thresholds.Verification)
 	assert.Equal(t, float32(0.7), cfg.Thresholds.Suggest)
