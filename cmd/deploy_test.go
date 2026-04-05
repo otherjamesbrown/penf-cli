@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -13,7 +14,7 @@ func TestDeployCommand(t *testing.T) {
 		t.Fatal("NewDeployCommand() returned nil")
 	}
 
-	if deployCmd.Use != "deploy [gateway|worker|ai|all]" {
+	if deployCmd.Use != "deploy [gateway|worker|ai|mcp|all]" {
 		t.Errorf("Unexpected Use: %s", deployCmd.Use)
 	}
 
@@ -25,7 +26,6 @@ func TestDeployCommand(t *testing.T) {
 func TestDeployHistorySubcommand(t *testing.T) {
 	deployCmd := NewDeployCommand()
 
-	// Find the history subcommand.
 	var historyCmd *cobra.Command
 	for _, cmd := range deployCmd.Commands() {
 		if cmd.Use == "history [service]" {
@@ -42,7 +42,6 @@ func TestDeployHistorySubcommand(t *testing.T) {
 		t.Errorf("Unexpected Short: %s", historyCmd.Short)
 	}
 
-	// Verify flags exist.
 	lastFlag := historyCmd.Flags().Lookup("last")
 	if lastFlag == nil {
 		t.Error("--last flag not found")
@@ -61,7 +60,6 @@ func TestDeployStatusFlag(t *testing.T) {
 func TestDeployRecordSubcommand(t *testing.T) {
 	deployCmd := NewDeployCommand()
 
-	// Find the record subcommand.
 	var recordCmd *cobra.Command
 	for _, cmd := range deployCmd.Commands() {
 		if cmd.Use == "record <service>" {
@@ -78,7 +76,6 @@ func TestDeployRecordSubcommand(t *testing.T) {
 		t.Errorf("Unexpected Short: %s", recordCmd.Short)
 	}
 
-	// Verify all expected flags exist.
 	expectedFlags := []string{
 		"commit",
 		"previous-commit",
@@ -98,7 +95,6 @@ func TestDeployRecordSubcommand(t *testing.T) {
 func TestDeployRecordRequiresCommit(t *testing.T) {
 	deployCmd := NewDeployCommand()
 
-	// Find the record subcommand.
 	var recordCmd *cobra.Command
 	for _, cmd := range deployCmd.Commands() {
 		if cmd.Use == "record <service>" {
@@ -111,13 +107,11 @@ func TestDeployRecordRequiresCommit(t *testing.T) {
 		t.Fatal("record subcommand not found")
 	}
 
-	// --commit should be marked as required.
 	commitFlag := recordCmd.Flags().Lookup("commit")
 	if commitFlag == nil {
 		t.Fatal("--commit flag not found")
 	}
 
-	// Verify it's annotated as required by Cobra.
 	annotations := recordCmd.Flags().Lookup("commit").Annotations
 	if annotations == nil {
 		t.Fatal("--commit flag has no annotations (expected cobra required annotation)")
@@ -130,7 +124,6 @@ func TestDeployRecordRequiresCommit(t *testing.T) {
 func TestDeployRecordNotifyDefaultTrue(t *testing.T) {
 	deployCmd := NewDeployCommand()
 
-	// Find the record subcommand.
 	var recordCmd *cobra.Command
 	for _, cmd := range deployCmd.Commands() {
 		if cmd.Use == "record <service>" {
@@ -156,7 +149,6 @@ func TestDeployRecordNotifyDefaultTrue(t *testing.T) {
 func TestDeployRecordExactArgs(t *testing.T) {
 	deployCmd := NewDeployCommand()
 
-	// Find the record subcommand.
 	var recordCmd *cobra.Command
 	for _, cmd := range deployCmd.Commands() {
 		if cmd.Use == "record <service>" {
@@ -169,24 +161,34 @@ func TestDeployRecordExactArgs(t *testing.T) {
 		t.Fatal("record subcommand not found")
 	}
 
-	// Verify the Args validator is set to ExactArgs(1) by checking
-	// that it rejects wrong argument counts.
 	if recordCmd.Args == nil {
 		t.Fatal("Args validator not set on record subcommand")
 	}
 
-	// ExactArgs(1) should reject 0 args.
 	if err := recordCmd.Args(recordCmd, []string{}); err == nil {
 		t.Error("expected error for 0 args")
 	}
 
-	// ExactArgs(1) should accept 1 arg.
 	if err := recordCmd.Args(recordCmd, []string{"penfold-gateway"}); err != nil {
 		t.Errorf("expected no error for 1 arg, got: %v", err)
 	}
 
-	// ExactArgs(1) should reject 2 args.
 	if err := recordCmd.Args(recordCmd, []string{"svc1", "svc2"}); err == nil {
 		t.Error("expected error for 2 args")
+	}
+}
+
+func TestPenfoldRepoDir(t *testing.T) {
+	// With env var set
+	t.Setenv("PENFOLD_REPO", "/tmp/test-penfold")
+	if got := penfoldRepoDir(); got != "/tmp/test-penfold" {
+		t.Errorf("expected /tmp/test-penfold, got %s", got)
+	}
+
+	// Without env var, should use default
+	t.Setenv("PENFOLD_REPO", "")
+	got := penfoldRepoDir()
+	if !strings.HasSuffix(got, "github/otherjamesbrown/penfold") {
+		t.Errorf("expected path ending in github/otherjamesbrown/penfold, got %s", got)
 	}
 }

@@ -1,4 +1,4 @@
-<!-- BEGIN COBUILD INTEGRATION v:1 hash:66aef32d -->
+<!-- BEGIN COBUILD INTEGRATION v:1 hash:69527112 -->
 # CoBuild Pipeline Instructions
 
 This project uses CoBuild for pipeline automation. If you are an agent working on a task dispatched by CoBuild, follow these instructions.
@@ -8,9 +8,9 @@ This project uses CoBuild for pipeline automation. If you are an agent working o
 - **Name:** penfold
 - **Prefix:** pf-
 - **Workflows:**
+  - design: design → decompose → implement → review → done
   - bug: investigate → implement → review → done
   - task: implement → review → done
-  - design: design → decompose → implement → review → done
 
 ## Commands
 
@@ -31,6 +31,8 @@ This project uses CoBuild for pipeline automation. If you are an agent working o
 | `cobuild retro <design-id>` | Run retrospective |
 | `cobuild status` | Show all active pipelines |
 | `cobuild audit <id>` | View gate history |
+| `cobuild scan` | Refresh project anatomy (file index for agents) |
+| `cobuild explain` | Show pipeline in human-readable form |
 
 ### Work Items
 
@@ -43,14 +45,44 @@ This project uses CoBuild for pipeline automation. If you are an agent working o
 | `cobuild wi append <id> --body "..."` | Append content |
 | `cobuild wi create --type <type> --title "..."` | Create work item |
 
-## How to Run Pipelines (Manual Mode)
+## How to Run Pipelines
 
-**There is no automatic poller.** You must step through each phase manually using `cobuild dispatch` and `cobuild wait`. Do not assume work will happen automatically.
+There are two ways to advance each phase:
 
-Every phase transition requires:
-1. **Dispatch** — `cobuild dispatch <id>` spawns an agent in tmux for the current phase
-2. **Wait** — `cobuild wait <id>` blocks until the agent completes
-3. **Next** — dispatch the next phase or the next wave of tasks
+### Option A: You already did the work (interactive session)
+
+If you've already reviewed the design, decomposed into tasks, or done investigation
+in the current session with the developer, just record the gate verdict:
+
+```bash
+cobuild review <id> --verdict pass --readiness 5 --body "<findings>"   # record design review
+cobuild decompose <id> --verdict pass --body "<task summary>"          # record decomposition
+cobuild investigate <id> --verdict pass --body "<root cause>"           # record investigation
+```
+
+The gate command records the verdict and advances the phase. No dispatch needed.
+
+### Option B: Delegate to a separate agent (dispatch)
+
+If you want a fresh agent to handle a phase in its own context:
+
+```bash
+cobuild dispatch <id>   # spawns agent in tmux for the current phase
+cobuild wait <id>       # blocks until the agent completes
+```
+
+`cobuild dispatch` is phase-aware — it generates the right prompt automatically.
+Use this for implementation (agents write code) and when you want a clean context.
+
+### Which to use?
+
+| Situation | Use |
+|-----------|-----|
+| You just reviewed the design with the developer | Option A — record the gate |
+| You need an agent to write code | Option B — dispatch |
+| You decomposed tasks in conversation | Option A — record the gate |
+| You want investigation in a clean context | Option B — dispatch |
+| Phase needs multiple file reads/edits | Option B — saves your context |
 
 ### Design Workflow
 
