@@ -98,12 +98,25 @@ func findProjectRoot(t *testing.T) string {
 		}
 	}
 
-	// Default: sibling penfold repo
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
-	penfoldRoot := filepath.Join(home, "github", "otherjamesbrown", "penfold")
-	if stat, err := os.Stat(filepath.Join(penfoldRoot, "migrations")); err == nil && stat.IsDir() {
-		return penfoldRoot
+	// Walk up from CWD to find the root of this repo (penf-cli) via .git,
+	// then check for a sibling penfold directory.
+	dir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get working directory")
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			// Found the penf-cli repo root; check for sibling penfold repo
+			penfoldRoot := filepath.Join(filepath.Dir(dir), "penfold")
+			if stat, err := os.Stat(filepath.Join(penfoldRoot, "migrations")); err == nil && stat.IsDir() {
+				return penfoldRoot
+			}
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
 	}
 
 	t.Skip("Penfold migrations directory not found — skipping migration consistency test")
