@@ -23,15 +23,18 @@ go vet ./...
 
 ## Deploying Backend Services
 
-Services are in the penfold repo, deployed via:
+Services are in the penfold repo. `penf deploy` delegates to `penfold/scripts/deploy.sh`:
 
 ```bash
 penf deploy gateway     # Build + deploy gateway to dev02 (systemd)
 penf deploy worker      # Build + deploy worker to dev01 (launchd)
 penf deploy ai          # Build + deploy AI coordinator to dev02 (systemd)
+penf deploy mcp         # Build + deploy MCP server to dev02 (systemd)
 penf deploy all         # Deploy all in dependency order
 penf deploy --status    # Check all services
 ```
+
+The canonical deploy logic lives in `penfold/scripts/` — never duplicate it in Go code.
 
 ## Troubleshooting
 
