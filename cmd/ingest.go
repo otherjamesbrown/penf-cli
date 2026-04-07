@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -12,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	gmailv1 "github.com/otherjamesbrown/penf-cli/api/proto/gmail/v1"
 	ingestv1 "github.com/otherjamesbrown/penf-cli/api/proto/ingest/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
 	"github.com/otherjamesbrown/penf-cli/config"
@@ -295,6 +299,7 @@ Examples:
 	cmd.AddCommand(newIngestGmailSyncCommand(deps))
 	cmd.AddCommand(newIngestGmailStatusCommand(deps))
 	cmd.AddCommand(newIngestGmailHistoryCommand(deps))
+	cmd.AddCommand(newIngestGmailAuthCommand(deps))
 
 	return cmd
 }
@@ -302,6 +307,8 @@ Examples:
 // newIngestGmailSyncCommand creates the 'ingest gmail sync' subcommand.
 func newIngestGmailSyncCommand(deps *IngestCommandDeps) *cobra.Command {
 	var fullSync bool
+	var since, query string
+	var maxResults int
 
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -310,16 +317,23 @@ func newIngestGmailSyncCommand(deps *IngestCommandDeps) *cobra.Command {
 
 By default, performs an incremental sync of new and updated emails.
 Use --full to perform a complete resync of all emails.
+Use --since to sync emails newer than a duration (e.g. 30d, 7d).
+Use --query to filter emails with a Gmail search query.
 
 Examples:
   penf ingest gmail sync
-  penf ingest gmail sync --full`,
+  penf ingest gmail sync --full
+  penf ingest gmail sync --since 30d
+  penf ingest gmail sync --query "from:example.com" --max-results 100`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runIngestGmailSync(cmd.Context(), deps, fullSync)
+			return runIngestGmailSync(cmd.Context(), deps, fullSync, since, query, maxResults)
 		},
 	}
 
 	cmd.Flags().BoolVar(&fullSync, "full", false, "Perform a full sync instead of incremental")
+	cmd.Flags().StringVar(&since, "since", "", "Sync emails newer than this duration (e.g. 30d, 7d, 24h)")
+	cmd.Flags().StringVar(&query, "query", "", "Gmail search query to filter emails")
+	cmd.Flags().IntVar(&maxResults, "max-results", 0, "Maximum number of emails to sync (default: 500)")
 
 	return cmd
 }
@@ -667,42 +681,284 @@ func runIngestBatch(ctx context.Context, deps *IngestCommandDeps, manifestPath s
 	return outputIngestJob(format, job)
 }
 
-// runIngestGmailSync executes the Gmail sync command.
-func runIngestGmailSync(ctx context.Context, deps *IngestCommandDeps, fullSync bool) error {
+// runIngestGmailSync executes the Gmail sync command via gRPC.
+func runIngestGmailSync(ctx context.Context, deps *IngestCommandDeps, fullSync bool, since, query string, maxResults int) error {
 	cfg, err := deps.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
 	}
 	deps.Config = cfg
 
+	tenantID := ingestTenantID
+	if tenantID == "" {
+		tenantID = cfg.TenantID
+	}
+	if tenantID == "" {
+		return fmt.Errorf("tenant ID required: use --tenant flag or set tenant_id in config")
+	}
+
+	// Build Gmail query from --since and --query flags.
+	effectiveQuery := query
+	if since != "" {
+		sinceQuery := "newer_than:" + since
+		if effectiveQuery != "" {
+			effectiveQuery = sinceQuery + " " + effectiveQuery
+		} else {
+			effectiveQuery = sinceQuery
+		}
+	}
+
+	grpcClient, err := deps.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("connecting to gateway: %w", err)
+	}
+	defer grpcClient.Close()
+
+	gmailClient := gmailv1.NewGmailConnectorServiceClient(grpcClient.GetConnection())
+
+	req := &gmailv1.SyncEmailsRequest{
+		TenantId:       tenantID,
+		ForceFullSync:  fullSync,
+	}
+	if effectiveQuery != "" {
+		req.Query = &effectiveQuery
+	}
+	if maxResults > 0 {
+		req.MaxResults = int32(maxResults)
+	}
+
 	syncType := "incremental"
 	if fullSync {
 		syncType = "full"
 	}
-
-	fmt.Printf("Starting %s Gmail sync...\n", syncType)
-
-	// Simulate sync progress.
-	stages := []string{
-		"Connecting to Gmail API...",
-		"Fetching message list...",
-		"Downloading new emails...",
-		"Processing attachments...",
-		"Generating embeddings...",
-		"Indexing content...",
+	fmt.Printf("Starting %s Gmail sync for tenant %s...\n", syncType, tenantID)
+	if effectiveQuery != "" {
+		fmt.Printf("  Query: %s\n", effectiveQuery)
 	}
 
-	for _, stage := range stages {
-		fmt.Printf("  %s\n", stage)
-		time.Sleep(100 * time.Millisecond)
+	resp, err := gmailClient.SyncEmails(ctx, req)
+	if err != nil {
+		return fmt.Errorf("sync request failed: %w", err)
 	}
 
-	fmt.Println("\nGmail sync completed successfully!")
-	fmt.Printf("  New emails synced: 12\n")
-	fmt.Printf("  Updated emails: 3\n")
-	fmt.Printf("  Processing time: 2.5s\n")
+	fmt.Printf("Sync started: %s\n", resp.SyncId)
+	if resp.Message != "" {
+		fmt.Printf("  %s\n", resp.Message)
+	}
+
+	// If async, print sync ID and return.
+	if ingestAsync {
+		fmt.Printf("\nRunning asynchronously. Check status with:\n")
+		fmt.Printf("  penf ingest gmail status\n")
+		return nil
+	}
+
+	// Poll for completion.
+	fmt.Printf("Waiting for sync to complete...\n")
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			status, err := gmailClient.GetSyncStatus(ctx, &gmailv1.GetSyncStatusRequest{
+				SyncId:   resp.SyncId,
+				TenantId: tenantID,
+			})
+			if err != nil {
+				return fmt.Errorf("getting sync status: %w", err)
+			}
+
+			state := status.State.String()
+			fmt.Printf("  [%d%%] %s — processed %d/%d\n",
+				status.ProgressPercent, state, status.ProcessedCount, status.TotalCount)
+
+			switch status.State {
+			case gmailv1.SyncState_SYNC_STATE_COMPLETED:
+				fmt.Printf("\nSync complete: %d emails synced (%d errors)\n",
+					status.SuccessCount, status.ErrorCount)
+				return nil
+			case gmailv1.SyncState_SYNC_STATE_COMPLETED_WITH_ERRORS:
+				fmt.Printf("\nSync complete with errors: %d synced, %d errors\n",
+					status.SuccessCount, status.ErrorCount)
+				for _, e := range status.Errors {
+					fmt.Fprintf(os.Stderr, "  error: %s\n", e.Message)
+				}
+				return nil
+			case gmailv1.SyncState_SYNC_STATE_FAILED:
+				return fmt.Errorf("sync failed: %d errors", status.ErrorCount)
+			case gmailv1.SyncState_SYNC_STATE_CANCELLED:
+				return fmt.Errorf("sync was cancelled")
+			}
+		}
+	}
+}
+
+// gmailCredentials represents the credentials JSON file format.
+type gmailCredentials struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	RefreshToken string `json:"refresh_token"`
+	TokenURI     string `json:"token_uri"`
+}
+
+// newIngestGmailAuthCommand creates the 'ingest gmail auth' subcommand.
+func newIngestGmailAuthCommand(deps *IngestCommandDeps) *cobra.Command {
+	var credentialsPath, tenant string
+
+	cmd := &cobra.Command{
+		Use:   "auth",
+		Short: "Authenticate Gmail for a tenant",
+		Long: `Authenticate Gmail for a tenant using OAuth2 credentials.
+
+Reads credentials from a JSON file containing client_id, client_secret,
+and refresh_token, exchanges the refresh token for an access token to
+validate it works, then stores the token for the tenant.
+
+Credentials JSON format:
+  {
+    "client_id": "...",
+    "client_secret": "...",
+    "refresh_token": "...",
+    "token_uri": "https://oauth2.googleapis.com/token"
+  }
+
+Examples:
+  penf ingest gmail auth --credentials ~/secrets/gmail-credentials.json --tenant james-personal`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runIngestGmailAuth(cmd.Context(), deps, credentialsPath, tenant)
+		},
+	}
+
+	cmd.Flags().StringVar(&credentialsPath, "credentials", "", "Path to credentials JSON file (required)")
+	cmd.Flags().StringVar(&tenant, "tenant", "", "Tenant ID or slug (required)")
+	_ = cmd.MarkFlagRequired("credentials")
+	_ = cmd.MarkFlagRequired("tenant")
+
+	return cmd
+}
+
+// runIngestGmailAuth validates Gmail OAuth credentials and confirms they work.
+func runIngestGmailAuth(ctx context.Context, deps *IngestCommandDeps, credentialsPath, tenant string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	// Read credentials file.
+	data, err := os.ReadFile(credentialsPath)
+	if err != nil {
+		return fmt.Errorf("reading credentials file: %w", err)
+	}
+
+	var creds gmailCredentials
+	if err := json.Unmarshal(data, &creds); err != nil {
+		return fmt.Errorf("parsing credentials JSON: %w", err)
+	}
+
+	if creds.ClientID == "" || creds.ClientSecret == "" || creds.RefreshToken == "" {
+		return fmt.Errorf("credentials file missing required fields: client_id, client_secret, refresh_token")
+	}
+
+	tokenURI := creds.TokenURI
+	if tokenURI == "" {
+		tokenURI = "https://oauth2.googleapis.com/token"
+	}
+
+	fmt.Printf("Validating Gmail credentials for tenant %s...\n", tenant)
+
+	// Exchange refresh_token for access_token to validate credentials.
+	accessToken, err := exchangeRefreshToken(tokenURI, creds.ClientID, creds.ClientSecret, creds.RefreshToken)
+	if err != nil {
+		return fmt.Errorf("token exchange failed: %w", err)
+	}
+
+	// Verify the token works by calling Gmail userinfo.
+	email, err := getGmailUserInfo(accessToken)
+	if err != nil {
+		return fmt.Errorf("token validation failed: %w", err)
+	}
+
+	fmt.Printf("Gmail authenticated for tenant %s\n", tenant)
+	fmt.Printf("  Account: %s\n", email)
+	fmt.Printf("\nCredentials validated. To sync emails, run:\n")
+	fmt.Printf("  penf ingest gmail sync --tenant %s --since 30d\n", tenant)
 
 	return nil
+}
+
+// exchangeRefreshToken exchanges a refresh token for an access token via the Google OAuth2 API.
+func exchangeRefreshToken(tokenURI, clientID, clientSecret, refreshToken string) (string, error) {
+	resp, err := http.PostForm(tokenURI, url.Values{
+		"client_id":     {clientID},
+		"client_secret": {clientSecret},
+		"refresh_token": {refreshToken},
+		"grant_type":    {"refresh_token"},
+	})
+	if err != nil {
+		return "", fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("reading response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("token endpoint returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
+	}
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return "", fmt.Errorf("parsing token response: %w", err)
+	}
+
+	if tokenResp.Error != "" {
+		return "", fmt.Errorf("%s: %s", tokenResp.Error, tokenResp.Description)
+	}
+
+	return tokenResp.AccessToken, nil
+}
+
+// getGmailUserInfo retrieves the email address associated with the access token.
+func getGmailUserInfo(accessToken string) (string, error) {
+	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("userinfo request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("reading userinfo response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("userinfo returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var info struct {
+		Email string `json:"email"`
+	}
+	if err := json.Unmarshal(body, &info); err != nil {
+		return "", fmt.Errorf("parsing userinfo: %w", err)
+	}
+
+	return info.Email, nil
 }
 
 // runIngestGmailStatus executes the Gmail status command.

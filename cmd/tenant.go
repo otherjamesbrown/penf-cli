@@ -63,6 +63,7 @@ type TenantCommandDeps struct {
 	ListTenants      func(ctx context.Context, c *client.TenantClient, req *client.ListTenantsRequest) ([]*client.Tenant, int64, error)
 	GetTenant        func(ctx context.Context, c *client.TenantClient, id string, slug string) (*client.Tenant, error)
 	SetCurrentTenant func(ctx context.Context, c *client.TenantClient, tenantRef string) (*client.Tenant, bool, string, error)
+	CreateTenant     func(ctx context.Context, c *client.TenantClient, req *client.CreateTenantRequest) (*client.Tenant, error)
 }
 
 // DefaultDeps returns the default dependencies for production use.
@@ -105,6 +106,9 @@ func DefaultDeps() *TenantCommandDeps {
 		SetCurrentTenant: func(ctx context.Context, c *client.TenantClient, tenantRef string) (*client.Tenant, bool, string, error) {
 			return c.SetCurrentTenant(ctx, tenantRef)
 		},
+		CreateTenant: func(ctx context.Context, c *client.TenantClient, req *client.CreateTenantRequest) (*client.Tenant, error) {
+			return c.CreateTenant(ctx, req)
+		},
 	}
 }
 
@@ -143,6 +147,7 @@ Most commands accept --tenant to override the active tenant for a single operati
 	cmd.AddCommand(newTenantSwitchCommand(deps))
 	cmd.AddCommand(newTenantCurrentCommand(deps))
 	cmd.AddCommand(newTenantShowCommand(deps))
+	cmd.AddCommand(newTenantCreateCommand(deps))
 
 	return cmd
 }
@@ -645,6 +650,77 @@ func outputTenantDetailText(info TenantInfo) error {
 	}
 	if info.IsCurrent {
 		fmt.Printf("  Current:     yes (active context)\n")
+	}
+
+	return nil
+}
+
+// newTenantCreateCommand creates the 'tenant create' subcommand.
+func newTenantCreateCommand(deps *TenantCommandDeps) *cobra.Command {
+	var name, slug, description string
+
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a new tenant",
+		Long: `Create a new tenant in Penfold.
+
+The slug is derived from the name in kebab-case if not specified.
+
+Examples:
+  penf tenant create --name "James Personal"
+  penf tenant create --name "Acme Corp" --slug acme-corp --description "Main tenant"`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTenantCreate(cmd.Context(), deps, name, slug, description, getInsecureFlag(cmd))
+		},
+	}
+
+	cmd.Flags().StringVar(&name, "name", "", "Tenant name (required)")
+	cmd.Flags().StringVar(&slug, "slug", "", "Tenant slug (derived from name if not specified)")
+	cmd.Flags().StringVar(&description, "description", "", "Tenant description")
+	_ = cmd.MarkFlagRequired("name")
+
+	return cmd
+}
+
+// runTenantCreate executes the tenant create command.
+func runTenantCreate(ctx context.Context, deps *TenantCommandDeps, name, slug, description string, insecureFlag bool) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	if insecureFlag {
+		cfg.Insecure = true
+	}
+	deps.Config = cfg
+
+	tenantClient, err := deps.InitTenantClient(cfg)
+	if err != nil {
+		return err
+	}
+	defer tenantClient.Close()
+
+	req := &client.CreateTenantRequest{
+		Name:        name,
+		Slug:        slug,
+		Description: description,
+	}
+
+	var tenant *client.Tenant
+	if deps.CreateTenant != nil {
+		tenant, err = deps.CreateTenant(ctx, tenantClient, req)
+	} else {
+		tenant, err = tenantClient.CreateTenant(ctx, req)
+	}
+	if err != nil {
+		return fmt.Errorf("creating tenant: %w", err)
+	}
+
+	fmt.Printf("Created tenant:\n")
+	fmt.Printf("  ID:   %s\n", tenant.ID)
+	fmt.Printf("  Slug: %s\n", tenant.Slug)
+	fmt.Printf("  Name: %s\n", tenant.Name)
+	if tenant.Description != "" {
+		fmt.Printf("  Description: %s\n", tenant.Description)
 	}
 
 	return nil
