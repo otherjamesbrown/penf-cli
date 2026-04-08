@@ -130,7 +130,7 @@ service PipelineService {
   // TestClassificationRule runs the classification engine against a content item.
   rpc TestClassificationRule(TestClassificationRuleRequest) returns (TestClassificationRuleResponse);
 
-  // CreateClassificationRule creates a new classification rule.
+  // CreateClassificationRule creates a new classification rule with conditions.
   rpc CreateClassificationRule(CreateClassificationRuleRequest) returns (CreateClassificationRuleResponse);
 
   // DeleteClassificationRule deletes a classification rule by name.
@@ -1483,32 +1483,32 @@ message TestClassificationRuleResponse {
 
 // CreateClassificationRuleRequest creates a new classification rule.
 message CreateClassificationRuleRequest {
-  // Tenant ID.
+  // Tenant ID (uses default if empty).
   string tenant_id = 1;
 
   // Rule name (must be unique within tenant).
   string name = 2;
 
-  // Priority (lower = higher priority).
+  // Priority (lower = higher priority, evaluated first).
   int32 priority = 3;
 
-  // Scope filter (e.g., "EMAIL"). Defaults to "EMAIL" if empty.
-  string scope = 4;
+  // Content type scope for matching.
+  string content_type_scope = 4;
 
-  // Resulting content type (e.g., "EMAIL").
+  // Content type to assign on match.
   string content_type = 5;
 
-  // Resulting content subtype (e.g., "NEWSLETTER").
+  // Content subtype to assign on match.
   string content_subtype = 6;
 
-  // Resulting notification source (for NOTIFICATION subtype).
+  // Notification source to assign on match.
   string notification_source = 7;
 
-  // Whether the rule is active. Defaults to true.
-  bool active = 8;
+  // Match conditions (OR logic: any match triggers the rule).
+  repeated ClassificationMatchCondition conditions = 8;
 
-  // Match conditions (OR logic).
-  repeated ClassificationMatchCondition conditions = 9;
+  // Whether this rule is active.
+  bool active = 9;
 }
 
 // CreateClassificationRuleResponse contains the created rule.
@@ -1517,17 +1517,20 @@ message CreateClassificationRuleResponse {
   ClassificationRule rule = 1;
 }
 
-// DeleteClassificationRuleRequest deletes a classification rule by name.
+// DeleteClassificationRuleRequest deletes a rule by name.
 message DeleteClassificationRuleRequest {
-  // Tenant ID.
+  // Tenant ID (uses default if empty).
   string tenant_id = 1;
 
-  // Rule name.
+  // Rule name to delete.
   string name = 2;
 }
 
-// DeleteClassificationRuleResponse is empty on success.
-message DeleteClassificationRuleResponse {}
+// DeleteClassificationRuleResponse confirms deletion.
+message DeleteClassificationRuleResponse {
+  // Number of rules deleted.
+  int32 deleted_count = 1;
+}
 
 // =============================================================================
 // Pipeline Routing Messages
