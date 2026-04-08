@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	contentv1 "github.com/otherjamesbrown/penf-cli/api/proto/content/v1"
+	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
 	"github.com/otherjamesbrown/penf-cli/config"
 	"github.com/otherjamesbrown/penf-cli/pkg/enrichment"
@@ -33,10 +34,12 @@ type ClassifyCommandDeps struct {
 	InitClient func(*config.CLIConfig) (*client.GRPCClient, error)
 
 	// Mock function overrides for testing
-	ReprocessContentFn func(ctx context.Context, contentID, reason string) (*contentv1.ReprocessContentResponse, error)
-	ListContentItemsFn func(ctx context.Context, req *contentv1.ListContentItemsRequest) (*contentv1.ListContentItemsResponse, error)
-	GetContentItemFn   func(ctx context.Context, contentID string, includeEmbedding bool) (*contentv1.ContentItem, error)
-	GetContentStatsFn  func(ctx context.Context, tenantID string) (*contentv1.ContentStats, error)
+	ReprocessContentFn        func(ctx context.Context, contentID, reason string) (*contentv1.ReprocessContentResponse, error)
+	ListContentItemsFn        func(ctx context.Context, req *contentv1.ListContentItemsRequest) (*contentv1.ListContentItemsResponse, error)
+	GetContentItemFn          func(ctx context.Context, contentID string, includeEmbedding bool) (*contentv1.ContentItem, error)
+	GetContentStatsFn         func(ctx context.Context, tenantID string) (*contentv1.ContentStats, error)
+	TestClassificationRuleFn  func(ctx context.Context, tenantID, contentID string) (*pipelinev1.TestClassificationRuleResponse, error)
+	ListClassificationRulesFn func(ctx context.Context, tenantID string) (*pipelinev1.ListClassificationRulesResponse, error)
 }
 
 // ReprocessContentResult represents the result of reprocessing a content item.
@@ -325,46 +328,35 @@ func runClassifySingleItem(ctx context.Context, deps *ClassifyCommandDeps, conte
 }
 
 func runClassifyDryRun(ctx context.Context, deps *ClassifyCommandDeps, contentID string, format config.OutputFormat) error {
-	var item *contentv1.ContentItem
+	tenantID := deps.Config.EffectiveTenantID()
+
+	var resp *pipelinev1.TestClassificationRuleResponse
 	var err error
-
-	// Use mock function if provided (for testing), otherwise use real client
-	if deps.GetContentItemFn != nil {
-		item, err = deps.GetContentItemFn(ctx, contentID, false)
+	if deps.TestClassificationRuleFn != nil {
+		resp, err = deps.TestClassificationRuleFn(ctx, tenantID, contentID)
 	} else {
-		item, err = deps.GRPCClient.GetContentItem(ctx, contentID, false)
-	}
-
-	if err != nil {
-		return fmt.Errorf("fetching content item %s: %w", contentID, err)
-	}
-
-	// Extract metadata for classification
-	from := ""
-	subject := ""
-	messageID := ""
-	headers := make(map[string]string)
-
-	if item.Metadata != nil {
-		from = item.Metadata["from"]
-		subject = item.Metadata["subject"]
-		messageID = item.Metadata["message_id"]
-		// Pass all metadata as headers for classification
-		for k, v := range item.Metadata {
-			headers[k] = v
+		conn, connErr := connectPipelineToGateway(deps.Config)
+		if connErr != nil {
+			return connErr
 		}
+		defer conn.Close()
+		pipelineClient := pipelinev1.NewPipelineServiceClient(conn)
+		resp, err = pipelineClient.TestClassificationRule(ctx, &pipelinev1.TestClassificationRuleRequest{
+			TenantId:  tenantID,
+			ContentId: contentID,
+		})
+	}
+	if err != nil {
+		return fmt.Errorf("testing classification rule: %w", err)
 	}
 
-	// Run classification locally
-	sourceSystem := classification.ClassifySourceSystem(from, subject, messageID, headers)
-
-	result := &ReprocessContentResult{
-		ContentID:    contentID,
-		SourceSystem: string(sourceSystem),
-		JobID:        "", // No job ID in dry-run mode
+	if format == config.OutputFormatJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
 	}
 
-	return outputClassifyResult(format, result, true)
+	return outputRuleTestHuman(resp)
 }
 
 func runClassifyBatch(ctx context.Context, deps *ClassifyCommandDeps, tenantID string, format config.OutputFormat) error {
@@ -502,17 +494,41 @@ func runClassifyRules(ctx context.Context, deps *ClassifyCommandDeps) error {
 	}
 	deps.Config = cfg
 
-	// Get the rules from the classification package
-	// These are hardcoded in source_system.go, so we define them here for display
-	rules := getClassificationRules()
+	tenantID := cfg.EffectiveTenantID()
+	if tenantID == "" {
+		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
+	}
 
-	// Output the rules
+	var resp *pipelinev1.ListClassificationRulesResponse
+	if deps.ListClassificationRulesFn != nil {
+		resp, err = deps.ListClassificationRulesFn(ctx, tenantID)
+	} else {
+		conn, connErr := connectPipelineToGateway(cfg)
+		if connErr != nil {
+			return connErr
+		}
+		defer conn.Close()
+		pipelineClient := pipelinev1.NewPipelineServiceClient(conn)
+		resp, err = pipelineClient.ListClassificationRules(ctx, &pipelinev1.ListClassificationRulesRequest{
+			TenantId: tenantID,
+		})
+	}
+	if err != nil {
+		return fmt.Errorf("listing classification rules: %w", err)
+	}
+
 	format := cfg.OutputFormat
 	if classifyOutput != "" {
 		format = config.OutputFormat(classifyOutput)
 	}
 
-	return outputClassifyRules(format, rules)
+	if format == config.OutputFormatJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp.Rules)
+	}
+
+	return outputRulesListHuman(resp.Rules)
 }
 
 // ClassificationRule represents a single classification rule.
