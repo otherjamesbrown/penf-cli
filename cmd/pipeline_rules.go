@@ -10,6 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func newPipelineRulesCmd(deps *PipelineCommandDeps) *cobra.Command {
@@ -41,6 +43,9 @@ Examples:
 	cmd.AddCommand(newPipelineRulesListCmd(deps))
 	cmd.AddCommand(newPipelineRulesShowCmd(deps))
 	cmd.AddCommand(newPipelineRulesTestCmd(deps))
+	cmd.AddCommand(newPipelineRulesAddCmd(deps))
+	cmd.AddCommand(newPipelineRulesDeleteCmd(deps))
+	cmd.AddCommand(newPipelineRulesCopyCmd(deps))
 
 	// Default action is list
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -237,6 +242,234 @@ func runPipelineRulesTest(ctx context.Context, deps *PipelineCommandDeps, conten
 	}
 
 	return outputRuleTestHuman(resp)
+}
+
+func newPipelineRulesAddCmd(deps *PipelineCommandDeps) *cobra.Command {
+	var (
+		priority   int32
+		ctype      string
+		subtype    string
+		source     string
+		scope      string
+		conditions []string
+		inactive   bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "add <name>",
+		Short: "Create a classification rule",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPipelineRulesAdd(cmd.Context(), deps, args[0], priority, ctype, subtype, source, scope, conditions, inactive)
+		},
+	}
+
+	cmd.Flags().Int32Var(&priority, "priority", 0, "Rule priority (lower = higher priority, required)")
+	cmd.Flags().StringVar(&ctype, "type", "", "Content type result (e.g. EMAIL)")
+	cmd.Flags().StringVar(&subtype, "subtype", "", "Content subtype result (e.g. NEWSLETTER)")
+	cmd.Flags().StringVar(&source, "source", "", "Notification source (for NOTIFICATION type)")
+	cmd.Flags().StringVar(&scope, "scope", "EMAIL", "Content type scope filter")
+	cmd.Flags().StringArrayVar(&conditions, "condition", nil, "Match condition: field:match_type:value (repeatable)")
+	cmd.Flags().BoolVar(&inactive, "inactive", false, "Create rule as inactive")
+	_ = cmd.MarkFlagRequired("priority")
+
+	return cmd
+}
+
+func newPipelineRulesDeleteCmd(deps *PipelineCommandDeps) *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a classification rule",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPipelineRulesDelete(cmd.Context(), deps, args[0])
+		},
+	}
+}
+
+func newPipelineRulesCopyCmd(deps *PipelineCommandDeps) *cobra.Command {
+	var fromTenant string
+
+	cmd := &cobra.Command{
+		Use:   "copy",
+		Short: "Copy all classification rules from another tenant",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPipelineRulesCopy(cmd.Context(), deps, fromTenant)
+		},
+	}
+
+	cmd.Flags().StringVar(&fromTenant, "from-tenant", "", "Source tenant UUID (required)")
+	_ = cmd.MarkFlagRequired("from-tenant")
+
+	return cmd
+}
+
+func runPipelineRulesAdd(ctx context.Context, deps *PipelineCommandDeps, name string, priority int32, ctype, subtype, source, scope string, conditions []string, inactive bool) error {
+	if len(conditions) == 0 {
+		return fmt.Errorf("at least one --condition is required")
+	}
+
+	parsed, err := parseConditions(conditions)
+	if err != nil {
+		return err
+	}
+
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	tenantID := cfg.EffectiveTenantID()
+	if tenantID == "" {
+		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
+	}
+
+	conn, err := connectPipelineToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := pipelinev1.NewPipelineServiceClient(conn)
+
+	if scope == "" {
+		scope = "EMAIL"
+	}
+
+	resp, err := client.CreateClassificationRule(ctx, &pipelinev1.CreateClassificationRuleRequest{
+		TenantId:           tenantID,
+		Name:               name,
+		Priority:           priority,
+		Scope:              scope,
+		ContentType:        ctype,
+		ContentSubtype:     subtype,
+		NotificationSource: source,
+		Active:             !inactive,
+		Conditions:         parsed,
+	})
+	if err != nil {
+		return fmt.Errorf("creating classification rule: %w", err)
+	}
+
+	rule := resp.Rule
+	fmt.Printf("Created rule: %s (priority %d, scope %s, type %s", rule.Name, rule.Priority, rule.Scope, rule.ContentType)
+	if rule.ContentSubtype != "" {
+		fmt.Printf("/%s", rule.ContentSubtype)
+	}
+	fmt.Println(")")
+	return nil
+}
+
+func runPipelineRulesDelete(ctx context.Context, deps *PipelineCommandDeps, name string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	tenantID := cfg.EffectiveTenantID()
+	if tenantID == "" {
+		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
+	}
+
+	conn, err := connectPipelineToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := pipelinev1.NewPipelineServiceClient(conn)
+
+	_, err = client.DeleteClassificationRule(ctx, &pipelinev1.DeleteClassificationRuleRequest{
+		TenantId: tenantID,
+		Name:     name,
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return fmt.Errorf("rule not found: %s", name)
+		}
+		return fmt.Errorf("deleting classification rule: %w", err)
+	}
+
+	fmt.Printf("Deleted rule: %s\n", name)
+	return nil
+}
+
+func runPipelineRulesCopy(ctx context.Context, deps *PipelineCommandDeps, fromTenantID string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	destTenantID := cfg.EffectiveTenantID()
+	if destTenantID == "" {
+		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
+	}
+
+	conn, err := connectPipelineToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := pipelinev1.NewPipelineServiceClient(conn)
+
+	listResp, err := client.ListClassificationRules(ctx, &pipelinev1.ListClassificationRulesRequest{
+		TenantId: fromTenantID,
+	})
+	if err != nil {
+		return fmt.Errorf("listing source rules: %w", err)
+	}
+
+	copied, skipped := 0, 0
+	for _, rule := range listResp.Rules {
+		_, err := client.CreateClassificationRule(ctx, &pipelinev1.CreateClassificationRuleRequest{
+			TenantId:           destTenantID,
+			Name:               rule.Name,
+			Priority:           rule.Priority,
+			Scope:              rule.Scope,
+			ContentType:        rule.ContentType,
+			ContentSubtype:     rule.ContentSubtype,
+			NotificationSource: rule.NotificationSource,
+			Active:             rule.Active,
+			Conditions:         rule.Conditions,
+		})
+		if err != nil {
+			if status.Code(err) == codes.AlreadyExists {
+				fmt.Printf("  skip (exists): %s\n", rule.Name)
+				skipped++
+				continue
+			}
+			return fmt.Errorf("copying rule %q: %w", rule.Name, err)
+		}
+		fmt.Printf("  copied: %s\n", rule.Name)
+		copied++
+	}
+
+	fmt.Printf("\nCopied %d rules from %s to %s", copied, fromTenantID, destTenantID)
+	if skipped > 0 {
+		fmt.Printf(" (%d skipped, already exist)", skipped)
+	}
+	fmt.Println()
+	return nil
+}
+
+func parseConditions(raw []string) ([]*pipelinev1.ClassificationMatchCondition, error) {
+	out := make([]*pipelinev1.ClassificationMatchCondition, 0, len(raw))
+	for _, s := range raw {
+		parts := strings.SplitN(s, ":", 3)
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("invalid --condition %q: expected format field:match_type:value", s)
+		}
+		out = append(out, &pipelinev1.ClassificationMatchCondition{
+			Field:    parts[0],
+			Operator: parts[1],
+			Value:    parts[2],
+		})
+	}
+	return out, nil
 }
 
 func outputRulesListHuman(rules []*pipelinev1.ClassificationRule) error {
