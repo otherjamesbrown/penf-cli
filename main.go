@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
@@ -120,6 +121,11 @@ DISCOVERY:
 		}
 		if insecure {
 			cfg.Insecure = true
+		}
+
+		// Resolve --tenant flag: if set to a slug, look up the UUID before any RPC.
+		if err := resolveTenantFlagIfNeeded(cmd.Context(), cmd, cfg); err != nil {
+			return fmt.Errorf("resolving --tenant: %w", err)
 		}
 
 		// Set output capture on the command if Context-Palace is configured.
@@ -1142,6 +1148,73 @@ func initClient() error {
 	}
 	grpcClient = c
 	return nil
+}
+
+// resolveTenantFlagIfNeeded checks whether the running command has a --tenant
+// flag that was set to a slug (not a UUID). If so, it resolves slug→UUID via
+// the tenant service and updates the flag value in place, so the bound
+// per-command variable (projectTenant, searchTenant, etc.) gets the UUID.
+func resolveTenantFlagIfNeeded(ctx context.Context, cmd *cobra.Command, cfg *config.CLIConfig) error {
+	flag := cmd.Flag("tenant")
+	if flag == nil || !flag.Changed {
+		return nil
+	}
+
+	val := flag.Value.String()
+	if _, err := uuid.Parse(val); err == nil {
+		return nil // already a UUID
+	}
+
+	resolved, err := resolveSlugToUUID(ctx, cfg, val)
+	if err != nil {
+		return err
+	}
+
+	return flag.Value.Set(resolved)
+}
+
+// resolveSlugToUUID resolves a tenant slug (or alias) to its UUID.
+// Checks config aliases first; falls back to a gRPC GetTenant call.
+func resolveSlugToUUID(ctx context.Context, cfg *config.CLIConfig, slugOrAlias string) (string, error) {
+	// Check aliases — they may already be UUIDs.
+	if cfg.TenantAliases != nil {
+		if aliasVal, ok := cfg.TenantAliases[slugOrAlias]; ok {
+			if _, err := uuid.Parse(aliasVal); err == nil {
+				return aliasVal, nil
+			}
+			slugOrAlias = aliasVal // resolve alias to slug, then fall through to RPC
+		}
+	}
+
+	opts := &client.ClientOptions{
+		Insecure:       cfg.Insecure,
+		Debug:          cfg.Debug,
+		ConnectTimeout: cfg.Timeout,
+	}
+	if !cfg.Insecure {
+		tlsConfig, err := client.LoadClientTLSConfig(&cfg.TLS)
+		if err != nil {
+			return "", fmt.Errorf("loading TLS config: %w", err)
+		}
+		opts.TLSConfig = tlsConfig
+	}
+
+	tenantClient := client.NewTenantClient(cfg.ServerAddress, opts)
+
+	resolveCtx, cancel := context.WithTimeout(ctx, cfg.Timeout)
+	defer cancel()
+
+	if err := tenantClient.Connect(resolveCtx); err != nil {
+		return "", fmt.Errorf("connecting to tenant service: %w", err)
+	}
+	defer tenantClient.Close()
+
+	tenant, err := tenantClient.GetTenant(resolveCtx, "", slugOrAlias)
+	if err != nil {
+		return "", fmt.Errorf("tenant %q not found: %w", slugOrAlias, err)
+	}
+
+	return tenant.ID, nil
 }
 
 // getTenantID returns the current tenant ID from environment or config.
