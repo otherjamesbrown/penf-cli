@@ -130,6 +130,12 @@ service PipelineService {
   // TestClassificationRule runs the classification engine against a content item.
   rpc TestClassificationRule(TestClassificationRuleRequest) returns (TestClassificationRuleResponse);
 
+  // CreateClassificationRule creates a new classification rule.
+  rpc CreateClassificationRule(CreateClassificationRuleRequest) returns (CreateClassificationRuleResponse);
+
+  // DeleteClassificationRule deletes a classification rule by name.
+  rpc DeleteClassificationRule(DeleteClassificationRuleRequest) returns (DeleteClassificationRuleResponse);
+
   // ListPipelineRoutes lists all pipeline routing rules.
   rpc ListPipelineRoutes(ListPipelineRoutesRequest) returns (ListPipelineRoutesResponse);
 
@@ -1474,6 +1480,54 @@ message TestClassificationRuleResponse {
   // Description of which condition matched.
   string matched_condition = 6;
 }
+
+// CreateClassificationRuleRequest creates a new classification rule.
+message CreateClassificationRuleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Rule name (must be unique within tenant).
+  string name = 2;
+
+  // Priority (lower = higher priority).
+  int32 priority = 3;
+
+  // Scope filter (e.g., "EMAIL"). Defaults to "EMAIL" if empty.
+  string scope = 4;
+
+  // Resulting content type (e.g., "EMAIL").
+  string content_type = 5;
+
+  // Resulting content subtype (e.g., "NEWSLETTER").
+  string content_subtype = 6;
+
+  // Resulting notification source (for NOTIFICATION subtype).
+  string notification_source = 7;
+
+  // Whether the rule is active. Defaults to true.
+  bool active = 8;
+
+  // Match conditions (OR logic).
+  repeated ClassificationMatchCondition conditions = 9;
+}
+
+// CreateClassificationRuleResponse contains the created rule.
+message CreateClassificationRuleResponse {
+  // The created classification rule.
+  ClassificationRule rule = 1;
+}
+
+// DeleteClassificationRuleRequest deletes a classification rule by name.
+message DeleteClassificationRuleRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Rule name.
+  string name = 2;
+}
+
+// DeleteClassificationRuleResponse is empty on success.
+message DeleteClassificationRuleResponse {}
 
 // =============================================================================
 // Pipeline Routing Messages
