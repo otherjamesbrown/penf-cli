@@ -93,7 +93,7 @@ Examples:
   penf deploy history --last 5       Show last 5 deployments
 
 Environment:
-  PENFOLD_DB_URL   Database connection string (required)`,
+  PENFOLD_DB_URL   Database connection string (overrides config)`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc := ""
@@ -119,7 +119,7 @@ Examples:
   penf deploy record penfold-gateway --commit abc123 --notify --shard-ids pf-xxx,pf-yyy
 
 Environment:
-  PENFOLD_DB_URL   Database connection string (required)`,
+  PENFOLD_DB_URL   Database connection string (overrides config)`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeployRecord(args[0])
@@ -170,10 +170,21 @@ type deployHistoryEntry struct {
 	ShardIDs        []string
 }
 
+func resolveDeployDBURL() (string, error) {
+	if v := os.Getenv("PENFOLD_DB_URL"); v != "" {
+		return v, nil
+	}
+	cfg, err := config.LoadConfig()
+	if err == nil && cfg.Database != nil && cfg.Database.IsConfigured() {
+		return cfg.Database.ConnectionString(), nil
+	}
+	return "", fmt.Errorf("PENFOLD_DB_URL not set and no database configured in ~/.penf/config.yaml")
+}
+
 func runDeployRecord(serviceName string) error {
-	dbURL := os.Getenv("PENFOLD_DB_URL")
-	if dbURL == "" {
-		return fmt.Errorf("PENFOLD_DB_URL environment variable not set")
+	dbURL, err := resolveDeployDBURL()
+	if err != nil {
+		return err
 	}
 
 	version := recordVersion
@@ -286,9 +297,9 @@ func sendDeployNotification(ctx context.Context, serviceName, commit, previousCo
 }
 
 func runDeployHistory(serviceName string) error {
-	dbURL := os.Getenv("PENFOLD_DB_URL")
-	if dbURL == "" {
-		return fmt.Errorf("PENFOLD_DB_URL environment variable not set")
+	dbURL, err := resolveDeployDBURL()
+	if err != nil {
+		return err
 	}
 
 	ctx := context.Background()
