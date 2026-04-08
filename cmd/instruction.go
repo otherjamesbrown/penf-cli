@@ -482,8 +482,8 @@ func runInstructionHistory(ctx context.Context, deps *InstructionCommandDeps, id
 // ==================== helpers ====================
 
 func getTenantIDForInstruction(deps *InstructionCommandDeps) (string, error) {
-	if deps.Config != nil && deps.Config.TenantID != "" {
-		return deps.Config.TenantID, nil
+	if deps.Config != nil && deps.Config.EffectiveTenantID() != "" {
+		return deps.Config.EffectiveTenantID(), nil
 	}
 	if envTenant := os.Getenv("PENF_TENANT_ID"); envTenant != "" {
 		return envTenant, nil

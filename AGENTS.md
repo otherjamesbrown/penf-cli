@@ -1,4 +1,4 @@
-<!-- BEGIN COBUILD INTEGRATION v:1 hash:69527112 -->
+<!-- BEGIN COBUILD INTEGRATION v:1 hash:4b73160c -->
 # CoBuild Pipeline Instructions
 
 This project uses CoBuild for pipeline automation. If you are an agent working on a task dispatched by CoBuild, follow these instructions.
@@ -10,6 +10,7 @@ This project uses CoBuild for pipeline automation. If you are an agent working o
 - **Workflows:**
   - design: design → decompose → implement → review → done
   - bug: investigate → implement → review → done
+  - bug-complex: investigate → implement → review → done
   - task: implement → review → done
 
 ## Commands
@@ -105,7 +106,38 @@ cobuild retro <design-id>                    # run retrospective
 
 ### Bug Workflow
 
+**Default (most bugs):** single `fix` session — agent investigates and fixes together.
+
+**Escalation path:** if the bug is complex, label it `needs-investigation` first — it routes to a read-only investigation phase that produces a fix spec before any code is changed.
+
+#### When to add `needs-investigation`
+
+Apply the label if **any** of these are true:
+
+1. Root cause unknown (symptom visible, mechanism unclear)
+2. Bug spans multiple services, modules, or repos
+3. Data or security implications — need blast radius assessment before fixing
+4. This area has broken before, or the fix might have unintended side effects
+5. Reproduces inconsistently — needs investigation to find the trigger
+6. Fix shape is non-obvious (can't describe it in 1-2 sentences)
+7. Investigation produces options that require a stakeholder decision
+
+If none apply → omit the label. The fix agent will investigate as it fixes.
+
+#### Default bug flow
+
 ```bash
+cobuild init <bug-id>                        # enters fix phase
+cobuild dispatch <bug-id>                    # spawns fix agent (investigate + implement)
+cobuild wait <bug-id>                        # wait for fix
+cobuild merge <bug-id>                       # merge the fix PR
+cobuild deploy <bug-id>                      # deploy if needed
+```
+
+#### Complex bug flow (needs-investigation label)
+
+```bash
+cobuild wi label add <bug-id> needs-investigation
 cobuild init <bug-id>                        # enters investigate phase
 cobuild dispatch <bug-id>                    # spawns investigation agent (READ-ONLY)
 cobuild wait <bug-id>                        # wait for investigation
@@ -135,7 +167,25 @@ When you have completed your implementation:
 2. Build: `go build -o penf .`
 3. **Run `cobuild complete <task-id>`**
 
-**Do this as your LAST action. Do not skip it.**
+The Stop hook will run `cobuild complete` automatically when you finish.
+If it fails, run it manually as your last action.
+
+## Orchestrator Protocol
+
+If you are the orchestrating agent (dispatching tasks, not implementing them),
+**follow through the full lifecycle. Do not stop after dispatch.**
+
+After dispatching tasks:
+
+1. **Monitor** — use `cobuild audit <id>` or `cobuild status` for instant checks (do NOT use `cobuild wait` as a background task — it's a 2-hour blocking command)
+2. **Wait for Gemini review** — check `gh api repos/<owner>/<repo>/pulls/<pr>/reviews` for at least 1 review. If 0 reviews, **wait** (trigger with `/gemini review` comment if needed). Do NOT treat 0 comments as "clean" — it means Gemini hasn't reviewed yet.
+3. **Address findings** — read inline comments via `gh api repos/<owner>/<repo>/pulls/<pr>/comments`. Send HIGH/CRITICAL findings back to the agent or fix directly. MEDIUM findings: use judgement.
+4. **Merge** — only after Gemini has reviewed and HIGH findings are addressed. `cobuild merge <task-id>` (or `gh pr merge <pr> --admin --squash` if cobuild merge fails)
+5. **Close** — update work item status to closed
+6. **Report** — tell the user what shipped, not "want me to review?"
+7. **Deploy** — do NOT deploy automatically. Run `cobuild deploy <id> --dry-run` to show which services would be affected, then **ask the user** for approval. On approval, run `cobuild deploy <id>` (triggers deploy commands from pipeline config with smoke tests and auto-rollback). Deploy touches production and is always a human decision.
+
+Only pause for user input if there is an actual blocker: merge conflict, critical Gemini finding you can't resolve, a design decision, or deploy approval.
 
 ## What CoBuild manages vs what you do directly
 
@@ -150,7 +200,7 @@ Be explicit when reporting status. State clearly whether an action is:
 |-----------|--------|---------|
 | `design/` | gate-readiness-review, implementability | Design evaluation |
 | `decompose/` | decompose-design | Break designs into tasks |
-| `investigate/` | bug-investigation | Root cause analysis for bugs |
+| `investigate/` | bug-investigation | Root cause analysis for needs-investigation bugs |
 | `implement/` | dispatch-task, stall-check | Task dispatch and monitoring |
 | `review/` | gate-process-review, gate-review-pr, merge-and-verify | Code review |
 | `done/` | gate-retrospective | Post-delivery retrospective |

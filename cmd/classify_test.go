@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	contentv1 "github.com/otherjamesbrown/penf-cli/api/proto/content/v1"
+	pipelinev1 "github.com/otherjamesbrown/penf-cli/api/proto/pipeline/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
 	"github.com/otherjamesbrown/penf-cli/config"
 )
@@ -504,7 +505,7 @@ func TestClassifyRunBatchAll(t *testing.T) {
 }
 
 // TestClassifyRunDryRun tests classify run --dry-run for a single item.
-// After implementation: should call GetContentItem, classify locally with ClassifySourceSystem(), return result without persisting.
+// Calls gateway TestClassificationRule RPC and displays the matched rule result.
 func TestClassifyRunDryRun(t *testing.T) {
 	cfg := &config.CLIConfig{
 		ServerAddress: "localhost:50051",
@@ -521,14 +522,15 @@ func TestClassifyRunDryRun(t *testing.T) {
 		InitClient: func(c *config.CLIConfig) (*client.GRPCClient, error) {
 			return nil, nil
 		},
-		// Mock function to get content item metadata
-		GetContentItemFn: func(ctx context.Context, contentID string, includeEmbedding bool) (*contentv1.ContentItem, error) {
-			return &contentv1.ContentItem{
-				Id: contentID,
-				Metadata: map[string]string{
-					"source_system": "unknown",
-					"from":          "jira@example.atlassian.net",
-					"subject":       "[PROJ-123] New issue created",
+		// Mock gateway TestClassificationRule call
+		TestClassificationRuleFn: func(ctx context.Context, tenantID, contentID string) (*pipelinev1.TestClassificationRuleResponse, error) {
+			return &pipelinev1.TestClassificationRuleResponse{
+				ContentType:    "NOTIFICATION",
+				ContentSubtype: "JIRA",
+				RulesEvaluated: 3,
+				MatchedRule: &pipelinev1.ClassificationRule{
+					Name:     "jira",
+					Priority: 10,
 				},
 			}, nil
 		},
@@ -567,26 +569,21 @@ func TestClassifyRunDryRun(t *testing.T) {
 	io.Copy(&buf, r)
 	output := buf.String()
 
-	// After implementation, this should succeed
 	if err != nil {
 		t.Errorf("runClassify --dry-run should succeed, got error: %v", err)
 	}
 
-	// Verify JSON output
+	// Verify JSON output contains gateway response fields
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(output), &result); err != nil {
 		t.Errorf("output should be valid JSON: %v", err)
 	}
 
-	// Should show the classification result (likely "jira" based on mock data)
-	if result["content_id"] != "em-test123" {
-		t.Errorf("output should contain content_id=em-test123, got: %v", result["content_id"])
+	if result["content_type"] != "NOTIFICATION" {
+		t.Errorf("output should contain content_type=NOTIFICATION, got: %v", result["content_type"])
 	}
-
-	// Should indicate it was a dry-run
-	dryRun, ok := result["dry_run"].(bool)
-	if !ok || !dryRun {
-		t.Errorf("output should contain dry_run=true, got: %v", result["dry_run"])
+	if result["content_subtype"] != "JIRA" {
+		t.Errorf("output should contain content_subtype=JIRA, got: %v", result["content_subtype"])
 	}
 }
 

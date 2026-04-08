@@ -172,8 +172,8 @@ func getTenantIDForConversations(deps *ConversationCommandDeps) string {
 	if envTenant := os.Getenv("PENF_TENANT_ID"); envTenant != "" {
 		return envTenant
 	}
-	if deps.Config != nil && deps.Config.TenantID != "" {
-		return deps.Config.TenantID
+	if deps.Config != nil && deps.Config.EffectiveTenantID() != "" {
+		return deps.Config.EffectiveTenantID()
 	}
 	// Default tenant.
 	return "00000001-0000-0000-0000-000000000001"

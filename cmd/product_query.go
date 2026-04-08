@@ -99,7 +99,7 @@ func runProductQuery(ctx context.Context, deps *ProductCommandDeps, queryStr str
 
 	// Execute query via gRPC
 	resp, err := client.QueryProducts(ctx, &productv1.QueryProductsRequest{
-		TenantId: deps.Config.TenantID,
+		TenantId: deps.Config.EffectiveTenantID(),
 		Query:    queryStr,
 	})
 	if err != nil {

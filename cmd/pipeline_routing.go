@@ -102,7 +102,7 @@ func runPipelineRoutingList(ctx context.Context, deps *PipelineCommandDeps, outp
 	}
 	deps.Config = cfg
 
-	tenantID := cfg.TenantID
+	tenantID := cfg.EffectiveTenantID()
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}
@@ -138,7 +138,7 @@ func runPipelineRoutingTest(ctx context.Context, deps *PipelineCommandDeps, cont
 	}
 	deps.Config = cfg
 
-	tenantID := cfg.TenantID
+	tenantID := cfg.EffectiveTenantID()
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}

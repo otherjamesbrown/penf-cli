@@ -258,7 +258,7 @@ func runQualitySummary(ctx context.Context, deps *QualityCommandDeps, format str
 
 	// Call GetQualitySummary.
 	req := &qualityv1.GetQualitySummaryRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 	}
 
 	resp, err := qualityClient.GetQualitySummary(ctx, req)
@@ -301,7 +301,7 @@ func runQualityEntities(ctx context.Context, deps *QualityCommandDeps, format st
 
 	// Call GetEntityQuality.
 	req := &qualityv1.GetEntityQualityRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Limit:    int32(limit),
 	}
 
@@ -362,7 +362,7 @@ func runQualityExtractions(ctx context.Context, deps *QualityCommandDeps, format
 
 	// Call GetExtractionQuality.
 	req := &qualityv1.GetExtractionQualityRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Limit:    int32(limit),
 	}
 

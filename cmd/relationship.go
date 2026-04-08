@@ -130,7 +130,7 @@ func DefaultRelationshipDeps() *RelationshipCommandDeps {
 			opts := client.DefaultOptions()
 			opts.Insecure = cfg.Insecure
 			opts.Debug = cfg.Debug
-			opts.TenantID = cfg.TenantID
+			opts.TenantID = cfg.EffectiveTenantID()
 			// Keep the default ConnectTimeout (10s) - don't use cfg.Timeout (10min)
 			// for connection establishment, as that causes long hangs on failures.
 
@@ -916,6 +916,7 @@ func runRelationshipList(ctx context.Context, deps *RelationshipCommandDeps, ins
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -927,7 +928,7 @@ func runRelationshipList(ctx context.Context, deps *RelationshipCommandDeps, ins
 
 	// Build request.
 	req := &client.ListRelationshipsRequest{
-		TenantID:      cfg.TenantID,
+		TenantID:      cfg.EffectiveTenantID(),
 		PageSize:      int32(relationshipLimit),
 		MinConfidence: float32(relationshipConfidenceMin),
 	}
@@ -973,6 +974,7 @@ func runRelationshipShow(ctx context.Context, deps *RelationshipCommandDeps, rel
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -983,7 +985,7 @@ func runRelationshipShow(ctx context.Context, deps *RelationshipCommandDeps, rel
 	defer relClient.Close()
 
 	// Get relationship details via gRPC.
-	rel, err := relClient.GetRelationship(ctx, cfg.TenantID, relationshipID)
+	rel, err := relClient.GetRelationship(ctx, cfg.EffectiveTenantID(), relationshipID)
 	if err != nil {
 		return fmt.Errorf("getting relationship: %w", err)
 	}
@@ -1014,6 +1016,7 @@ func runRelationshipSearch(ctx context.Context, deps *RelationshipCommandDeps, q
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1024,7 +1027,7 @@ func runRelationshipSearch(ctx context.Context, deps *RelationshipCommandDeps, q
 	defer relClient.Close()
 
 	// Search relationships via gRPC.
-	rels, err := relClient.SearchRelationships(ctx, cfg.TenantID, query, int32(relationshipLimit))
+	rels, err := relClient.SearchRelationships(ctx, cfg.EffectiveTenantID(), query, int32(relationshipLimit))
 	if err != nil {
 		return fmt.Errorf("searching relationships: %w", err)
 	}
@@ -1059,6 +1062,7 @@ func runRelationshipDiscover(ctx context.Context, deps *RelationshipCommandDeps,
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1078,7 +1082,7 @@ func runRelationshipDiscover(ctx context.Context, deps *RelationshipCommandDeps,
 	}
 
 	// Discover relationships via gRPC.
-	result, err := relClient.DiscoverRelationships(ctx, cfg.TenantID, contentID, opts)
+	result, err := relClient.DiscoverRelationships(ctx, cfg.EffectiveTenantID(), contentID, opts)
 	if err != nil {
 		return fmt.Errorf("discovering relationships: %w", err)
 	}
@@ -1123,6 +1127,7 @@ func runRelationshipValidate(ctx context.Context, deps *RelationshipCommandDeps,
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1146,7 +1151,7 @@ func runRelationshipValidate(ctx context.Context, deps *RelationshipCommandDeps,
 
 	// Validate relationship via gRPC.
 	req := &client.ValidateRelationshipRequest{
-		TenantID:       cfg.TenantID,
+		TenantID:       cfg.EffectiveTenantID(),
 		RelationshipID: relationshipID,
 		Action:         action,
 		Notes:          validateNotes,
@@ -1188,6 +1193,7 @@ func runRelationshipCreate(ctx context.Context, deps *RelationshipCommandDeps, f
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Validate type is specified.
@@ -1205,7 +1211,7 @@ func runRelationshipCreate(ctx context.Context, deps *RelationshipCommandDeps, f
 	fmt.Printf("Creating relationship: %s -> %s (%s)...\n", fromEntityID, toEntityID, createType)
 
 	// Create relationship via gRPC.
-	rel, err := relClient.CreateRelationship(ctx, cfg.TenantID, fromEntityID, toEntityID, stringToRelType(createType), createSubtype)
+	rel, err := relClient.CreateRelationship(ctx, cfg.EffectiveTenantID(), fromEntityID, toEntityID, stringToRelType(createType), createSubtype)
 	if err != nil {
 		return fmt.Errorf("creating relationship: %w", err)
 	}
@@ -1244,6 +1250,7 @@ func runEntityList(ctx context.Context, deps *RelationshipCommandDeps, insecureF
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1255,7 +1262,7 @@ func runEntityList(ctx context.Context, deps *RelationshipCommandDeps, insecureF
 
 	// Build request.
 	req := &client.ListEntitiesRequest{
-		TenantID:      cfg.TenantID,
+		TenantID:      cfg.EffectiveTenantID(),
 		PageSize:      int32(relationshipLimit),
 		MinConfidence: float32(relationshipConfidenceMin),
 	}
@@ -1305,6 +1312,7 @@ func runEntityShow(ctx context.Context, deps *RelationshipCommandDeps, entityID 
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// If entityID is a bare numeric ID, convert it to prefixed format.
@@ -1326,7 +1334,7 @@ func runEntityShow(ctx context.Context, deps *RelationshipCommandDeps, entityID 
 	defer relClient.Close()
 
 	// Get entity details via gRPC.
-	ent, err := relClient.GetEntity(ctx, cfg.TenantID, entityID)
+	ent, err := relClient.GetEntity(ctx, cfg.EffectiveTenantID(), entityID)
 	if err != nil {
 		return fmt.Errorf("getting entity: %w", err)
 	}
@@ -1357,6 +1365,7 @@ func runEntityMerge(ctx context.Context, deps *RelationshipCommandDeps, entityID
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// If entity IDs are bare numeric IDs, convert them to prefixed format.
@@ -1378,7 +1387,7 @@ func runEntityMerge(ctx context.Context, deps *RelationshipCommandDeps, entityID
 	fmt.Printf("Merging entity %s into %s...\n", entityID2, entityID1)
 
 	// Merge entities via gRPC.
-	_, transferred, err := relClient.MergeEntities(ctx, cfg.TenantID, entityID1, entityID2)
+	_, transferred, err := relClient.MergeEntities(ctx, cfg.EffectiveTenantID(), entityID1, entityID2)
 	if err != nil {
 		return fmt.Errorf("merging entities: %w", err)
 	}
@@ -1407,6 +1416,7 @@ func runEntityUpdate(ctx context.Context, deps *RelationshipCommandDeps, entityI
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Parse entity ID (accepts both "123" and "ent-person-123" formats).
@@ -1441,7 +1451,7 @@ func runEntityUpdate(ctx context.Context, deps *RelationshipCommandDeps, entityI
 
 	// Build update request.
 	req := &entityv1.UpdateEntityRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		EntityId: entityID,
 	}
 
@@ -1495,6 +1505,7 @@ func runEntityDelete(ctx context.Context, deps *RelationshipCommandDeps, entityI
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Parse entity ID (accepts both "123" and "ent-person-123" formats).
@@ -1528,7 +1539,7 @@ func runEntityDelete(ctx context.Context, deps *RelationshipCommandDeps, entityI
 
 	// Call DeleteEntity.
 	resp, err := entityClient.DeleteEntity(ctx, &entityv1.DeleteEntityRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		EntityId: entityID,
 	})
 	if err != nil {
@@ -1558,6 +1569,7 @@ func runEntityDuplicates(ctx context.Context, deps *RelationshipCommandDeps, ins
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1584,7 +1596,7 @@ func runEntityDuplicates(ctx context.Context, deps *RelationshipCommandDeps, ins
 			fmt.Printf("Auto-merging high-confidence duplicates...\n\n")
 		}
 
-		result, err := relClient.AutoMergeDuplicates(ctx, cfg.TenantID, float32(duplicatesMinSimilarity), isDryRun)
+		result, err := relClient.AutoMergeDuplicates(ctx, cfg.EffectiveTenantID(), float32(duplicatesMinSimilarity), isDryRun)
 		if err != nil {
 			return fmt.Errorf("auto-merge duplicates: %w", err)
 		}
@@ -1593,7 +1605,7 @@ func runEntityDuplicates(ctx context.Context, deps *RelationshipCommandDeps, ins
 	}
 
 	// Standard find duplicates flow.
-	pairs, err := relClient.FindDuplicates(ctx, cfg.TenantID, float32(duplicatesMinSimilarity))
+	pairs, err := relClient.FindDuplicates(ctx, cfg.EffectiveTenantID(), float32(duplicatesMinSimilarity))
 	if err != nil {
 		return fmt.Errorf("finding duplicates: %w", err)
 	}
@@ -1617,6 +1629,7 @@ func runEntityMergePreview(ctx context.Context, deps *RelationshipCommandDeps, e
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// If entity IDs are bare numeric IDs, convert them to prefixed format.
@@ -1636,7 +1649,7 @@ func runEntityMergePreview(ctx context.Context, deps *RelationshipCommandDeps, e
 	defer relClient.Close()
 
 	// Get merge preview.
-	preview, err := relClient.MergePreview(ctx, cfg.TenantID, entityID1, entityID2)
+	preview, err := relClient.MergePreview(ctx, cfg.EffectiveTenantID(), entityID1, entityID2)
 	if err != nil {
 		return fmt.Errorf("merge preview: %w", err)
 	}
@@ -1666,6 +1679,7 @@ func runNetworkGraph(ctx context.Context, deps *RelationshipCommandDeps, insecur
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1685,7 +1699,7 @@ func runNetworkGraph(ctx context.Context, deps *RelationshipCommandDeps, insecur
 	}
 
 	// Get network graph via gRPC.
-	graph, err := relClient.GetNetworkGraph(ctx, cfg.TenantID, opts)
+	graph, err := relClient.GetNetworkGraph(ctx, cfg.EffectiveTenantID(), opts)
 	if err != nil {
 		return fmt.Errorf("getting network graph: %w", err)
 	}
@@ -1755,6 +1769,7 @@ func runNetworkCentral(ctx context.Context, deps *RelationshipCommandDeps, insec
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1765,7 +1780,7 @@ func runNetworkCentral(ctx context.Context, deps *RelationshipCommandDeps, insec
 	defer relClient.Close()
 
 	// Get central entities via gRPC.
-	ents, err := relClient.GetCentralEntities(ctx, cfg.TenantID, int32(relationshipLimit))
+	ents, err := relClient.GetCentralEntities(ctx, cfg.EffectiveTenantID(), int32(relationshipLimit))
 	if err != nil {
 		return fmt.Errorf("getting central entities: %w", err)
 	}
@@ -1800,6 +1815,7 @@ func runNetworkClusters(ctx context.Context, deps *RelationshipCommandDeps, inse
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1810,7 +1826,7 @@ func runNetworkClusters(ctx context.Context, deps *RelationshipCommandDeps, inse
 	defer relClient.Close()
 
 	// Get clusters via gRPC.
-	clusterList, err := relClient.GetClusters(ctx, cfg.TenantID)
+	clusterList, err := relClient.GetClusters(ctx, cfg.EffectiveTenantID())
 	if err != nil {
 		return fmt.Errorf("getting clusters: %w", err)
 	}
@@ -1845,6 +1861,7 @@ func runConflictList(ctx context.Context, deps *RelationshipCommandDeps, insecur
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1856,7 +1873,7 @@ func runConflictList(ctx context.Context, deps *RelationshipCommandDeps, insecur
 
 	// Get conflicts via gRPC.
 	req := &client.ListConflictsRequest{
-		TenantID: cfg.TenantID,
+		TenantID: cfg.EffectiveTenantID(),
 		Limit:    int32(relationshipLimit),
 	}
 
@@ -1895,6 +1912,7 @@ func runConflictShow(ctx context.Context, deps *RelationshipCommandDeps, conflic
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Initialize relationship client.
@@ -1905,7 +1923,7 @@ func runConflictShow(ctx context.Context, deps *RelationshipCommandDeps, conflic
 	defer relClient.Close()
 
 	// Get conflict details via gRPC.
-	c, err := relClient.GetConflict(ctx, cfg.TenantID, conflictID)
+	c, err := relClient.GetConflict(ctx, cfg.EffectiveTenantID(), conflictID)
 	if err != nil {
 		return fmt.Errorf("getting conflict: %w", err)
 	}
@@ -1936,6 +1954,7 @@ func runConflictResolve(ctx context.Context, deps *RelationshipCommandDeps, conf
 	// Override tenant if specified.
 	if relationshipTenant != "" {
 		cfg.TenantID = relationshipTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Validate strategy.
@@ -1957,7 +1976,7 @@ func runConflictResolve(ctx context.Context, deps *RelationshipCommandDeps, conf
 
 	// Resolve conflict via gRPC.
 	req := &client.ResolveConflictRequest{
-		TenantID:   cfg.TenantID,
+		TenantID:   cfg.EffectiveTenantID(),
 		ConflictID: conflictID,
 		Strategy:   stringToConflictStrategy(string(strategy)),
 	}

@@ -212,7 +212,7 @@ func runInitEntitiesFromJSON(ctx context.Context, cfg *config.CLIConfig, jsonPat
 		}
 
 		resp, err := entityClient.BulkCreatePeople(ctx, &entityv1.BulkCreatePeopleRequest{
-			TenantId:       cfg.TenantID,
+			TenantId:       cfg.EffectiveTenantID(),
 			People:         peopleInput,
 			SkipDuplicates: true,
 		})
@@ -249,7 +249,7 @@ func runInitEntitiesFromJSON(ctx context.Context, cfg *config.CLIConfig, jsonPat
 		}
 
 		resp, err := entityClient.BulkCreateProducts(ctx, &entityv1.BulkCreateProductsRequest{
-			TenantId:       cfg.TenantID,
+			TenantId:       cfg.EffectiveTenantID(),
 			Products:       productsInput,
 			SkipDuplicates: true,
 		})
@@ -283,7 +283,7 @@ func runInitEntitiesFromJSON(ctx context.Context, cfg *config.CLIConfig, jsonPat
 		}
 
 		resp, err := entityClient.BulkCreateProjects(ctx, &entityv1.BulkCreateProjectsRequest{
-			TenantId:       cfg.TenantID,
+			TenantId:       cfg.EffectiveTenantID(),
 			Projects:       projectsInput,
 			SkipDuplicates: true,
 		})
@@ -452,7 +452,7 @@ func runInitEntitiesInteractive(ctx context.Context, cfg *config.CLIConfig) erro
 
 		// Add person
 		resp, err := entityClient.BulkCreatePeople(ctx, &entityv1.BulkCreatePeopleRequest{
-			TenantId: cfg.TenantID,
+			TenantId: cfg.EffectiveTenantID(),
 			People: []*entityv1.PersonInput{{
 				Name:       input,
 				Email:      email,
@@ -505,7 +505,7 @@ func runInitEntitiesInteractive(ctx context.Context, cfg *config.CLIConfig) erro
 
 		// Add product
 		resp, err := entityClient.BulkCreateProducts(ctx, &entityv1.BulkCreateProductsRequest{
-			TenantId: cfg.TenantID,
+			TenantId: cfg.EffectiveTenantID(),
 			Products: []*entityv1.ProductInput{{
 				Name:        input,
 				Description: description,
@@ -563,7 +563,7 @@ func runInitEntitiesInteractive(ctx context.Context, cfg *config.CLIConfig) erro
 
 		// Add project
 		resp, err := entityClient.BulkCreateProjects(ctx, &entityv1.BulkCreateProjectsRequest{
-			TenantId: cfg.TenantID,
+			TenantId: cfg.EffectiveTenantID(),
 			Projects: []*entityv1.ProjectInput{{
 				Name:        input,
 				Description: description,

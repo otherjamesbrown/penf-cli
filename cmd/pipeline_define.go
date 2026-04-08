@@ -176,7 +176,7 @@ func runPipelineDefineList(ctx context.Context, deps *PipelineCommandDeps, outpu
 	}
 	deps.Config = cfg
 
-	tenantID := cfg.TenantID
+	tenantID := cfg.EffectiveTenantID()
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}
@@ -212,7 +212,7 @@ func runPipelineDefineShow(ctx context.Context, deps *PipelineCommandDeps, pipel
 	}
 	deps.Config = cfg
 
-	tenantID := cfg.TenantID
+	tenantID := cfg.EffectiveTenantID()
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}
@@ -249,7 +249,7 @@ func runPipelineDefineSet(ctx context.Context, deps *PipelineCommandDeps, pipeli
 	}
 	deps.Config = cfg
 
-	tenantID := cfg.TenantID
+	tenantID := cfg.EffectiveTenantID()
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}
@@ -318,7 +318,7 @@ func runPipelineDefineCreate(ctx context.Context, deps *PipelineCommandDeps, pip
 	}
 	deps.Config = cfg
 
-	tenantID := cfg.TenantID
+	tenantID := cfg.EffectiveTenantID()
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}

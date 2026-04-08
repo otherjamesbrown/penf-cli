@@ -359,8 +359,8 @@ func getTenantIDForTeam(deps *TeamCommandDeps) (string, error) {
 	if envTenant := os.Getenv("PENF_TENANT_ID"); envTenant != "" {
 		return envTenant, nil
 	}
-	if deps.Config != nil && deps.Config.TenantID != "" {
-		return deps.Config.TenantID, nil
+	if deps.Config != nil && deps.Config.EffectiveTenantID() != "" {
+		return deps.Config.EffectiveTenantID(), nil
 	}
 	return "", fmt.Errorf("tenant ID required: set --tenant flag, PENF_TENANT_ID env var, or tenant_id in config")
 }

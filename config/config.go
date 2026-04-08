@@ -283,8 +283,12 @@ type CLIConfig struct {
 	// OutputFormat specifies the default output format for commands.
 	OutputFormat OutputFormat `yaml:"output_format"`
 
-	// TenantID is the default tenant identifier for multi-tenant operations.
+	// TenantID is the default tenant identifier (slug) for multi-tenant operations.
 	TenantID string `yaml:"tenant_id,omitempty"`
+
+	// TenantUUID is the resolved UUID for the current tenant.
+	// Stored alongside TenantID (slug) so downstream RPCs get the UUID they expect.
+	TenantUUID string `yaml:"tenant_uuid,omitempty"`
 
 	// TenantAliases provides user-friendly names for tenant IDs.
 	// Example: {"work": "tenant-acme-123", "personal": "tenant-default-001"}
@@ -309,6 +313,15 @@ type CLIConfig struct {
 
 	// TLS contains the TLS/mTLS configuration settings.
 	TLS TLSConfig `yaml:"tls"`
+}
+
+// EffectiveTenantID returns the UUID if available, falling back to slug.
+// Downstream RPCs expect UUIDs; the UUID is populated by 'tenant switch'.
+func (c *CLIConfig) EffectiveTenantID() string {
+	if c.TenantUUID != "" {
+		return c.TenantUUID
+	}
+	return c.TenantID
 }
 
 // DefaultConfig returns a CLIConfig with default values.
@@ -390,6 +403,7 @@ func loadFromFile(cfg *CLIConfig, path string) error {
 		Timeout              string               `yaml:"timeout"`
 		OutputFormat         OutputFormat         `yaml:"output_format"`
 		TenantID             string               `yaml:"tenant_id"`
+		TenantUUID           string               `yaml:"tenant_uuid"`
 		TenantAliases        map[string]string    `yaml:"tenant_aliases"`
 		InstallPath          string               `yaml:"install_path"`
 		Debug                bool                 `yaml:"debug"`
@@ -422,6 +436,9 @@ func loadFromFile(cfg *CLIConfig, path string) error {
 	}
 	if fileCfg.TenantID != "" {
 		cfg.TenantID = fileCfg.TenantID
+	}
+	if fileCfg.TenantUUID != "" {
+		cfg.TenantUUID = fileCfg.TenantUUID
 	}
 	if fileCfg.TenantAliases != nil {
 		cfg.TenantAliases = fileCfg.TenantAliases
@@ -661,6 +678,7 @@ func SaveConfig(cfg *CLIConfig) error {
 		Timeout              string               `yaml:"timeout"`
 		OutputFormat         OutputFormat         `yaml:"output_format"`
 		TenantID             string               `yaml:"tenant_id,omitempty"`
+		TenantUUID           string               `yaml:"tenant_uuid,omitempty"`
 		TenantAliases        map[string]string    `yaml:"tenant_aliases,omitempty"`
 		InstallPath          string               `yaml:"install_path,omitempty"`
 		Debug                bool                 `yaml:"debug,omitempty"`
@@ -676,6 +694,7 @@ func SaveConfig(cfg *CLIConfig) error {
 		Timeout:              cfg.Timeout.String(),
 		OutputFormat:         cfg.OutputFormat,
 		TenantID:             cfg.TenantID,
+		TenantUUID:           cfg.TenantUUID,
 		TenantAliases:        cfg.TenantAliases,
 		InstallPath:          cfg.InstallPath,
 		Debug:                cfg.Debug,

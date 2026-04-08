@@ -639,8 +639,8 @@ func runScheduleHistory(ctx context.Context, deps *ScheduleCommandDeps, input st
 // ==================== helpers ====================
 
 func getTenantIDForSchedule(deps *ScheduleCommandDeps) (string, error) {
-	if deps.Config != nil && deps.Config.TenantID != "" {
-		return deps.Config.TenantID, nil
+	if deps.Config != nil && deps.Config.EffectiveTenantID() != "" {
+		return deps.Config.EffectiveTenantID(), nil
 	}
 	if envTenant := os.Getenv("PENF_TENANT_ID"); envTenant != "" {
 		return envTenant, nil

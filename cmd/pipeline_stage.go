@@ -208,7 +208,7 @@ func runPipelineStageList(ctx context.Context, deps *PipelineCommandDeps, output
 	client := pipelinev1.NewPipelineServiceClient(conn)
 
 	resp, err := client.GetStageConfig(ctx, &pipelinev1.GetStageConfigRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 	})
 	if err != nil {
 		return fmt.Errorf("getting stage config: %w", err)
@@ -379,7 +379,7 @@ func runPipelineStageReset(ctx context.Context, deps *PipelineCommandDeps, stage
 	// Get current config to show what's being reset
 	resp, err := pipelineClient.GetStageConfig(ctx, &pipelinev1.GetStageConfigRequest{
 		Stage:    stage,
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 	})
 	if err != nil {
 		return fmt.Errorf("getting current stage config: %w", err)

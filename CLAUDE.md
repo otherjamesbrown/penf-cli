@@ -4,7 +4,7 @@
 
 This project uses [CoBuild](https://github.com/otherjamesbrown/cobuild) for pipeline automation — designs flow through structured phases (design → decompose → implement → review → done) with quality gates.
 
-**Read `.cobuild/AGENTS.md` for full pipeline instructions, commands, and task completion protocol.**
+**Read `AGENTS.md` for full pipeline instructions, commands, and task completion protocol.**
 
 ## Building
 
