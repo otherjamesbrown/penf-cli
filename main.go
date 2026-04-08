@@ -1286,6 +1286,10 @@ func init() {
 	instructionCmd.GroupID = "entities"
 	rootCmd.AddCommand(instructionCmd)
 
+	contextCmd := cmd.NewContextCommand(nil)
+	contextCmd.GroupID = "entities"
+	rootCmd.AddCommand(contextCmd)
+
 	entityCmd := cmd.NewEntityCommand(nil)
 	entityCmd.GroupID = "entities"
 	rootCmd.AddCommand(entityCmd)

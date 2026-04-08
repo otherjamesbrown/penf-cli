@@ -22,54 +22,60 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PipelineService_GetStats_FullMethodName                  = "/penfold.pipeline.v1.PipelineService/GetStats"
-	PipelineService_GetJob_FullMethodName                    = "/penfold.pipeline.v1.PipelineService/GetJob"
-	PipelineService_ListJobs_FullMethodName                  = "/penfold.pipeline.v1.PipelineService/ListJobs"
-	PipelineService_KickProcessing_FullMethodName            = "/penfold.pipeline.v1.PipelineService/KickProcessing"
-	PipelineService_RetryFailed_FullMethodName               = "/penfold.pipeline.v1.PipelineService/RetryFailed"
-	PipelineService_GetQueueStatus_FullMethodName            = "/penfold.pipeline.v1.PipelineService/GetQueueStatus"
-	PipelineService_GetPipelineHealth_FullMethodName         = "/penfold.pipeline.v1.PipelineService/GetPipelineHealth"
-	PipelineService_GetContentTrace_FullMethodName           = "/penfold.pipeline.v1.PipelineService/GetContentTrace"
-	PipelineService_ListDeletedSources_FullMethodName        = "/penfold.pipeline.v1.PipelineService/ListDeletedSources"
-	PipelineService_UndeleteSource_FullMethodName            = "/penfold.pipeline.v1.PipelineService/UndeleteSource"
-	PipelineService_DescribePipeline_FullMethodName          = "/penfold.pipeline.v1.PipelineService/DescribePipeline"
-	PipelineService_GetPrompt_FullMethodName                 = "/penfold.pipeline.v1.PipelineService/GetPrompt"
-	PipelineService_ListPromptVersions_FullMethodName        = "/penfold.pipeline.v1.PipelineService/ListPromptVersions"
-	PipelineService_UpdatePrompt_FullMethodName              = "/penfold.pipeline.v1.PipelineService/UpdatePrompt"
-	PipelineService_RollbackPrompt_FullMethodName            = "/penfold.pipeline.v1.PipelineService/RollbackPrompt"
-	PipelineService_ExportPrompt_FullMethodName              = "/penfold.pipeline.v1.PipelineService/ExportPrompt"
-	PipelineService_GetSourceHistory_FullMethodName          = "/penfold.pipeline.v1.PipelineService/GetSourceHistory"
-	PipelineService_ReprocessDryRun_FullMethodName           = "/penfold.pipeline.v1.PipelineService/ReprocessDryRun"
-	PipelineService_GetTimeoutConfig_FullMethodName          = "/penfold.pipeline.v1.PipelineService/GetTimeoutConfig"
-	PipelineService_UpdateTimeoutConfig_FullMethodName       = "/penfold.pipeline.v1.PipelineService/UpdateTimeoutConfig"
-	PipelineService_GetPipelineErrors_FullMethodName         = "/penfold.pipeline.v1.PipelineService/GetPipelineErrors"
-	PipelineService_InspectStage_FullMethodName              = "/penfold.pipeline.v1.PipelineService/InspectStage"
-	PipelineService_DiffStageRuns_FullMethodName             = "/penfold.pipeline.v1.PipelineService/DiffStageRuns"
-	PipelineService_DiffPipelineRuns_FullMethodName          = "/penfold.pipeline.v1.PipelineService/DiffPipelineRuns"
-	PipelineService_GetConcurrencyConfig_FullMethodName      = "/penfold.pipeline.v1.PipelineService/GetConcurrencyConfig"
-	PipelineService_SetConcurrencyConfig_FullMethodName      = "/penfold.pipeline.v1.PipelineService/SetConcurrencyConfig"
-	PipelineService_GetOperationalConfig_FullMethodName      = "/penfold.pipeline.v1.PipelineService/GetOperationalConfig"
-	PipelineService_SetOperationalConfig_FullMethodName      = "/penfold.pipeline.v1.PipelineService/SetOperationalConfig"
-	PipelineService_ListPendingSources_FullMethodName        = "/penfold.pipeline.v1.PipelineService/ListPendingSources"
-	PipelineService_GetStageConfig_FullMethodName            = "/penfold.pipeline.v1.PipelineService/GetStageConfig"
-	PipelineService_StartBatchPipeline_FullMethodName        = "/penfold.pipeline.v1.PipelineService/StartBatchPipeline"
-	PipelineService_GetBatchStatus_FullMethodName            = "/penfold.pipeline.v1.PipelineService/GetBatchStatus"
-	PipelineService_ListBatches_FullMethodName               = "/penfold.pipeline.v1.PipelineService/ListBatches"
-	PipelineService_CancelBatch_FullMethodName               = "/penfold.pipeline.v1.PipelineService/CancelBatch"
-	PipelineService_ListModels_FullMethodName                = "/penfold.pipeline.v1.PipelineService/ListModels"
-	PipelineService_ListClassificationRules_FullMethodName   = "/penfold.pipeline.v1.PipelineService/ListClassificationRules"
-	PipelineService_GetClassificationRule_FullMethodName     = "/penfold.pipeline.v1.PipelineService/GetClassificationRule"
-	PipelineService_TestClassificationRule_FullMethodName    = "/penfold.pipeline.v1.PipelineService/TestClassificationRule"
-	PipelineService_CreateClassificationRule_FullMethodName  = "/penfold.pipeline.v1.PipelineService/CreateClassificationRule"
-	PipelineService_DeleteClassificationRule_FullMethodName  = "/penfold.pipeline.v1.PipelineService/DeleteClassificationRule"
-	PipelineService_ListPipelineRoutes_FullMethodName        = "/penfold.pipeline.v1.PipelineService/ListPipelineRoutes"
-	PipelineService_TestPipelineRoute_FullMethodName         = "/penfold.pipeline.v1.PipelineService/TestPipelineRoute"
-	PipelineService_ListPipelineDefinitions_FullMethodName   = "/penfold.pipeline.v1.PipelineService/ListPipelineDefinitions"
-	PipelineService_GetPipelineDefinition_FullMethodName     = "/penfold.pipeline.v1.PipelineService/GetPipelineDefinition"
-	PipelineService_UpdatePipelineStageConfig_FullMethodName = "/penfold.pipeline.v1.PipelineService/UpdatePipelineStageConfig"
-	PipelineService_CreatePipelineDefinition_FullMethodName  = "/penfold.pipeline.v1.PipelineService/CreatePipelineDefinition"
-	PipelineService_AuditPipelineCompleteness_FullMethodName = "/penfold.pipeline.v1.PipelineService/AuditPipelineCompleteness"
-	PipelineService_ComparePipelineRuns_FullMethodName       = "/penfold.pipeline.v1.PipelineService/ComparePipelineRuns"
+	PipelineService_GetStats_FullMethodName                     = "/penfold.pipeline.v1.PipelineService/GetStats"
+	PipelineService_GetJob_FullMethodName                       = "/penfold.pipeline.v1.PipelineService/GetJob"
+	PipelineService_ListJobs_FullMethodName                     = "/penfold.pipeline.v1.PipelineService/ListJobs"
+	PipelineService_KickProcessing_FullMethodName               = "/penfold.pipeline.v1.PipelineService/KickProcessing"
+	PipelineService_RetryFailed_FullMethodName                  = "/penfold.pipeline.v1.PipelineService/RetryFailed"
+	PipelineService_GetQueueStatus_FullMethodName               = "/penfold.pipeline.v1.PipelineService/GetQueueStatus"
+	PipelineService_GetPipelineHealth_FullMethodName            = "/penfold.pipeline.v1.PipelineService/GetPipelineHealth"
+	PipelineService_GetContentTrace_FullMethodName              = "/penfold.pipeline.v1.PipelineService/GetContentTrace"
+	PipelineService_ListDeletedSources_FullMethodName           = "/penfold.pipeline.v1.PipelineService/ListDeletedSources"
+	PipelineService_UndeleteSource_FullMethodName               = "/penfold.pipeline.v1.PipelineService/UndeleteSource"
+	PipelineService_DescribePipeline_FullMethodName             = "/penfold.pipeline.v1.PipelineService/DescribePipeline"
+	PipelineService_GetPrompt_FullMethodName                    = "/penfold.pipeline.v1.PipelineService/GetPrompt"
+	PipelineService_ListPromptVersions_FullMethodName           = "/penfold.pipeline.v1.PipelineService/ListPromptVersions"
+	PipelineService_UpdatePrompt_FullMethodName                 = "/penfold.pipeline.v1.PipelineService/UpdatePrompt"
+	PipelineService_RollbackPrompt_FullMethodName               = "/penfold.pipeline.v1.PipelineService/RollbackPrompt"
+	PipelineService_ExportPrompt_FullMethodName                 = "/penfold.pipeline.v1.PipelineService/ExportPrompt"
+	PipelineService_GetSourceHistory_FullMethodName             = "/penfold.pipeline.v1.PipelineService/GetSourceHistory"
+	PipelineService_ReprocessDryRun_FullMethodName              = "/penfold.pipeline.v1.PipelineService/ReprocessDryRun"
+	PipelineService_GetTimeoutConfig_FullMethodName             = "/penfold.pipeline.v1.PipelineService/GetTimeoutConfig"
+	PipelineService_UpdateTimeoutConfig_FullMethodName          = "/penfold.pipeline.v1.PipelineService/UpdateTimeoutConfig"
+	PipelineService_GetPipelineErrors_FullMethodName            = "/penfold.pipeline.v1.PipelineService/GetPipelineErrors"
+	PipelineService_InspectStage_FullMethodName                 = "/penfold.pipeline.v1.PipelineService/InspectStage"
+	PipelineService_DiffStageRuns_FullMethodName                = "/penfold.pipeline.v1.PipelineService/DiffStageRuns"
+	PipelineService_DiffPipelineRuns_FullMethodName             = "/penfold.pipeline.v1.PipelineService/DiffPipelineRuns"
+	PipelineService_GetConcurrencyConfig_FullMethodName         = "/penfold.pipeline.v1.PipelineService/GetConcurrencyConfig"
+	PipelineService_SetConcurrencyConfig_FullMethodName         = "/penfold.pipeline.v1.PipelineService/SetConcurrencyConfig"
+	PipelineService_GetOperationalConfig_FullMethodName         = "/penfold.pipeline.v1.PipelineService/GetOperationalConfig"
+	PipelineService_SetOperationalConfig_FullMethodName         = "/penfold.pipeline.v1.PipelineService/SetOperationalConfig"
+	PipelineService_ListPendingSources_FullMethodName           = "/penfold.pipeline.v1.PipelineService/ListPendingSources"
+	PipelineService_GetStageConfig_FullMethodName               = "/penfold.pipeline.v1.PipelineService/GetStageConfig"
+	PipelineService_StartBatchPipeline_FullMethodName           = "/penfold.pipeline.v1.PipelineService/StartBatchPipeline"
+	PipelineService_GetBatchStatus_FullMethodName               = "/penfold.pipeline.v1.PipelineService/GetBatchStatus"
+	PipelineService_ListBatches_FullMethodName                  = "/penfold.pipeline.v1.PipelineService/ListBatches"
+	PipelineService_CancelBatch_FullMethodName                  = "/penfold.pipeline.v1.PipelineService/CancelBatch"
+	PipelineService_ListModels_FullMethodName                   = "/penfold.pipeline.v1.PipelineService/ListModels"
+	PipelineService_ListClassificationRules_FullMethodName      = "/penfold.pipeline.v1.PipelineService/ListClassificationRules"
+	PipelineService_GetClassificationRule_FullMethodName        = "/penfold.pipeline.v1.PipelineService/GetClassificationRule"
+	PipelineService_TestClassificationRule_FullMethodName       = "/penfold.pipeline.v1.PipelineService/TestClassificationRule"
+	PipelineService_CreateClassificationRule_FullMethodName     = "/penfold.pipeline.v1.PipelineService/CreateClassificationRule"
+	PipelineService_DeleteClassificationRule_FullMethodName     = "/penfold.pipeline.v1.PipelineService/DeleteClassificationRule"
+	PipelineService_ListPipelineRoutes_FullMethodName           = "/penfold.pipeline.v1.PipelineService/ListPipelineRoutes"
+	PipelineService_TestPipelineRoute_FullMethodName            = "/penfold.pipeline.v1.PipelineService/TestPipelineRoute"
+	PipelineService_ListPipelineDefinitions_FullMethodName      = "/penfold.pipeline.v1.PipelineService/ListPipelineDefinitions"
+	PipelineService_GetPipelineDefinition_FullMethodName        = "/penfold.pipeline.v1.PipelineService/GetPipelineDefinition"
+	PipelineService_UpdatePipelineStageConfig_FullMethodName    = "/penfold.pipeline.v1.PipelineService/UpdatePipelineStageConfig"
+	PipelineService_CreatePipelineDefinition_FullMethodName     = "/penfold.pipeline.v1.PipelineService/CreatePipelineDefinition"
+	PipelineService_AuditPipelineCompleteness_FullMethodName    = "/penfold.pipeline.v1.PipelineService/AuditPipelineCompleteness"
+	PipelineService_ComparePipelineRuns_FullMethodName          = "/penfold.pipeline.v1.PipelineService/ComparePipelineRuns"
+	PipelineService_CreateTenantContext_FullMethodName          = "/penfold.pipeline.v1.PipelineService/CreateTenantContext"
+	PipelineService_ListTenantContext_FullMethodName            = "/penfold.pipeline.v1.PipelineService/ListTenantContext"
+	PipelineService_GetTenantContext_FullMethodName             = "/penfold.pipeline.v1.PipelineService/GetTenantContext"
+	PipelineService_DeleteTenantContext_FullMethodName          = "/penfold.pipeline.v1.PipelineService/DeleteTenantContext"
+	PipelineService_AddTenantContextCondition_FullMethodName    = "/penfold.pipeline.v1.PipelineService/AddTenantContextCondition"
+	PipelineService_SuggestTenantContextTriggers_FullMethodName = "/penfold.pipeline.v1.PipelineService/SuggestTenantContextTriggers"
 )
 
 // PipelineServiceClient is the client API for PipelineService service.
@@ -175,6 +181,18 @@ type PipelineServiceClient interface {
 	AuditPipelineCompleteness(ctx context.Context, in *AuditPipelineCompletenessRequest, opts ...grpc.CallOption) (*AuditPipelineCompletenessResponse, error)
 	// ComparePipelineRuns compares pipeline run statistics grouped by model and prompt version.
 	ComparePipelineRuns(ctx context.Context, in *ComparePipelineRunsRequest, opts ...grpc.CallOption) (*ComparePipelineRunsResponse, error)
+	// CreateTenantContext creates a new tenant context entry with optional conditions.
+	CreateTenantContext(ctx context.Context, in *CreateTenantContextRequest, opts ...grpc.CallOption) (*CreateTenantContextResponse, error)
+	// ListTenantContext lists all context entries for a tenant.
+	ListTenantContext(ctx context.Context, in *ListTenantContextRequest, opts ...grpc.CallOption) (*ListTenantContextResponse, error)
+	// GetTenantContext retrieves a single tenant context entry by ID.
+	GetTenantContext(ctx context.Context, in *GetTenantContextRequest, opts ...grpc.CallOption) (*GetTenantContextResponse, error)
+	// DeleteTenantContext deletes a tenant context entry (conditions cascade).
+	DeleteTenantContext(ctx context.Context, in *DeleteTenantContextRequest, opts ...grpc.CallOption) (*DeleteTenantContextResponse, error)
+	// AddTenantContextCondition adds a trigger condition to an existing context entry.
+	AddTenantContextCondition(ctx context.Context, in *AddTenantContextConditionRequest, opts ...grpc.CallOption) (*AddTenantContextConditionResponse, error)
+	// SuggestTenantContextTriggers uses an LLM to suggest trigger conditions for a context entry.
+	SuggestTenantContextTriggers(ctx context.Context, in *SuggestTenantContextTriggersRequest, opts ...grpc.CallOption) (*SuggestTenantContextTriggersResponse, error)
 }
 
 type pipelineServiceClient struct {
@@ -665,6 +683,66 @@ func (c *pipelineServiceClient) ComparePipelineRuns(ctx context.Context, in *Com
 	return out, nil
 }
 
+func (c *pipelineServiceClient) CreateTenantContext(ctx context.Context, in *CreateTenantContextRequest, opts ...grpc.CallOption) (*CreateTenantContextResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateTenantContextResponse)
+	err := c.cc.Invoke(ctx, PipelineService_CreateTenantContext_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) ListTenantContext(ctx context.Context, in *ListTenantContextRequest, opts ...grpc.CallOption) (*ListTenantContextResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListTenantContextResponse)
+	err := c.cc.Invoke(ctx, PipelineService_ListTenantContext_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) GetTenantContext(ctx context.Context, in *GetTenantContextRequest, opts ...grpc.CallOption) (*GetTenantContextResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTenantContextResponse)
+	err := c.cc.Invoke(ctx, PipelineService_GetTenantContext_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) DeleteTenantContext(ctx context.Context, in *DeleteTenantContextRequest, opts ...grpc.CallOption) (*DeleteTenantContextResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteTenantContextResponse)
+	err := c.cc.Invoke(ctx, PipelineService_DeleteTenantContext_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) AddTenantContextCondition(ctx context.Context, in *AddTenantContextConditionRequest, opts ...grpc.CallOption) (*AddTenantContextConditionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddTenantContextConditionResponse)
+	err := c.cc.Invoke(ctx, PipelineService_AddTenantContextCondition_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) SuggestTenantContextTriggers(ctx context.Context, in *SuggestTenantContextTriggersRequest, opts ...grpc.CallOption) (*SuggestTenantContextTriggersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SuggestTenantContextTriggersResponse)
+	err := c.cc.Invoke(ctx, PipelineService_SuggestTenantContextTriggers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PipelineServiceServer is the server API for PipelineService service.
 // All implementations must embed UnimplementedPipelineServiceServer
 // for forward compatibility.
@@ -768,6 +846,18 @@ type PipelineServiceServer interface {
 	AuditPipelineCompleteness(context.Context, *AuditPipelineCompletenessRequest) (*AuditPipelineCompletenessResponse, error)
 	// ComparePipelineRuns compares pipeline run statistics grouped by model and prompt version.
 	ComparePipelineRuns(context.Context, *ComparePipelineRunsRequest) (*ComparePipelineRunsResponse, error)
+	// CreateTenantContext creates a new tenant context entry with optional conditions.
+	CreateTenantContext(context.Context, *CreateTenantContextRequest) (*CreateTenantContextResponse, error)
+	// ListTenantContext lists all context entries for a tenant.
+	ListTenantContext(context.Context, *ListTenantContextRequest) (*ListTenantContextResponse, error)
+	// GetTenantContext retrieves a single tenant context entry by ID.
+	GetTenantContext(context.Context, *GetTenantContextRequest) (*GetTenantContextResponse, error)
+	// DeleteTenantContext deletes a tenant context entry (conditions cascade).
+	DeleteTenantContext(context.Context, *DeleteTenantContextRequest) (*DeleteTenantContextResponse, error)
+	// AddTenantContextCondition adds a trigger condition to an existing context entry.
+	AddTenantContextCondition(context.Context, *AddTenantContextConditionRequest) (*AddTenantContextConditionResponse, error)
+	// SuggestTenantContextTriggers uses an LLM to suggest trigger conditions for a context entry.
+	SuggestTenantContextTriggers(context.Context, *SuggestTenantContextTriggersRequest) (*SuggestTenantContextTriggersResponse, error)
 	mustEmbedUnimplementedPipelineServiceServer()
 }
 
@@ -921,6 +1011,24 @@ func (UnimplementedPipelineServiceServer) AuditPipelineCompleteness(context.Cont
 }
 func (UnimplementedPipelineServiceServer) ComparePipelineRuns(context.Context, *ComparePipelineRunsRequest) (*ComparePipelineRunsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ComparePipelineRuns not implemented")
+}
+func (UnimplementedPipelineServiceServer) CreateTenantContext(context.Context, *CreateTenantContextRequest) (*CreateTenantContextResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTenantContext not implemented")
+}
+func (UnimplementedPipelineServiceServer) ListTenantContext(context.Context, *ListTenantContextRequest) (*ListTenantContextResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListTenantContext not implemented")
+}
+func (UnimplementedPipelineServiceServer) GetTenantContext(context.Context, *GetTenantContextRequest) (*GetTenantContextResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTenantContext not implemented")
+}
+func (UnimplementedPipelineServiceServer) DeleteTenantContext(context.Context, *DeleteTenantContextRequest) (*DeleteTenantContextResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteTenantContext not implemented")
+}
+func (UnimplementedPipelineServiceServer) AddTenantContextCondition(context.Context, *AddTenantContextConditionRequest) (*AddTenantContextConditionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddTenantContextCondition not implemented")
+}
+func (UnimplementedPipelineServiceServer) SuggestTenantContextTriggers(context.Context, *SuggestTenantContextTriggersRequest) (*SuggestTenantContextTriggersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SuggestTenantContextTriggers not implemented")
 }
 func (UnimplementedPipelineServiceServer) mustEmbedUnimplementedPipelineServiceServer() {}
 func (UnimplementedPipelineServiceServer) testEmbeddedByValue()                         {}
@@ -1807,6 +1915,114 @@ func _PipelineService_ComparePipelineRuns_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PipelineService_CreateTenantContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateTenantContextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).CreateTenantContext(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_CreateTenantContext_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).CreateTenantContext(ctx, req.(*CreateTenantContextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_ListTenantContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListTenantContextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).ListTenantContext(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_ListTenantContext_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).ListTenantContext(ctx, req.(*ListTenantContextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_GetTenantContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTenantContextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).GetTenantContext(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_GetTenantContext_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).GetTenantContext(ctx, req.(*GetTenantContextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_DeleteTenantContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteTenantContextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).DeleteTenantContext(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_DeleteTenantContext_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).DeleteTenantContext(ctx, req.(*DeleteTenantContextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_AddTenantContextCondition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddTenantContextConditionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).AddTenantContextCondition(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_AddTenantContextCondition_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).AddTenantContextCondition(ctx, req.(*AddTenantContextConditionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_SuggestTenantContextTriggers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SuggestTenantContextTriggersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).SuggestTenantContextTriggers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_SuggestTenantContextTriggers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).SuggestTenantContextTriggers(ctx, req.(*SuggestTenantContextTriggersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PipelineService_ServiceDesc is the grpc.ServiceDesc for PipelineService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2005,6 +2221,30 @@ var PipelineService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ComparePipelineRuns",
 			Handler:    _PipelineService_ComparePipelineRuns_Handler,
+		},
+		{
+			MethodName: "CreateTenantContext",
+			Handler:    _PipelineService_CreateTenantContext_Handler,
+		},
+		{
+			MethodName: "ListTenantContext",
+			Handler:    _PipelineService_ListTenantContext_Handler,
+		},
+		{
+			MethodName: "GetTenantContext",
+			Handler:    _PipelineService_GetTenantContext_Handler,
+		},
+		{
+			MethodName: "DeleteTenantContext",
+			Handler:    _PipelineService_DeleteTenantContext_Handler,
+		},
+		{
+			MethodName: "AddTenantContextCondition",
+			Handler:    _PipelineService_AddTenantContextCondition_Handler,
+		},
+		{
+			MethodName: "SuggestTenantContextTriggers",
+			Handler:    _PipelineService_SuggestTenantContextTriggers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

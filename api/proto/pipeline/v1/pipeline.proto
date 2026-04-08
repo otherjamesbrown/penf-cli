@@ -159,6 +159,24 @@ service PipelineService {
 
   // ComparePipelineRuns compares pipeline run statistics grouped by model and prompt version.
   rpc ComparePipelineRuns(ComparePipelineRunsRequest) returns (ComparePipelineRunsResponse);
+
+  // CreateTenantContext creates a new tenant context entry with optional conditions.
+  rpc CreateTenantContext(CreateTenantContextRequest) returns (CreateTenantContextResponse);
+
+  // ListTenantContext lists all context entries for a tenant.
+  rpc ListTenantContext(ListTenantContextRequest) returns (ListTenantContextResponse);
+
+  // GetTenantContext retrieves a single tenant context entry by ID.
+  rpc GetTenantContext(GetTenantContextRequest) returns (GetTenantContextResponse);
+
+  // DeleteTenantContext deletes a tenant context entry (conditions cascade).
+  rpc DeleteTenantContext(DeleteTenantContextRequest) returns (DeleteTenantContextResponse);
+
+  // AddTenantContextCondition adds a trigger condition to an existing context entry.
+  rpc AddTenantContextCondition(AddTenantContextConditionRequest) returns (AddTenantContextConditionResponse);
+
+  // SuggestTenantContextTriggers uses an LLM to suggest trigger conditions for a context entry.
+  rpc SuggestTenantContextTriggers(SuggestTenantContextTriggersRequest) returns (SuggestTenantContextTriggersResponse);
 }
 
 // =============================================================================
@@ -1831,4 +1849,156 @@ message ComparePipelineRunsResponse {
 
   // Statistics grouped by model/prompt version.
   repeated PipelineRunStats stats = 2;
+}
+
+// =============================================================================
+// Tenant Context Messages
+// =============================================================================
+
+// TenantContextCondition is a trigger condition for a tenant context entry.
+message TenantContextCondition {
+  // Condition ID (assigned by the database).
+  int32 id = 1;
+
+  // Field to match: "content", "sender_email", "subject", "to_address".
+  string field = 2;
+
+  // Match type: "contains", "prefix", "suffix", "exact", "glob".
+  string match_type = 3;
+
+  // Value to match.
+  string value = 4;
+
+  // Whether matching is case-sensitive (default false).
+  bool case_sensitive = 5;
+}
+
+// TenantContextEntry represents a personal reference context item.
+message TenantContextEntry {
+  // Entry ID.
+  int32 id = 1;
+
+  // Category (e.g. "vehicle", "identity", "property", "health").
+  string category = 2;
+
+  // Human-readable label (e.g. "Porsche Macan").
+  string label = 3;
+
+  // Entry details as a JSON string.
+  string details_json = 4;
+
+  // When true, always inject this entry regardless of trigger conditions.
+  bool always_inject = 5;
+
+  // Whether this entry is active.
+  bool active = 6;
+
+  // Trigger conditions for this entry.
+  repeated TenantContextCondition conditions = 7;
+}
+
+// CreateTenantContextRequest creates a new tenant context entry.
+message CreateTenantContextRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Category (e.g. "vehicle", "identity").
+  string category = 2;
+
+  // Human-readable label.
+  string label = 3;
+
+  // Details as a JSON string.
+  string details_json = 4;
+
+  // When true, always inject regardless of trigger conditions.
+  bool always_inject = 5;
+
+  // Initial trigger conditions (optional).
+  repeated TenantContextCondition conditions = 6;
+}
+
+// CreateTenantContextResponse returns the created entry.
+message CreateTenantContextResponse {
+  TenantContextEntry entry = 1;
+}
+
+// ListTenantContextRequest lists context entries for a tenant.
+message ListTenantContextRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Optional category filter.
+  string category = 2;
+}
+
+// ListTenantContextResponse contains a list of context entries.
+message ListTenantContextResponse {
+  repeated TenantContextEntry entries = 1;
+}
+
+// GetTenantContextRequest retrieves a single context entry.
+message GetTenantContextRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Entry ID.
+  int32 id = 2;
+}
+
+// GetTenantContextResponse returns the requested entry.
+message GetTenantContextResponse {
+  TenantContextEntry entry = 1;
+}
+
+// DeleteTenantContextRequest deletes a context entry.
+message DeleteTenantContextRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Entry ID.
+  int32 id = 2;
+}
+
+// DeleteTenantContextResponse confirms the deletion.
+message DeleteTenantContextResponse {
+  int32 deleted_count = 1;
+}
+
+// AddTenantContextConditionRequest adds a condition to an existing entry.
+message AddTenantContextConditionRequest {
+  // Tenant ID (for authorization).
+  string tenant_id = 1;
+
+  // Context entry ID.
+  int32 context_id = 2;
+
+  // Condition to add.
+  TenantContextCondition condition = 3;
+}
+
+// AddTenantContextConditionResponse returns the added condition with its ID.
+message AddTenantContextConditionResponse {
+  TenantContextCondition condition = 1;
+}
+
+// SuggestTenantContextTriggersRequest asks the AI to suggest trigger conditions.
+message SuggestTenantContextTriggersRequest {
+  // Tenant ID.
+  string tenant_id = 1;
+
+  // Category of the context entry.
+  string category = 2;
+
+  // Label of the context entry.
+  string label = 3;
+
+  // Details as a JSON string.
+  string details_json = 4;
+}
+
+// SuggestTenantContextTriggersResponse contains the suggested conditions.
+message SuggestTenantContextTriggersResponse {
+  repeated TenantContextCondition conditions = 1;
+  string model_used = 2;
 }
