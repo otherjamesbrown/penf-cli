@@ -294,6 +294,7 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 	// Override tenant if specified.
 	if searchTenant != "" {
 		cfg.TenantID = searchTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Determine output format.
@@ -401,7 +402,7 @@ func runSearch(ctx context.Context, deps *SearchCommandDeps, queryStr string) er
 	// Build search request.
 	req := &client.SearchRequest{
 		Query:             queryStr,
-		TenantID:          cfg.TenantID,
+		TenantID:          cfg.EffectiveTenantID(),
 		ContentTypes:      searchTypes,
 		DateFrom:          dateFrom,
 		DateTo:            dateTo,
@@ -834,6 +835,7 @@ func runAdvancedSearch(ctx context.Context, deps *SearchCommandDeps, queryStr st
 	// Override tenant if specified.
 	if searchTenant != "" {
 		cfg.TenantID = searchTenant
+		cfg.TenantUUID = "" // flag overrides cached UUID
 	}
 
 	// Determine output format.
@@ -914,7 +916,7 @@ func runAdvancedSearch(ctx context.Context, deps *SearchCommandDeps, queryStr st
 	minScore := float32(advancedMinScore)
 	req := &client.SearchRequest{
 		Query:    queryStr,
-		TenantID: cfg.TenantID,
+		TenantID: cfg.EffectiveTenantID(),
 		Limit:    int32(searchLimit),
 		Offset:   int32(searchOffset),
 	}

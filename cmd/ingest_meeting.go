@@ -143,7 +143,7 @@ func runIngestMeeting(ctx context.Context, deps *IngestCommandDeps, path string)
 	// Determine tenant ID
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		tenantID = "default"
@@ -507,7 +507,7 @@ func runResolveMeetingParticipants(ctx context.Context, deps *IngestCommandDeps)
 	// Determine tenant ID
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" || tenantID == "default" {
 		tenantID = DefaultTenantID
@@ -761,7 +761,7 @@ func runExtractMeetingMentions(ctx context.Context, deps *IngestCommandDeps) err
 	// Determine tenant ID
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" || tenantID == "default" {
 		tenantID = DefaultTenantID

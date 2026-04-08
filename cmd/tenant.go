@@ -335,10 +335,17 @@ func runTenantSwitch(ctx context.Context, deps *TenantCommandDeps, tenantRef str
 	// Resolve alias to tenant ID if applicable.
 	tenantID := resolveTenantAlias(cfg, tenantRef)
 
-	// Validate tenant access if requested.
+	// Resolve the tenant to get UUID.
+	var tenantUUID string
 	if validate {
-		if err := validateTenantAccess(ctx, deps, tenantID); err != nil {
+		tenant, err := resolveTenantWithUUID(ctx, deps, tenantID)
+		if err != nil {
 			return fmt.Errorf("tenant validation failed: %w", err)
+		}
+		tenantUUID = tenant.ID
+		// Use the slug from the server if available.
+		if tenant.Slug != "" {
+			tenantID = tenant.Slug
 		}
 	}
 
@@ -349,13 +356,17 @@ func runTenantSwitch(ctx context.Context, deps *TenantCommandDeps, tenantRef str
 		fmt.Fprintf(os.Stderr, "Unset it to use the config file setting.\n\n")
 	}
 
-	// Update configuration.
+	// Update configuration with both slug and UUID.
 	cfg.TenantID = tenantID
+	cfg.TenantUUID = tenantUUID
 	if err := deps.SaveConfig(cfg); err != nil {
 		return fmt.Errorf("saving configuration: %w", err)
 	}
 
 	fmt.Printf("Switched to tenant: %s\n", tenantID)
+	if tenantUUID != "" {
+		fmt.Printf("  UUID: %s\n", tenantUUID)
+	}
 
 	// Show alias if it was used.
 	if tenantRef != tenantID {
@@ -508,6 +519,48 @@ func findTenantAlias(cfg *config.CLIConfig, tenantID string) string {
 		}
 	}
 	return ""
+}
+
+// resolveTenantWithUUID resolves a tenant reference and returns the full tenant with UUID.
+func resolveTenantWithUUID(ctx context.Context, deps *TenantCommandDeps, tenantRef string) (*client.Tenant, error) {
+	if tenantRef == "" {
+		return nil, fmt.Errorf("tenant ID cannot be empty")
+	}
+
+	cfg := deps.Config
+	if cfg == nil {
+		var err error
+		cfg, err = deps.LoadConfig()
+		if err != nil {
+			return nil, fmt.Errorf("loading configuration: %w", err)
+		}
+	}
+
+	tenantClient, err := deps.InitTenantClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer tenantClient.Close()
+
+	var tenant *client.Tenant
+	var valid bool
+	var errMsg string
+	if deps.SetCurrentTenant != nil {
+		tenant, valid, errMsg, err = deps.SetCurrentTenant(ctx, tenantClient, tenantRef)
+	} else {
+		tenant, valid, errMsg, err = tenantClient.SetCurrentTenant(ctx, tenantRef)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("resolving tenant: %w", err)
+	}
+	if !valid {
+		if errMsg != "" {
+			return nil, fmt.Errorf("tenant validation failed: %s", errMsg)
+		}
+		return nil, fmt.Errorf("tenant %q is not accessible", tenantRef)
+	}
+
+	return tenant, nil
 }
 
 // validateTenantAccess validates that the user has access to the tenant.

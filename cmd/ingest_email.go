@@ -212,7 +212,7 @@ func runIngestEmail(ctx context.Context, deps *IngestCommandDeps, path string) e
 	// Determine tenant ID
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		tenantID = "default" // Fallback for single-tenant

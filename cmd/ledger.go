@@ -290,7 +290,7 @@ func runLedgerList(ctx context.Context, deps *LedgerCommandDeps) error {
 	client := ledgerv1.NewLedgerServiceClient(conn)
 
 	req := &ledgerv1.ListEntriesRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Limit:    int32(ledgerLimit),
 	}
 	if ledgerSession != "" {
@@ -327,7 +327,7 @@ func runLedgerSessions(ctx context.Context, deps *LedgerCommandDeps) error {
 	client := ledgerv1.NewLedgerServiceClient(conn)
 
 	resp, err := client.ListSessions(ctx, &ledgerv1.ListSessionsRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Limit:    int32(ledgerLimit),
 	})
 	if err != nil {
@@ -353,7 +353,7 @@ func runLedgerSession(ctx context.Context, deps *LedgerCommandDeps, sessionID st
 	client := ledgerv1.NewLedgerServiceClient(conn)
 
 	resp, err := client.GetSession(ctx, &ledgerv1.GetSessionRequest{
-		TenantId:  cfg.TenantID,
+		TenantId:  cfg.EffectiveTenantID(),
 		SessionId: sessionID,
 	})
 	if err != nil {
@@ -409,7 +409,7 @@ func runLedgerShow(ctx context.Context, deps *LedgerCommandDeps, id int64) error
 	client := ledgerv1.NewLedgerServiceClient(conn)
 
 	entry, err := client.GetEntry(ctx, &ledgerv1.GetEntryRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Id:       id,
 	})
 	if err != nil {
@@ -435,7 +435,7 @@ func runLedgerSearch(ctx context.Context, deps *LedgerCommandDeps, query string)
 	client := ledgerv1.NewLedgerServiceClient(conn)
 
 	resp, err := client.SearchEntries(ctx, &ledgerv1.SearchEntriesRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Query:    query,
 		Limit:    int32(ledgerLimit),
 	})
@@ -483,7 +483,7 @@ func runLedgerWrite(ctx context.Context, deps *LedgerCommandDeps, entryType, tit
 	}
 
 	req := &ledgerv1.CreateEntryRequest{
-		TenantId:  cfg.TenantID,
+		TenantId:  cfg.EffectiveTenantID(),
 		SessionId: sessionID,
 		EntryType: entryTypeEnum,
 		Title:     title,
@@ -528,7 +528,7 @@ func runLedgerConsolidations(ctx context.Context, deps *LedgerCommandDeps) error
 	client := ledgerv1.NewLedgerServiceClient(conn)
 
 	resp, err := client.ListConsolidations(ctx, &ledgerv1.ListConsolidationsRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Limit:    int32(ledgerLimit),
 	})
 	if err != nil {
@@ -554,7 +554,7 @@ func runLedgerConsolidation(ctx context.Context, deps *LedgerCommandDeps, id int
 	client := ledgerv1.NewLedgerServiceClient(conn)
 
 	consolidation, err := client.GetConsolidation(ctx, &ledgerv1.GetConsolidationRequest{
-		TenantId: cfg.TenantID,
+		TenantId: cfg.EffectiveTenantID(),
 		Id:       id,
 	})
 	if err != nil {
@@ -585,7 +585,7 @@ func logActivity(cfg *config.CLIConfig, title string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		client.CreateEntry(ctx, &ledgerv1.CreateEntryRequest{
-			TenantId:  cfg.TenantID,
+			TenantId:  cfg.EffectiveTenantID(),
 			SessionId: sessionID,
 			EntryType: ledgerv1.EntryType_ENTRY_TYPE_ACTIVITY,
 			Title:     title,

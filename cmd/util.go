@@ -121,8 +121,12 @@ func connectToGateway(cfg *config.CLIConfig) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
-// resolveTenantID returns the tenant ID from config or PENF_TENANT_ID env var.
+// resolveTenantID returns the tenant UUID from config, falling back to slug or env var.
+// Prefers UUID (set by 'tenant switch') since downstream RPCs expect UUIDs.
 func resolveTenantID(cfg *config.CLIConfig) (string, error) {
+	if cfg != nil && cfg.TenantUUID != "" {
+		return cfg.TenantUUID, nil
+	}
 	if cfg != nil && cfg.TenantID != "" {
 		return cfg.TenantID, nil
 	}

@@ -57,7 +57,7 @@ func runPipelineCompare(ctx context.Context, deps *PipelineCommandDeps, stage st
 	}
 	deps.Config = cfg
 
-	tenantID := cfg.TenantID
+	tenantID := cfg.EffectiveTenantID()
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}

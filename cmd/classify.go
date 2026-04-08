@@ -250,7 +250,7 @@ func runClassify(ctx context.Context, deps *ClassifyCommandDeps, contentID strin
 	// Determine tenant ID
 	tenantID := classifyTenant
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 
 	// Determine output format
@@ -451,7 +451,7 @@ func runClassifyStats(ctx context.Context, deps *ClassifyCommandDeps) error {
 	// Determine tenant ID
 	tenantID := classifyTenant
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 
 	// Determine output format

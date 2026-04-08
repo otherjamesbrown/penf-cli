@@ -508,7 +508,7 @@ func runIngestFile(ctx context.Context, deps *IngestCommandDeps, filePath string
 	// Determine tenant ID.
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		tenantID = "default"
@@ -559,7 +559,7 @@ func runIngestURL(ctx context.Context, deps *IngestCommandDeps, url string) erro
 	// Determine tenant ID.
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		tenantID = "default"
@@ -614,7 +614,7 @@ func runIngestBatch(ctx context.Context, deps *IngestCommandDeps, manifestPath s
 	// Determine tenant ID.
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		tenantID = "default"
@@ -691,7 +691,7 @@ func runIngestGmailSync(ctx context.Context, deps *IngestCommandDeps, fullSync b
 
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		return fmt.Errorf("tenant ID required: use --tenant flag or set tenant_id in config")
@@ -929,8 +929,10 @@ func exchangeRefreshToken(tokenURI, clientID, clientSecret, refreshToken string)
 }
 
 // getGmailUserInfo retrieves the email address associated with the access token.
+// Uses the Gmail API profile endpoint (requires gmail.readonly or gmail.modify scope)
+// instead of the OAuth2 userinfo endpoint (which requires the openid scope).
 func getGmailUserInfo(accessToken string) (string, error) {
-	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	req, err := http.NewRequest("GET", "https://gmail.googleapis.com/gmail/v1/users/me/profile", nil)
 	if err != nil {
 		return "", err
 	}
@@ -952,10 +954,10 @@ func getGmailUserInfo(accessToken string) (string, error) {
 	}
 
 	var info struct {
-		Email string `json:"email"`
+		Email string `json:"emailAddress"`
 	}
 	if err := json.Unmarshal(body, &info); err != nil {
-		return "", fmt.Errorf("parsing userinfo: %w", err)
+		return "", fmt.Errorf("parsing profile: %w", err)
 	}
 
 	return info.Email, nil
@@ -975,7 +977,7 @@ func runIngestGmailStatus(ctx context.Context, deps *IngestCommandDeps) error {
 	// Determine tenant ID.
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		tenantID = "default"
@@ -1040,7 +1042,7 @@ func runIngestStatus(ctx context.Context, deps *IngestCommandDeps, jobID string)
 	// Determine tenant ID.
 	tenantID := ingestTenantID
 	if tenantID == "" {
-		tenantID = cfg.TenantID
+		tenantID = cfg.EffectiveTenantID()
 	}
 	if tenantID == "" {
 		tenantID = "default"

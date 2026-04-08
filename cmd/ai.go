@@ -254,7 +254,7 @@ func runAIQuery(ctx context.Context, deps *AICommandDeps, question string) error
 	clientOpts := client.DefaultOptions()
 	clientOpts.Insecure = cfg.Insecure
 	clientOpts.Debug = cfg.Debug
-	clientOpts.TenantID = cfg.TenantID
+	clientOpts.TenantID = cfg.EffectiveTenantID()
 	// Keep the default ConnectTimeout (10s) for fast failure detection.
 
 	// Load TLS config if not in insecure mode.
@@ -279,7 +279,7 @@ func runAIQuery(ctx context.Context, deps *AICommandDeps, question string) error
 	// Execute query via gRPC.
 	queryResp, err := aiClient.Query(ctx, &client.QueryRequest{
 		Question:     question,
-		TenantID:     cfg.TenantID,
+		TenantID:     cfg.EffectiveTenantID(),
 		ContextLimit: int32(aiContext),
 		Model:        aiModel,
 		MaxTokens:    int32(aiMaxTokens),
@@ -345,7 +345,7 @@ func runAISummarize(ctx context.Context, deps *AICommandDeps, contentID, length 
 	clientOpts := client.DefaultOptions()
 	clientOpts.Insecure = cfg.Insecure
 	clientOpts.Debug = cfg.Debug
-	clientOpts.TenantID = cfg.TenantID
+	clientOpts.TenantID = cfg.EffectiveTenantID()
 	// Keep the default ConnectTimeout (10s) for fast failure detection.
 
 	// Load TLS config if not in insecure mode.
@@ -370,7 +370,7 @@ func runAISummarize(ctx context.Context, deps *AICommandDeps, contentID, length 
 	// Execute summarize via gRPC.
 	summaryResp, err := aiClient.Summarize(ctx, &client.SummarizeRequest{
 		ContentID: contentID,
-		TenantID:  cfg.TenantID,
+		TenantID:  cfg.EffectiveTenantID(),
 		Length:    length,
 		Model:     aiModel,
 	})
@@ -439,7 +439,7 @@ func runAIAnalyze(ctx context.Context, deps *AICommandDeps, contentID, analysisT
 	clientOpts := client.DefaultOptions()
 	clientOpts.Insecure = cfg.Insecure
 	clientOpts.Debug = cfg.Debug
-	clientOpts.TenantID = cfg.TenantID
+	clientOpts.TenantID = cfg.EffectiveTenantID()
 	// Keep the default ConnectTimeout (10s) for fast failure detection.
 
 	// Load TLS config if not in insecure mode.
@@ -464,7 +464,7 @@ func runAIAnalyze(ctx context.Context, deps *AICommandDeps, contentID, analysisT
 	// Execute analyze via gRPC.
 	analyzeResp, err := aiClient.Analyze(ctx, &client.AnalyzeRequest{
 		ContentID:    contentID,
-		TenantID:     cfg.TenantID,
+		TenantID:     cfg.EffectiveTenantID(),
 		AnalysisType: analysisType,
 		Model:        aiModel,
 	})
