@@ -6647,6 +6647,262 @@ func (x *TestClassificationRuleResponse) GetMatchedCondition() string {
 	return ""
 }
 
+// CreateClassificationRuleRequest creates a new classification rule.
+type CreateClassificationRuleRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Tenant ID.
+	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	// Rule name (must be unique within tenant).
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Priority (lower = higher priority).
+	Priority int32 `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Scope filter (e.g., "EMAIL"). Defaults to "EMAIL" if empty.
+	Scope string `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Resulting content type (e.g., "EMAIL").
+	ContentType string `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Resulting content subtype (e.g., "NEWSLETTER").
+	ContentSubtype string `protobuf:"bytes,6,opt,name=content_subtype,json=contentSubtype,proto3" json:"content_subtype,omitempty"`
+	// Resulting notification source (for NOTIFICATION subtype).
+	NotificationSource string `protobuf:"bytes,7,opt,name=notification_source,json=notificationSource,proto3" json:"notification_source,omitempty"`
+	// Whether the rule is active. Defaults to true.
+	Active bool `protobuf:"varint,8,opt,name=active,proto3" json:"active,omitempty"`
+	// Match conditions (OR logic).
+	Conditions    []*ClassificationMatchCondition `protobuf:"bytes,9,rep,name=conditions,proto3" json:"conditions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateClassificationRuleRequest) Reset() {
+	*x = CreateClassificationRuleRequest{}
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateClassificationRuleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateClassificationRuleRequest) ProtoMessage() {}
+
+func (x *CreateClassificationRuleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateClassificationRuleRequest.ProtoReflect.Descriptor instead.
+func (*CreateClassificationRuleRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{99}
+}
+
+func (x *CreateClassificationRuleRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *CreateClassificationRuleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateClassificationRuleRequest) GetPriority() int32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *CreateClassificationRuleRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *CreateClassificationRuleRequest) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *CreateClassificationRuleRequest) GetContentSubtype() string {
+	if x != nil {
+		return x.ContentSubtype
+	}
+	return ""
+}
+
+func (x *CreateClassificationRuleRequest) GetNotificationSource() string {
+	if x != nil {
+		return x.NotificationSource
+	}
+	return ""
+}
+
+func (x *CreateClassificationRuleRequest) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *CreateClassificationRuleRequest) GetConditions() []*ClassificationMatchCondition {
+	if x != nil {
+		return x.Conditions
+	}
+	return nil
+}
+
+// CreateClassificationRuleResponse contains the created rule.
+type CreateClassificationRuleResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The created classification rule.
+	Rule          *ClassificationRule `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateClassificationRuleResponse) Reset() {
+	*x = CreateClassificationRuleResponse{}
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateClassificationRuleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateClassificationRuleResponse) ProtoMessage() {}
+
+func (x *CreateClassificationRuleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateClassificationRuleResponse.ProtoReflect.Descriptor instead.
+func (*CreateClassificationRuleResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{100}
+}
+
+func (x *CreateClassificationRuleResponse) GetRule() *ClassificationRule {
+	if x != nil {
+		return x.Rule
+	}
+	return nil
+}
+
+// DeleteClassificationRuleRequest deletes a classification rule by name.
+type DeleteClassificationRuleRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Tenant ID.
+	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	// Rule name.
+	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteClassificationRuleRequest) Reset() {
+	*x = DeleteClassificationRuleRequest{}
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteClassificationRuleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteClassificationRuleRequest) ProtoMessage() {}
+
+func (x *DeleteClassificationRuleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteClassificationRuleRequest.ProtoReflect.Descriptor instead.
+func (*DeleteClassificationRuleRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *DeleteClassificationRuleRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *DeleteClassificationRuleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+// DeleteClassificationRuleResponse is empty on success.
+type DeleteClassificationRuleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteClassificationRuleResponse) Reset() {
+	*x = DeleteClassificationRuleResponse{}
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteClassificationRuleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteClassificationRuleResponse) ProtoMessage() {}
+
+func (x *DeleteClassificationRuleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteClassificationRuleResponse.ProtoReflect.Descriptor instead.
+func (*DeleteClassificationRuleResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{102}
+}
+
 // PipelineRoute represents a routing rule mapping content type to pipeline.
 type PipelineRoute struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -6666,7 +6922,7 @@ type PipelineRoute struct {
 
 func (x *PipelineRoute) Reset() {
 	*x = PipelineRoute{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[99]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6678,7 +6934,7 @@ func (x *PipelineRoute) String() string {
 func (*PipelineRoute) ProtoMessage() {}
 
 func (x *PipelineRoute) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[99]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6691,7 +6947,7 @@ func (x *PipelineRoute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineRoute.ProtoReflect.Descriptor instead.
 func (*PipelineRoute) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{99}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *PipelineRoute) GetId() int64 {
@@ -6740,7 +6996,7 @@ type ListPipelineRoutesRequest struct {
 
 func (x *ListPipelineRoutesRequest) Reset() {
 	*x = ListPipelineRoutesRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[100]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6752,7 +7008,7 @@ func (x *ListPipelineRoutesRequest) String() string {
 func (*ListPipelineRoutesRequest) ProtoMessage() {}
 
 func (x *ListPipelineRoutesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[100]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6765,7 +7021,7 @@ func (x *ListPipelineRoutesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelineRoutesRequest.ProtoReflect.Descriptor instead.
 func (*ListPipelineRoutesRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{100}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *ListPipelineRoutesRequest) GetTenantId() string {
@@ -6786,7 +7042,7 @@ type ListPipelineRoutesResponse struct {
 
 func (x *ListPipelineRoutesResponse) Reset() {
 	*x = ListPipelineRoutesResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[101]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6798,7 +7054,7 @@ func (x *ListPipelineRoutesResponse) String() string {
 func (*ListPipelineRoutesResponse) ProtoMessage() {}
 
 func (x *ListPipelineRoutesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[101]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6811,7 +7067,7 @@ func (x *ListPipelineRoutesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelineRoutesResponse.ProtoReflect.Descriptor instead.
 func (*ListPipelineRoutesResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{101}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *ListPipelineRoutesResponse) GetRoutes() []*PipelineRoute {
@@ -6834,7 +7090,7 @@ type TestPipelineRouteRequest struct {
 
 func (x *TestPipelineRouteRequest) Reset() {
 	*x = TestPipelineRouteRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[102]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6846,7 +7102,7 @@ func (x *TestPipelineRouteRequest) String() string {
 func (*TestPipelineRouteRequest) ProtoMessage() {}
 
 func (x *TestPipelineRouteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[102]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6859,7 +7115,7 @@ func (x *TestPipelineRouteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestPipelineRouteRequest.ProtoReflect.Descriptor instead.
 func (*TestPipelineRouteRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{102}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *TestPipelineRouteRequest) GetTenantId() string {
@@ -6889,7 +7145,7 @@ type MatchedRoute struct {
 
 func (x *MatchedRoute) Reset() {
 	*x = MatchedRoute{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[103]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6901,7 +7157,7 @@ func (x *MatchedRoute) String() string {
 func (*MatchedRoute) ProtoMessage() {}
 
 func (x *MatchedRoute) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[103]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6914,7 +7170,7 @@ func (x *MatchedRoute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchedRoute.ProtoReflect.Descriptor instead.
 func (*MatchedRoute) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{103}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *MatchedRoute) GetPipeline() string {
@@ -6946,7 +7202,7 @@ type TestPipelineRouteResponse struct {
 
 func (x *TestPipelineRouteResponse) Reset() {
 	*x = TestPipelineRouteResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[104]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6958,7 +7214,7 @@ func (x *TestPipelineRouteResponse) String() string {
 func (*TestPipelineRouteResponse) ProtoMessage() {}
 
 func (x *TestPipelineRouteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[104]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6971,7 +7227,7 @@ func (x *TestPipelineRouteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestPipelineRouteResponse.ProtoReflect.Descriptor instead.
 func (*TestPipelineRouteResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{104}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *TestPipelineRouteResponse) GetContentType() string {
@@ -7026,7 +7282,7 @@ type PipelineStageDefinition struct {
 
 func (x *PipelineStageDefinition) Reset() {
 	*x = PipelineStageDefinition{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[105]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7038,7 +7294,7 @@ func (x *PipelineStageDefinition) String() string {
 func (*PipelineStageDefinition) ProtoMessage() {}
 
 func (x *PipelineStageDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[105]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7051,7 +7307,7 @@ func (x *PipelineStageDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineStageDefinition.ProtoReflect.Descriptor instead.
 func (*PipelineStageDefinition) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{105}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *PipelineStageDefinition) GetStage() string {
@@ -7144,7 +7400,7 @@ type PipelineDefinition struct {
 
 func (x *PipelineDefinition) Reset() {
 	*x = PipelineDefinition{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[106]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7156,7 +7412,7 @@ func (x *PipelineDefinition) String() string {
 func (*PipelineDefinition) ProtoMessage() {}
 
 func (x *PipelineDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[106]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7169,7 +7425,7 @@ func (x *PipelineDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineDefinition.ProtoReflect.Descriptor instead.
 func (*PipelineDefinition) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{106}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *PipelineDefinition) GetPipeline() string {
@@ -7197,7 +7453,7 @@ type ListPipelineDefinitionsRequest struct {
 
 func (x *ListPipelineDefinitionsRequest) Reset() {
 	*x = ListPipelineDefinitionsRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[107]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7209,7 +7465,7 @@ func (x *ListPipelineDefinitionsRequest) String() string {
 func (*ListPipelineDefinitionsRequest) ProtoMessage() {}
 
 func (x *ListPipelineDefinitionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[107]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7222,7 +7478,7 @@ func (x *ListPipelineDefinitionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelineDefinitionsRequest.ProtoReflect.Descriptor instead.
 func (*ListPipelineDefinitionsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{107}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *ListPipelineDefinitionsRequest) GetTenantId() string {
@@ -7243,7 +7499,7 @@ type ListPipelineDefinitionsResponse struct {
 
 func (x *ListPipelineDefinitionsResponse) Reset() {
 	*x = ListPipelineDefinitionsResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[108]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7255,7 +7511,7 @@ func (x *ListPipelineDefinitionsResponse) String() string {
 func (*ListPipelineDefinitionsResponse) ProtoMessage() {}
 
 func (x *ListPipelineDefinitionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[108]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7268,7 +7524,7 @@ func (x *ListPipelineDefinitionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelineDefinitionsResponse.ProtoReflect.Descriptor instead.
 func (*ListPipelineDefinitionsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{108}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *ListPipelineDefinitionsResponse) GetPipelines() []*PipelineDefinition {
@@ -7291,7 +7547,7 @@ type GetPipelineDefinitionRequest struct {
 
 func (x *GetPipelineDefinitionRequest) Reset() {
 	*x = GetPipelineDefinitionRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[109]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7303,7 +7559,7 @@ func (x *GetPipelineDefinitionRequest) String() string {
 func (*GetPipelineDefinitionRequest) ProtoMessage() {}
 
 func (x *GetPipelineDefinitionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[109]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7316,7 +7572,7 @@ func (x *GetPipelineDefinitionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineDefinitionRequest.ProtoReflect.Descriptor instead.
 func (*GetPipelineDefinitionRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{109}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *GetPipelineDefinitionRequest) GetTenantId() string {
@@ -7344,7 +7600,7 @@ type GetPipelineDefinitionResponse struct {
 
 func (x *GetPipelineDefinitionResponse) Reset() {
 	*x = GetPipelineDefinitionResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[110]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7356,7 +7612,7 @@ func (x *GetPipelineDefinitionResponse) String() string {
 func (*GetPipelineDefinitionResponse) ProtoMessage() {}
 
 func (x *GetPipelineDefinitionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[110]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7369,7 +7625,7 @@ func (x *GetPipelineDefinitionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineDefinitionResponse.ProtoReflect.Descriptor instead.
 func (*GetPipelineDefinitionResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{110}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *GetPipelineDefinitionResponse) GetDefinition() *PipelineDefinition {
@@ -7410,7 +7666,7 @@ type UpdatePipelineStageConfigRequest struct {
 
 func (x *UpdatePipelineStageConfigRequest) Reset() {
 	*x = UpdatePipelineStageConfigRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[111]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7422,7 +7678,7 @@ func (x *UpdatePipelineStageConfigRequest) String() string {
 func (*UpdatePipelineStageConfigRequest) ProtoMessage() {}
 
 func (x *UpdatePipelineStageConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[111]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7435,7 +7691,7 @@ func (x *UpdatePipelineStageConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePipelineStageConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineStageConfigRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{111}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *UpdatePipelineStageConfigRequest) GetTenantId() string {
@@ -7528,7 +7784,7 @@ type UpdatePipelineStageConfigResponse struct {
 
 func (x *UpdatePipelineStageConfigResponse) Reset() {
 	*x = UpdatePipelineStageConfigResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[112]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7540,7 +7796,7 @@ func (x *UpdatePipelineStageConfigResponse) String() string {
 func (*UpdatePipelineStageConfigResponse) ProtoMessage() {}
 
 func (x *UpdatePipelineStageConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[112]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7553,7 +7809,7 @@ func (x *UpdatePipelineStageConfigResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use UpdatePipelineStageConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineStageConfigResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{112}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *UpdatePipelineStageConfigResponse) GetStage() *PipelineStageDefinition {
@@ -7585,7 +7841,7 @@ type CreatePipelineDefinitionRequest struct {
 
 func (x *CreatePipelineDefinitionRequest) Reset() {
 	*x = CreatePipelineDefinitionRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[113]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7597,7 +7853,7 @@ func (x *CreatePipelineDefinitionRequest) String() string {
 func (*CreatePipelineDefinitionRequest) ProtoMessage() {}
 
 func (x *CreatePipelineDefinitionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[113]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7610,7 +7866,7 @@ func (x *CreatePipelineDefinitionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineDefinitionRequest.ProtoReflect.Descriptor instead.
 func (*CreatePipelineDefinitionRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{113}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *CreatePipelineDefinitionRequest) GetTenantId() string {
@@ -7647,7 +7903,7 @@ type CreatePipelineDefinitionResponse struct {
 
 func (x *CreatePipelineDefinitionResponse) Reset() {
 	*x = CreatePipelineDefinitionResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[114]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7659,7 +7915,7 @@ func (x *CreatePipelineDefinitionResponse) String() string {
 func (*CreatePipelineDefinitionResponse) ProtoMessage() {}
 
 func (x *CreatePipelineDefinitionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[114]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7672,7 +7928,7 @@ func (x *CreatePipelineDefinitionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineDefinitionResponse.ProtoReflect.Descriptor instead.
 func (*CreatePipelineDefinitionResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{114}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *CreatePipelineDefinitionResponse) GetDefinition() *PipelineDefinition {
@@ -7704,7 +7960,7 @@ type AuditPipelineCompletenessRequest struct {
 
 func (x *AuditPipelineCompletenessRequest) Reset() {
 	*x = AuditPipelineCompletenessRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[115]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7716,7 +7972,7 @@ func (x *AuditPipelineCompletenessRequest) String() string {
 func (*AuditPipelineCompletenessRequest) ProtoMessage() {}
 
 func (x *AuditPipelineCompletenessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[115]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7729,7 +7985,7 @@ func (x *AuditPipelineCompletenessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditPipelineCompletenessRequest.ProtoReflect.Descriptor instead.
 func (*AuditPipelineCompletenessRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{115}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *AuditPipelineCompletenessRequest) GetTenantId() string {
@@ -7772,7 +8028,7 @@ type AuditItem struct {
 
 func (x *AuditItem) Reset() {
 	*x = AuditItem{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[116]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7784,7 +8040,7 @@ func (x *AuditItem) String() string {
 func (*AuditItem) ProtoMessage() {}
 
 func (x *AuditItem) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[116]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7797,7 +8053,7 @@ func (x *AuditItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditItem.ProtoReflect.Descriptor instead.
 func (*AuditItem) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{116}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *AuditItem) GetSourceId() int64 {
@@ -7848,7 +8104,7 @@ type AuditPipelineCompletenessResponse struct {
 
 func (x *AuditPipelineCompletenessResponse) Reset() {
 	*x = AuditPipelineCompletenessResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[117]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7860,7 +8116,7 @@ func (x *AuditPipelineCompletenessResponse) String() string {
 func (*AuditPipelineCompletenessResponse) ProtoMessage() {}
 
 func (x *AuditPipelineCompletenessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[117]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7873,7 +8129,7 @@ func (x *AuditPipelineCompletenessResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use AuditPipelineCompletenessResponse.ProtoReflect.Descriptor instead.
 func (*AuditPipelineCompletenessResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{117}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *AuditPipelineCompletenessResponse) GetItems() []*AuditItem {
@@ -7905,7 +8161,7 @@ type ComparePipelineRunsRequest struct {
 
 func (x *ComparePipelineRunsRequest) Reset() {
 	*x = ComparePipelineRunsRequest{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[118]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7917,7 +8173,7 @@ func (x *ComparePipelineRunsRequest) String() string {
 func (*ComparePipelineRunsRequest) ProtoMessage() {}
 
 func (x *ComparePipelineRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[118]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7930,7 +8186,7 @@ func (x *ComparePipelineRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComparePipelineRunsRequest.ProtoReflect.Descriptor instead.
 func (*ComparePipelineRunsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{118}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *ComparePipelineRunsRequest) GetTenantId() string {
@@ -7979,7 +8235,7 @@ type PipelineRunStats struct {
 
 func (x *PipelineRunStats) Reset() {
 	*x = PipelineRunStats{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[119]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7991,7 +8247,7 @@ func (x *PipelineRunStats) String() string {
 func (*PipelineRunStats) ProtoMessage() {}
 
 func (x *PipelineRunStats) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[119]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8004,7 +8260,7 @@ func (x *PipelineRunStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineRunStats.ProtoReflect.Descriptor instead.
 func (*PipelineRunStats) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{119}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *PipelineRunStats) GetModelId() string {
@@ -8076,7 +8332,7 @@ type ComparePipelineRunsResponse struct {
 
 func (x *ComparePipelineRunsResponse) Reset() {
 	*x = ComparePipelineRunsResponse{}
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[120]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8088,7 +8344,7 @@ func (x *ComparePipelineRunsResponse) String() string {
 func (*ComparePipelineRunsResponse) ProtoMessage() {}
 
 func (x *ComparePipelineRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[120]
+	mi := &file_api_proto_pipeline_v1_pipeline_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8101,7 +8357,7 @@ func (x *ComparePipelineRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComparePipelineRunsResponse.ProtoReflect.Descriptor instead.
 func (*ComparePipelineRunsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{120}
+	return file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *ComparePipelineRunsResponse) GetStage() string {
@@ -8618,7 +8874,25 @@ const file_api_proto_pipeline_v1_pipeline_proto_rawDesc = "" +
 	"\x0fcontent_subtype\x18\x03 \x01(\tR\x0econtentSubtype\x12/\n" +
 	"\x13notification_source\x18\x04 \x01(\tR\x12notificationSource\x12'\n" +
 	"\x0frules_evaluated\x18\x05 \x01(\x05R\x0erulesEvaluated\x12+\n" +
-	"\x11matched_condition\x18\x06 \x01(\tR\x10matchedCondition\"\x9f\x01\n" +
+	"\x11matched_condition\x18\x06 \x01(\tR\x10matchedCondition\"\xec\x02\n" +
+	"\x1fCreateClassificationRuleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bpriority\x18\x03 \x01(\x05R\bpriority\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\x12!\n" +
+	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\x12'\n" +
+	"\x0fcontent_subtype\x18\x06 \x01(\tR\x0econtentSubtype\x12/\n" +
+	"\x13notification_source\x18\a \x01(\tR\x12notificationSource\x12\x16\n" +
+	"\x06active\x18\b \x01(\bR\x06active\x12Q\n" +
+	"\n" +
+	"conditions\x18\t \x03(\v21.penfold.pipeline.v1.ClassificationMatchConditionR\n" +
+	"conditions\"_\n" +
+	" CreateClassificationRuleResponse\x12;\n" +
+	"\x04rule\x18\x01 \x01(\v2'.penfold.pipeline.v1.ClassificationRuleR\x04rule\"R\n" +
+	"\x1fDeleteClassificationRuleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\"\n" +
+	" DeleteClassificationRuleResponse\"\x9f\x01\n" +
 	"\rPipelineRoute\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12'\n" +
@@ -8765,7 +9039,7 @@ const file_api_proto_pipeline_v1_pipeline_proto_rawDesc = "" +
 	"\x17CHANGE_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CHANGE_TYPE_ADDED\x10\x01\x12\x17\n" +
 	"\x13CHANGE_TYPE_REMOVED\x10\x02\x12\x18\n" +
-	"\x14CHANGE_TYPE_MODIFIED\x10\x032\xfd(\n" +
+	"\x14CHANGE_TYPE_MODIFIED\x10\x032\x91+\n" +
 	"\x0fPipelineService\x12W\n" +
 	"\bGetStats\x12$.penfold.pipeline.v1.GetStatsRequest\x1a%.penfold.pipeline.v1.GetStatsResponse\x12Q\n" +
 	"\x06GetJob\x12\".penfold.pipeline.v1.GetJobRequest\x1a#.penfold.pipeline.v1.GetJobResponse\x12W\n" +
@@ -8805,7 +9079,9 @@ const file_api_proto_pipeline_v1_pipeline_proto_rawDesc = "" +
 	"ListModels\x12&.penfold.pipeline.v1.ListModelsRequest\x1a'.penfold.pipeline.v1.ListModelsResponse\x12\x84\x01\n" +
 	"\x17ListClassificationRules\x123.penfold.pipeline.v1.ListClassificationRulesRequest\x1a4.penfold.pipeline.v1.ListClassificationRulesResponse\x12~\n" +
 	"\x15GetClassificationRule\x121.penfold.pipeline.v1.GetClassificationRuleRequest\x1a2.penfold.pipeline.v1.GetClassificationRuleResponse\x12\x81\x01\n" +
-	"\x16TestClassificationRule\x122.penfold.pipeline.v1.TestClassificationRuleRequest\x1a3.penfold.pipeline.v1.TestClassificationRuleResponse\x12u\n" +
+	"\x16TestClassificationRule\x122.penfold.pipeline.v1.TestClassificationRuleRequest\x1a3.penfold.pipeline.v1.TestClassificationRuleResponse\x12\x87\x01\n" +
+	"\x18CreateClassificationRule\x124.penfold.pipeline.v1.CreateClassificationRuleRequest\x1a5.penfold.pipeline.v1.CreateClassificationRuleResponse\x12\x87\x01\n" +
+	"\x18DeleteClassificationRule\x124.penfold.pipeline.v1.DeleteClassificationRuleRequest\x1a5.penfold.pipeline.v1.DeleteClassificationRuleResponse\x12u\n" +
 	"\x12ListPipelineRoutes\x12..penfold.pipeline.v1.ListPipelineRoutesRequest\x1a/.penfold.pipeline.v1.ListPipelineRoutesResponse\x12r\n" +
 	"\x11TestPipelineRoute\x12-.penfold.pipeline.v1.TestPipelineRouteRequest\x1a..penfold.pipeline.v1.TestPipelineRouteResponse\x12\x84\x01\n" +
 	"\x17ListPipelineDefinitions\x123.penfold.pipeline.v1.ListPipelineDefinitionsRequest\x1a4.penfold.pipeline.v1.ListPipelineDefinitionsResponse\x12~\n" +
@@ -8828,7 +9104,7 @@ func file_api_proto_pipeline_v1_pipeline_proto_rawDescGZIP() []byte {
 }
 
 var file_api_proto_pipeline_v1_pipeline_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_api_proto_pipeline_v1_pipeline_proto_msgTypes = make([]protoimpl.MessageInfo, 123)
+var file_api_proto_pipeline_v1_pipeline_proto_msgTypes = make([]protoimpl.MessageInfo, 127)
 var file_api_proto_pipeline_v1_pipeline_proto_goTypes = []any{
 	(FailureCategory)(0),                      // 0: penfold.pipeline.v1.FailureCategory
 	(ChangeType)(0),                           // 1: penfold.pipeline.v1.ChangeType
@@ -8931,42 +9207,46 @@ var file_api_proto_pipeline_v1_pipeline_proto_goTypes = []any{
 	(*GetClassificationRuleResponse)(nil),     // 98: penfold.pipeline.v1.GetClassificationRuleResponse
 	(*TestClassificationRuleRequest)(nil),     // 99: penfold.pipeline.v1.TestClassificationRuleRequest
 	(*TestClassificationRuleResponse)(nil),    // 100: penfold.pipeline.v1.TestClassificationRuleResponse
-	(*PipelineRoute)(nil),                     // 101: penfold.pipeline.v1.PipelineRoute
-	(*ListPipelineRoutesRequest)(nil),         // 102: penfold.pipeline.v1.ListPipelineRoutesRequest
-	(*ListPipelineRoutesResponse)(nil),        // 103: penfold.pipeline.v1.ListPipelineRoutesResponse
-	(*TestPipelineRouteRequest)(nil),          // 104: penfold.pipeline.v1.TestPipelineRouteRequest
-	(*MatchedRoute)(nil),                      // 105: penfold.pipeline.v1.MatchedRoute
-	(*TestPipelineRouteResponse)(nil),         // 106: penfold.pipeline.v1.TestPipelineRouteResponse
-	(*PipelineStageDefinition)(nil),           // 107: penfold.pipeline.v1.PipelineStageDefinition
-	(*PipelineDefinition)(nil),                // 108: penfold.pipeline.v1.PipelineDefinition
-	(*ListPipelineDefinitionsRequest)(nil),    // 109: penfold.pipeline.v1.ListPipelineDefinitionsRequest
-	(*ListPipelineDefinitionsResponse)(nil),   // 110: penfold.pipeline.v1.ListPipelineDefinitionsResponse
-	(*GetPipelineDefinitionRequest)(nil),      // 111: penfold.pipeline.v1.GetPipelineDefinitionRequest
-	(*GetPipelineDefinitionResponse)(nil),     // 112: penfold.pipeline.v1.GetPipelineDefinitionResponse
-	(*UpdatePipelineStageConfigRequest)(nil),  // 113: penfold.pipeline.v1.UpdatePipelineStageConfigRequest
-	(*UpdatePipelineStageConfigResponse)(nil), // 114: penfold.pipeline.v1.UpdatePipelineStageConfigResponse
-	(*CreatePipelineDefinitionRequest)(nil),   // 115: penfold.pipeline.v1.CreatePipelineDefinitionRequest
-	(*CreatePipelineDefinitionResponse)(nil),  // 116: penfold.pipeline.v1.CreatePipelineDefinitionResponse
-	(*AuditPipelineCompletenessRequest)(nil),  // 117: penfold.pipeline.v1.AuditPipelineCompletenessRequest
-	(*AuditItem)(nil),                         // 118: penfold.pipeline.v1.AuditItem
-	(*AuditPipelineCompletenessResponse)(nil), // 119: penfold.pipeline.v1.AuditPipelineCompletenessResponse
-	(*ComparePipelineRunsRequest)(nil),        // 120: penfold.pipeline.v1.ComparePipelineRunsRequest
-	(*PipelineRunStats)(nil),                  // 121: penfold.pipeline.v1.PipelineRunStats
-	(*ComparePipelineRunsResponse)(nil),       // 122: penfold.pipeline.v1.ComparePipelineRunsResponse
-	nil,                                       // 123: penfold.pipeline.v1.TraceEvent.DetailsEntry
-	nil,                                       // 124: penfold.pipeline.v1.PipelineErrorEvent.DetailsEntry
-	(*timestamppb.Timestamp)(nil),             // 125: google.protobuf.Timestamp
+	(*CreateClassificationRuleRequest)(nil),   // 101: penfold.pipeline.v1.CreateClassificationRuleRequest
+	(*CreateClassificationRuleResponse)(nil),  // 102: penfold.pipeline.v1.CreateClassificationRuleResponse
+	(*DeleteClassificationRuleRequest)(nil),   // 103: penfold.pipeline.v1.DeleteClassificationRuleRequest
+	(*DeleteClassificationRuleResponse)(nil),  // 104: penfold.pipeline.v1.DeleteClassificationRuleResponse
+	(*PipelineRoute)(nil),                     // 105: penfold.pipeline.v1.PipelineRoute
+	(*ListPipelineRoutesRequest)(nil),         // 106: penfold.pipeline.v1.ListPipelineRoutesRequest
+	(*ListPipelineRoutesResponse)(nil),        // 107: penfold.pipeline.v1.ListPipelineRoutesResponse
+	(*TestPipelineRouteRequest)(nil),          // 108: penfold.pipeline.v1.TestPipelineRouteRequest
+	(*MatchedRoute)(nil),                      // 109: penfold.pipeline.v1.MatchedRoute
+	(*TestPipelineRouteResponse)(nil),         // 110: penfold.pipeline.v1.TestPipelineRouteResponse
+	(*PipelineStageDefinition)(nil),           // 111: penfold.pipeline.v1.PipelineStageDefinition
+	(*PipelineDefinition)(nil),                // 112: penfold.pipeline.v1.PipelineDefinition
+	(*ListPipelineDefinitionsRequest)(nil),    // 113: penfold.pipeline.v1.ListPipelineDefinitionsRequest
+	(*ListPipelineDefinitionsResponse)(nil),   // 114: penfold.pipeline.v1.ListPipelineDefinitionsResponse
+	(*GetPipelineDefinitionRequest)(nil),      // 115: penfold.pipeline.v1.GetPipelineDefinitionRequest
+	(*GetPipelineDefinitionResponse)(nil),     // 116: penfold.pipeline.v1.GetPipelineDefinitionResponse
+	(*UpdatePipelineStageConfigRequest)(nil),  // 117: penfold.pipeline.v1.UpdatePipelineStageConfigRequest
+	(*UpdatePipelineStageConfigResponse)(nil), // 118: penfold.pipeline.v1.UpdatePipelineStageConfigResponse
+	(*CreatePipelineDefinitionRequest)(nil),   // 119: penfold.pipeline.v1.CreatePipelineDefinitionRequest
+	(*CreatePipelineDefinitionResponse)(nil),  // 120: penfold.pipeline.v1.CreatePipelineDefinitionResponse
+	(*AuditPipelineCompletenessRequest)(nil),  // 121: penfold.pipeline.v1.AuditPipelineCompletenessRequest
+	(*AuditItem)(nil),                         // 122: penfold.pipeline.v1.AuditItem
+	(*AuditPipelineCompletenessResponse)(nil), // 123: penfold.pipeline.v1.AuditPipelineCompletenessResponse
+	(*ComparePipelineRunsRequest)(nil),        // 124: penfold.pipeline.v1.ComparePipelineRunsRequest
+	(*PipelineRunStats)(nil),                  // 125: penfold.pipeline.v1.PipelineRunStats
+	(*ComparePipelineRunsResponse)(nil),       // 126: penfold.pipeline.v1.ComparePipelineRunsResponse
+	nil,                                       // 127: penfold.pipeline.v1.TraceEvent.DetailsEntry
+	nil,                                       // 128: penfold.pipeline.v1.PipelineErrorEvent.DetailsEntry
+	(*timestamppb.Timestamp)(nil),             // 129: google.protobuf.Timestamp
 }
 var file_api_proto_pipeline_v1_pipeline_proto_depIdxs = []int32{
-	125, // 0: penfold.pipeline.v1.JobSummary.created_at:type_name -> google.protobuf.Timestamp
-	125, // 1: penfold.pipeline.v1.JobSummary.completed_at:type_name -> google.protobuf.Timestamp
+	129, // 0: penfold.pipeline.v1.JobSummary.created_at:type_name -> google.protobuf.Timestamp
+	129, // 1: penfold.pipeline.v1.JobSummary.completed_at:type_name -> google.protobuf.Timestamp
 	3,   // 2: penfold.pipeline.v1.JobDetails.summary:type_name -> penfold.pipeline.v1.JobSummary
 	2,   // 3: penfold.pipeline.v1.SourceStats.by_status:type_name -> penfold.pipeline.v1.StatusCount
 	2,   // 4: penfold.pipeline.v1.PipelineStats.sources_by_status:type_name -> penfold.pipeline.v1.StatusCount
 	2,   // 5: penfold.pipeline.v1.PipelineStats.attachments_by_tier:type_name -> penfold.pipeline.v1.StatusCount
 	2,   // 6: penfold.pipeline.v1.PipelineStats.jobs_by_status:type_name -> penfold.pipeline.v1.StatusCount
 	3,   // 7: penfold.pipeline.v1.PipelineStats.recent_jobs:type_name -> penfold.pipeline.v1.JobSummary
-	125, // 8: penfold.pipeline.v1.PipelineStats.timestamp:type_name -> google.protobuf.Timestamp
+	129, // 8: penfold.pipeline.v1.PipelineStats.timestamp:type_name -> google.protobuf.Timestamp
 	2,   // 9: penfold.pipeline.v1.PipelineStats.sources_by_failure_category:type_name -> penfold.pipeline.v1.StatusCount
 	6,   // 10: penfold.pipeline.v1.GetStatsResponse.stats:type_name -> penfold.pipeline.v1.PipelineStats
 	4,   // 11: penfold.pipeline.v1.GetJobResponse.job:type_name -> penfold.pipeline.v1.JobDetails
@@ -8975,150 +9255,156 @@ var file_api_proto_pipeline_v1_pipeline_proto_depIdxs = []int32{
 	19,  // 14: penfold.pipeline.v1.GetQueueStatusResponse.queues:type_name -> penfold.pipeline.v1.QueueStats
 	22,  // 15: penfold.pipeline.v1.GetPipelineHealthResponse.checks:type_name -> penfold.pipeline.v1.HealthCheck
 	25,  // 16: penfold.pipeline.v1.GetContentTraceResponse.events:type_name -> penfold.pipeline.v1.TraceEvent
-	125, // 17: penfold.pipeline.v1.TraceEvent.timestamp:type_name -> google.protobuf.Timestamp
-	123, // 18: penfold.pipeline.v1.TraceEvent.details:type_name -> penfold.pipeline.v1.TraceEvent.DetailsEntry
+	129, // 17: penfold.pipeline.v1.TraceEvent.timestamp:type_name -> google.protobuf.Timestamp
+	127, // 18: penfold.pipeline.v1.TraceEvent.details:type_name -> penfold.pipeline.v1.TraceEvent.DetailsEntry
 	28,  // 19: penfold.pipeline.v1.ListDeletedSourcesResponse.sources:type_name -> penfold.pipeline.v1.DeletedSource
-	125, // 20: penfold.pipeline.v1.DeletedSource.deleted_at:type_name -> google.protobuf.Timestamp
+	129, // 20: penfold.pipeline.v1.DeletedSource.deleted_at:type_name -> google.protobuf.Timestamp
 	31,  // 21: penfold.pipeline.v1.DescribePipelineResponse.stages:type_name -> penfold.pipeline.v1.StageInfo
-	125, // 22: penfold.pipeline.v1.PromptTemplate.created_at:type_name -> google.protobuf.Timestamp
+	129, // 22: penfold.pipeline.v1.PromptTemplate.created_at:type_name -> google.protobuf.Timestamp
 	34,  // 23: penfold.pipeline.v1.GetPromptResponse.prompt:type_name -> penfold.pipeline.v1.PromptTemplate
 	34,  // 24: penfold.pipeline.v1.ListPromptVersionsResponse.versions:type_name -> penfold.pipeline.v1.PromptTemplate
 	34,  // 25: penfold.pipeline.v1.UpdatePromptResponse.prompt:type_name -> penfold.pipeline.v1.PromptTemplate
 	34,  // 26: penfold.pipeline.v1.RollbackPromptResponse.prompt:type_name -> penfold.pipeline.v1.PromptTemplate
-	125, // 27: penfold.pipeline.v1.PipelineRun.created_at:type_name -> google.protobuf.Timestamp
+	129, // 27: penfold.pipeline.v1.PipelineRun.created_at:type_name -> google.protobuf.Timestamp
 	45,  // 28: penfold.pipeline.v1.GetSourceHistoryResponse.runs:type_name -> penfold.pipeline.v1.PipelineRun
 	50,  // 29: penfold.pipeline.v1.GetTimeoutConfigResponse.entries:type_name -> penfold.pipeline.v1.TimeoutEntry
 	50,  // 30: penfold.pipeline.v1.UpdateTimeoutConfigResponse.entry:type_name -> penfold.pipeline.v1.TimeoutEntry
-	125, // 31: penfold.pipeline.v1.GetPipelineErrorsRequest.since:type_name -> google.protobuf.Timestamp
-	125, // 32: penfold.pipeline.v1.GetPipelineErrorsRequest.until:type_name -> google.protobuf.Timestamp
+	129, // 31: penfold.pipeline.v1.GetPipelineErrorsRequest.since:type_name -> google.protobuf.Timestamp
+	129, // 32: penfold.pipeline.v1.GetPipelineErrorsRequest.until:type_name -> google.protobuf.Timestamp
 	57,  // 33: penfold.pipeline.v1.GetPipelineErrorsResponse.errors:type_name -> penfold.pipeline.v1.PipelineErrorEvent
-	125, // 34: penfold.pipeline.v1.PipelineErrorEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	124, // 35: penfold.pipeline.v1.PipelineErrorEvent.details:type_name -> penfold.pipeline.v1.PipelineErrorEvent.DetailsEntry
-	125, // 36: penfold.pipeline.v1.PipelineRunDetail.created_at:type_name -> google.protobuf.Timestamp
+	129, // 34: penfold.pipeline.v1.PipelineErrorEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	128, // 35: penfold.pipeline.v1.PipelineErrorEvent.details:type_name -> penfold.pipeline.v1.PipelineErrorEvent.DetailsEntry
+	129, // 36: penfold.pipeline.v1.PipelineRunDetail.created_at:type_name -> google.protobuf.Timestamp
 	58,  // 37: penfold.pipeline.v1.PipelineRunDetail.io:type_name -> penfold.pipeline.v1.StageIOData
 	59,  // 38: penfold.pipeline.v1.InspectStageResponse.runs:type_name -> penfold.pipeline.v1.PipelineRunDetail
-	125, // 39: penfold.pipeline.v1.DiffStageRunsResponse.run_a_time:type_name -> google.protobuf.Timestamp
-	125, // 40: penfold.pipeline.v1.DiffStageRunsResponse.run_b_time:type_name -> google.protobuf.Timestamp
+	129, // 39: penfold.pipeline.v1.DiffStageRunsResponse.run_a_time:type_name -> google.protobuf.Timestamp
+	129, // 40: penfold.pipeline.v1.DiffStageRunsResponse.run_b_time:type_name -> google.protobuf.Timestamp
 	1,   // 41: penfold.pipeline.v1.StageDiff.change_type:type_name -> penfold.pipeline.v1.ChangeType
 	65,  // 42: penfold.pipeline.v1.DiffPipelineRunsResponse.diffs:type_name -> penfold.pipeline.v1.StageDiff
-	125, // 43: penfold.pipeline.v1.PendingSourceSummary.created_at:type_name -> google.protobuf.Timestamp
+	129, // 43: penfold.pipeline.v1.PendingSourceSummary.created_at:type_name -> google.protobuf.Timestamp
 	76,  // 44: penfold.pipeline.v1.ListPendingSourcesResponse.sources:type_name -> penfold.pipeline.v1.PendingSourceSummary
 	79,  // 45: penfold.pipeline.v1.GetStageConfigResponse.stages:type_name -> penfold.pipeline.v1.StageConfigEntry
-	125, // 46: penfold.pipeline.v1.GetBatchStatusResponse.created_at:type_name -> google.protobuf.Timestamp
+	129, // 46: penfold.pipeline.v1.GetBatchStatusResponse.created_at:type_name -> google.protobuf.Timestamp
 	87,  // 47: penfold.pipeline.v1.ListBatchesResponse.batches:type_name -> penfold.pipeline.v1.BatchSummary
-	125, // 48: penfold.pipeline.v1.BatchSummary.created_at:type_name -> google.protobuf.Timestamp
-	125, // 49: penfold.pipeline.v1.BatchSummary.updated_at:type_name -> google.protobuf.Timestamp
+	129, // 48: penfold.pipeline.v1.BatchSummary.created_at:type_name -> google.protobuf.Timestamp
+	129, // 49: penfold.pipeline.v1.BatchSummary.updated_at:type_name -> google.protobuf.Timestamp
 	90,  // 50: penfold.pipeline.v1.ListModelsResponse.models:type_name -> penfold.pipeline.v1.ModelInfo
 	93,  // 51: penfold.pipeline.v1.ClassificationRule.conditions:type_name -> penfold.pipeline.v1.ClassificationMatchCondition
 	94,  // 52: penfold.pipeline.v1.ListClassificationRulesResponse.rules:type_name -> penfold.pipeline.v1.ClassificationRule
 	94,  // 53: penfold.pipeline.v1.GetClassificationRuleResponse.rule:type_name -> penfold.pipeline.v1.ClassificationRule
 	94,  // 54: penfold.pipeline.v1.TestClassificationRuleResponse.matched_rule:type_name -> penfold.pipeline.v1.ClassificationRule
-	101, // 55: penfold.pipeline.v1.ListPipelineRoutesResponse.routes:type_name -> penfold.pipeline.v1.PipelineRoute
-	105, // 56: penfold.pipeline.v1.TestPipelineRouteResponse.matched_routes:type_name -> penfold.pipeline.v1.MatchedRoute
-	107, // 57: penfold.pipeline.v1.PipelineDefinition.stages:type_name -> penfold.pipeline.v1.PipelineStageDefinition
-	108, // 58: penfold.pipeline.v1.ListPipelineDefinitionsResponse.pipelines:type_name -> penfold.pipeline.v1.PipelineDefinition
-	108, // 59: penfold.pipeline.v1.GetPipelineDefinitionResponse.definition:type_name -> penfold.pipeline.v1.PipelineDefinition
-	107, // 60: penfold.pipeline.v1.UpdatePipelineStageConfigResponse.stage:type_name -> penfold.pipeline.v1.PipelineStageDefinition
-	108, // 61: penfold.pipeline.v1.CreatePipelineDefinitionResponse.definition:type_name -> penfold.pipeline.v1.PipelineDefinition
-	118, // 62: penfold.pipeline.v1.AuditPipelineCompletenessResponse.items:type_name -> penfold.pipeline.v1.AuditItem
-	121, // 63: penfold.pipeline.v1.ComparePipelineRunsResponse.stats:type_name -> penfold.pipeline.v1.PipelineRunStats
-	7,   // 64: penfold.pipeline.v1.PipelineService.GetStats:input_type -> penfold.pipeline.v1.GetStatsRequest
-	9,   // 65: penfold.pipeline.v1.PipelineService.GetJob:input_type -> penfold.pipeline.v1.GetJobRequest
-	11,  // 66: penfold.pipeline.v1.PipelineService.ListJobs:input_type -> penfold.pipeline.v1.ListJobsRequest
-	13,  // 67: penfold.pipeline.v1.PipelineService.KickProcessing:input_type -> penfold.pipeline.v1.KickProcessingRequest
-	15,  // 68: penfold.pipeline.v1.PipelineService.RetryFailed:input_type -> penfold.pipeline.v1.RetryFailedRequest
-	17,  // 69: penfold.pipeline.v1.PipelineService.GetQueueStatus:input_type -> penfold.pipeline.v1.GetQueueStatusRequest
-	20,  // 70: penfold.pipeline.v1.PipelineService.GetPipelineHealth:input_type -> penfold.pipeline.v1.GetPipelineHealthRequest
-	23,  // 71: penfold.pipeline.v1.PipelineService.GetContentTrace:input_type -> penfold.pipeline.v1.GetContentTraceRequest
-	26,  // 72: penfold.pipeline.v1.PipelineService.ListDeletedSources:input_type -> penfold.pipeline.v1.ListDeletedSourcesRequest
-	29,  // 73: penfold.pipeline.v1.PipelineService.UndeleteSource:input_type -> penfold.pipeline.v1.UndeleteSourceRequest
-	32,  // 74: penfold.pipeline.v1.PipelineService.DescribePipeline:input_type -> penfold.pipeline.v1.DescribePipelineRequest
-	35,  // 75: penfold.pipeline.v1.PipelineService.GetPrompt:input_type -> penfold.pipeline.v1.GetPromptRequest
-	37,  // 76: penfold.pipeline.v1.PipelineService.ListPromptVersions:input_type -> penfold.pipeline.v1.ListPromptVersionsRequest
-	39,  // 77: penfold.pipeline.v1.PipelineService.UpdatePrompt:input_type -> penfold.pipeline.v1.UpdatePromptRequest
-	41,  // 78: penfold.pipeline.v1.PipelineService.RollbackPrompt:input_type -> penfold.pipeline.v1.RollbackPromptRequest
-	43,  // 79: penfold.pipeline.v1.PipelineService.ExportPrompt:input_type -> penfold.pipeline.v1.ExportPromptRequest
-	46,  // 80: penfold.pipeline.v1.PipelineService.GetSourceHistory:input_type -> penfold.pipeline.v1.GetSourceHistoryRequest
-	48,  // 81: penfold.pipeline.v1.PipelineService.ReprocessDryRun:input_type -> penfold.pipeline.v1.ReprocessDryRunRequest
-	51,  // 82: penfold.pipeline.v1.PipelineService.GetTimeoutConfig:input_type -> penfold.pipeline.v1.GetTimeoutConfigRequest
-	53,  // 83: penfold.pipeline.v1.PipelineService.UpdateTimeoutConfig:input_type -> penfold.pipeline.v1.UpdateTimeoutConfigRequest
-	55,  // 84: penfold.pipeline.v1.PipelineService.GetPipelineErrors:input_type -> penfold.pipeline.v1.GetPipelineErrorsRequest
-	60,  // 85: penfold.pipeline.v1.PipelineService.InspectStage:input_type -> penfold.pipeline.v1.InspectStageRequest
-	62,  // 86: penfold.pipeline.v1.PipelineService.DiffStageRuns:input_type -> penfold.pipeline.v1.DiffStageRunsRequest
-	64,  // 87: penfold.pipeline.v1.PipelineService.DiffPipelineRuns:input_type -> penfold.pipeline.v1.DiffPipelineRunsRequest
-	67,  // 88: penfold.pipeline.v1.PipelineService.GetConcurrencyConfig:input_type -> penfold.pipeline.v1.GetConcurrencyConfigRequest
-	69,  // 89: penfold.pipeline.v1.PipelineService.SetConcurrencyConfig:input_type -> penfold.pipeline.v1.SetConcurrencyConfigRequest
-	71,  // 90: penfold.pipeline.v1.PipelineService.GetOperationalConfig:input_type -> penfold.pipeline.v1.GetOperationalConfigRequest
-	73,  // 91: penfold.pipeline.v1.PipelineService.SetOperationalConfig:input_type -> penfold.pipeline.v1.SetOperationalConfigRequest
-	75,  // 92: penfold.pipeline.v1.PipelineService.ListPendingSources:input_type -> penfold.pipeline.v1.ListPendingSourcesRequest
-	78,  // 93: penfold.pipeline.v1.PipelineService.GetStageConfig:input_type -> penfold.pipeline.v1.GetStageConfigRequest
-	81,  // 94: penfold.pipeline.v1.PipelineService.StartBatchPipeline:input_type -> penfold.pipeline.v1.StartBatchPipelineRequest
-	83,  // 95: penfold.pipeline.v1.PipelineService.GetBatchStatus:input_type -> penfold.pipeline.v1.GetBatchStatusRequest
-	85,  // 96: penfold.pipeline.v1.PipelineService.ListBatches:input_type -> penfold.pipeline.v1.ListBatchesRequest
-	88,  // 97: penfold.pipeline.v1.PipelineService.CancelBatch:input_type -> penfold.pipeline.v1.CancelBatchRequest
-	91,  // 98: penfold.pipeline.v1.PipelineService.ListModels:input_type -> penfold.pipeline.v1.ListModelsRequest
-	95,  // 99: penfold.pipeline.v1.PipelineService.ListClassificationRules:input_type -> penfold.pipeline.v1.ListClassificationRulesRequest
-	97,  // 100: penfold.pipeline.v1.PipelineService.GetClassificationRule:input_type -> penfold.pipeline.v1.GetClassificationRuleRequest
-	99,  // 101: penfold.pipeline.v1.PipelineService.TestClassificationRule:input_type -> penfold.pipeline.v1.TestClassificationRuleRequest
-	102, // 102: penfold.pipeline.v1.PipelineService.ListPipelineRoutes:input_type -> penfold.pipeline.v1.ListPipelineRoutesRequest
-	104, // 103: penfold.pipeline.v1.PipelineService.TestPipelineRoute:input_type -> penfold.pipeline.v1.TestPipelineRouteRequest
-	109, // 104: penfold.pipeline.v1.PipelineService.ListPipelineDefinitions:input_type -> penfold.pipeline.v1.ListPipelineDefinitionsRequest
-	111, // 105: penfold.pipeline.v1.PipelineService.GetPipelineDefinition:input_type -> penfold.pipeline.v1.GetPipelineDefinitionRequest
-	113, // 106: penfold.pipeline.v1.PipelineService.UpdatePipelineStageConfig:input_type -> penfold.pipeline.v1.UpdatePipelineStageConfigRequest
-	115, // 107: penfold.pipeline.v1.PipelineService.CreatePipelineDefinition:input_type -> penfold.pipeline.v1.CreatePipelineDefinitionRequest
-	117, // 108: penfold.pipeline.v1.PipelineService.AuditPipelineCompleteness:input_type -> penfold.pipeline.v1.AuditPipelineCompletenessRequest
-	120, // 109: penfold.pipeline.v1.PipelineService.ComparePipelineRuns:input_type -> penfold.pipeline.v1.ComparePipelineRunsRequest
-	8,   // 110: penfold.pipeline.v1.PipelineService.GetStats:output_type -> penfold.pipeline.v1.GetStatsResponse
-	10,  // 111: penfold.pipeline.v1.PipelineService.GetJob:output_type -> penfold.pipeline.v1.GetJobResponse
-	12,  // 112: penfold.pipeline.v1.PipelineService.ListJobs:output_type -> penfold.pipeline.v1.ListJobsResponse
-	14,  // 113: penfold.pipeline.v1.PipelineService.KickProcessing:output_type -> penfold.pipeline.v1.KickProcessingResponse
-	16,  // 114: penfold.pipeline.v1.PipelineService.RetryFailed:output_type -> penfold.pipeline.v1.RetryFailedResponse
-	18,  // 115: penfold.pipeline.v1.PipelineService.GetQueueStatus:output_type -> penfold.pipeline.v1.GetQueueStatusResponse
-	21,  // 116: penfold.pipeline.v1.PipelineService.GetPipelineHealth:output_type -> penfold.pipeline.v1.GetPipelineHealthResponse
-	24,  // 117: penfold.pipeline.v1.PipelineService.GetContentTrace:output_type -> penfold.pipeline.v1.GetContentTraceResponse
-	27,  // 118: penfold.pipeline.v1.PipelineService.ListDeletedSources:output_type -> penfold.pipeline.v1.ListDeletedSourcesResponse
-	30,  // 119: penfold.pipeline.v1.PipelineService.UndeleteSource:output_type -> penfold.pipeline.v1.UndeleteSourceResponse
-	33,  // 120: penfold.pipeline.v1.PipelineService.DescribePipeline:output_type -> penfold.pipeline.v1.DescribePipelineResponse
-	36,  // 121: penfold.pipeline.v1.PipelineService.GetPrompt:output_type -> penfold.pipeline.v1.GetPromptResponse
-	38,  // 122: penfold.pipeline.v1.PipelineService.ListPromptVersions:output_type -> penfold.pipeline.v1.ListPromptVersionsResponse
-	40,  // 123: penfold.pipeline.v1.PipelineService.UpdatePrompt:output_type -> penfold.pipeline.v1.UpdatePromptResponse
-	42,  // 124: penfold.pipeline.v1.PipelineService.RollbackPrompt:output_type -> penfold.pipeline.v1.RollbackPromptResponse
-	44,  // 125: penfold.pipeline.v1.PipelineService.ExportPrompt:output_type -> penfold.pipeline.v1.ExportPromptResponse
-	47,  // 126: penfold.pipeline.v1.PipelineService.GetSourceHistory:output_type -> penfold.pipeline.v1.GetSourceHistoryResponse
-	49,  // 127: penfold.pipeline.v1.PipelineService.ReprocessDryRun:output_type -> penfold.pipeline.v1.ReprocessDryRunResponse
-	52,  // 128: penfold.pipeline.v1.PipelineService.GetTimeoutConfig:output_type -> penfold.pipeline.v1.GetTimeoutConfigResponse
-	54,  // 129: penfold.pipeline.v1.PipelineService.UpdateTimeoutConfig:output_type -> penfold.pipeline.v1.UpdateTimeoutConfigResponse
-	56,  // 130: penfold.pipeline.v1.PipelineService.GetPipelineErrors:output_type -> penfold.pipeline.v1.GetPipelineErrorsResponse
-	61,  // 131: penfold.pipeline.v1.PipelineService.InspectStage:output_type -> penfold.pipeline.v1.InspectStageResponse
-	63,  // 132: penfold.pipeline.v1.PipelineService.DiffStageRuns:output_type -> penfold.pipeline.v1.DiffStageRunsResponse
-	66,  // 133: penfold.pipeline.v1.PipelineService.DiffPipelineRuns:output_type -> penfold.pipeline.v1.DiffPipelineRunsResponse
-	68,  // 134: penfold.pipeline.v1.PipelineService.GetConcurrencyConfig:output_type -> penfold.pipeline.v1.GetConcurrencyConfigResponse
-	70,  // 135: penfold.pipeline.v1.PipelineService.SetConcurrencyConfig:output_type -> penfold.pipeline.v1.SetConcurrencyConfigResponse
-	72,  // 136: penfold.pipeline.v1.PipelineService.GetOperationalConfig:output_type -> penfold.pipeline.v1.GetOperationalConfigResponse
-	74,  // 137: penfold.pipeline.v1.PipelineService.SetOperationalConfig:output_type -> penfold.pipeline.v1.SetOperationalConfigResponse
-	77,  // 138: penfold.pipeline.v1.PipelineService.ListPendingSources:output_type -> penfold.pipeline.v1.ListPendingSourcesResponse
-	80,  // 139: penfold.pipeline.v1.PipelineService.GetStageConfig:output_type -> penfold.pipeline.v1.GetStageConfigResponse
-	82,  // 140: penfold.pipeline.v1.PipelineService.StartBatchPipeline:output_type -> penfold.pipeline.v1.StartBatchPipelineResponse
-	84,  // 141: penfold.pipeline.v1.PipelineService.GetBatchStatus:output_type -> penfold.pipeline.v1.GetBatchStatusResponse
-	86,  // 142: penfold.pipeline.v1.PipelineService.ListBatches:output_type -> penfold.pipeline.v1.ListBatchesResponse
-	89,  // 143: penfold.pipeline.v1.PipelineService.CancelBatch:output_type -> penfold.pipeline.v1.CancelBatchResponse
-	92,  // 144: penfold.pipeline.v1.PipelineService.ListModels:output_type -> penfold.pipeline.v1.ListModelsResponse
-	96,  // 145: penfold.pipeline.v1.PipelineService.ListClassificationRules:output_type -> penfold.pipeline.v1.ListClassificationRulesResponse
-	98,  // 146: penfold.pipeline.v1.PipelineService.GetClassificationRule:output_type -> penfold.pipeline.v1.GetClassificationRuleResponse
-	100, // 147: penfold.pipeline.v1.PipelineService.TestClassificationRule:output_type -> penfold.pipeline.v1.TestClassificationRuleResponse
-	103, // 148: penfold.pipeline.v1.PipelineService.ListPipelineRoutes:output_type -> penfold.pipeline.v1.ListPipelineRoutesResponse
-	106, // 149: penfold.pipeline.v1.PipelineService.TestPipelineRoute:output_type -> penfold.pipeline.v1.TestPipelineRouteResponse
-	110, // 150: penfold.pipeline.v1.PipelineService.ListPipelineDefinitions:output_type -> penfold.pipeline.v1.ListPipelineDefinitionsResponse
-	112, // 151: penfold.pipeline.v1.PipelineService.GetPipelineDefinition:output_type -> penfold.pipeline.v1.GetPipelineDefinitionResponse
-	114, // 152: penfold.pipeline.v1.PipelineService.UpdatePipelineStageConfig:output_type -> penfold.pipeline.v1.UpdatePipelineStageConfigResponse
-	116, // 153: penfold.pipeline.v1.PipelineService.CreatePipelineDefinition:output_type -> penfold.pipeline.v1.CreatePipelineDefinitionResponse
-	119, // 154: penfold.pipeline.v1.PipelineService.AuditPipelineCompleteness:output_type -> penfold.pipeline.v1.AuditPipelineCompletenessResponse
-	122, // 155: penfold.pipeline.v1.PipelineService.ComparePipelineRuns:output_type -> penfold.pipeline.v1.ComparePipelineRunsResponse
-	110, // [110:156] is the sub-list for method output_type
-	64,  // [64:110] is the sub-list for method input_type
-	64,  // [64:64] is the sub-list for extension type_name
-	64,  // [64:64] is the sub-list for extension extendee
-	0,   // [0:64] is the sub-list for field type_name
+	93,  // 55: penfold.pipeline.v1.CreateClassificationRuleRequest.conditions:type_name -> penfold.pipeline.v1.ClassificationMatchCondition
+	94,  // 56: penfold.pipeline.v1.CreateClassificationRuleResponse.rule:type_name -> penfold.pipeline.v1.ClassificationRule
+	105, // 57: penfold.pipeline.v1.ListPipelineRoutesResponse.routes:type_name -> penfold.pipeline.v1.PipelineRoute
+	109, // 58: penfold.pipeline.v1.TestPipelineRouteResponse.matched_routes:type_name -> penfold.pipeline.v1.MatchedRoute
+	111, // 59: penfold.pipeline.v1.PipelineDefinition.stages:type_name -> penfold.pipeline.v1.PipelineStageDefinition
+	112, // 60: penfold.pipeline.v1.ListPipelineDefinitionsResponse.pipelines:type_name -> penfold.pipeline.v1.PipelineDefinition
+	112, // 61: penfold.pipeline.v1.GetPipelineDefinitionResponse.definition:type_name -> penfold.pipeline.v1.PipelineDefinition
+	111, // 62: penfold.pipeline.v1.UpdatePipelineStageConfigResponse.stage:type_name -> penfold.pipeline.v1.PipelineStageDefinition
+	112, // 63: penfold.pipeline.v1.CreatePipelineDefinitionResponse.definition:type_name -> penfold.pipeline.v1.PipelineDefinition
+	122, // 64: penfold.pipeline.v1.AuditPipelineCompletenessResponse.items:type_name -> penfold.pipeline.v1.AuditItem
+	125, // 65: penfold.pipeline.v1.ComparePipelineRunsResponse.stats:type_name -> penfold.pipeline.v1.PipelineRunStats
+	7,   // 66: penfold.pipeline.v1.PipelineService.GetStats:input_type -> penfold.pipeline.v1.GetStatsRequest
+	9,   // 67: penfold.pipeline.v1.PipelineService.GetJob:input_type -> penfold.pipeline.v1.GetJobRequest
+	11,  // 68: penfold.pipeline.v1.PipelineService.ListJobs:input_type -> penfold.pipeline.v1.ListJobsRequest
+	13,  // 69: penfold.pipeline.v1.PipelineService.KickProcessing:input_type -> penfold.pipeline.v1.KickProcessingRequest
+	15,  // 70: penfold.pipeline.v1.PipelineService.RetryFailed:input_type -> penfold.pipeline.v1.RetryFailedRequest
+	17,  // 71: penfold.pipeline.v1.PipelineService.GetQueueStatus:input_type -> penfold.pipeline.v1.GetQueueStatusRequest
+	20,  // 72: penfold.pipeline.v1.PipelineService.GetPipelineHealth:input_type -> penfold.pipeline.v1.GetPipelineHealthRequest
+	23,  // 73: penfold.pipeline.v1.PipelineService.GetContentTrace:input_type -> penfold.pipeline.v1.GetContentTraceRequest
+	26,  // 74: penfold.pipeline.v1.PipelineService.ListDeletedSources:input_type -> penfold.pipeline.v1.ListDeletedSourcesRequest
+	29,  // 75: penfold.pipeline.v1.PipelineService.UndeleteSource:input_type -> penfold.pipeline.v1.UndeleteSourceRequest
+	32,  // 76: penfold.pipeline.v1.PipelineService.DescribePipeline:input_type -> penfold.pipeline.v1.DescribePipelineRequest
+	35,  // 77: penfold.pipeline.v1.PipelineService.GetPrompt:input_type -> penfold.pipeline.v1.GetPromptRequest
+	37,  // 78: penfold.pipeline.v1.PipelineService.ListPromptVersions:input_type -> penfold.pipeline.v1.ListPromptVersionsRequest
+	39,  // 79: penfold.pipeline.v1.PipelineService.UpdatePrompt:input_type -> penfold.pipeline.v1.UpdatePromptRequest
+	41,  // 80: penfold.pipeline.v1.PipelineService.RollbackPrompt:input_type -> penfold.pipeline.v1.RollbackPromptRequest
+	43,  // 81: penfold.pipeline.v1.PipelineService.ExportPrompt:input_type -> penfold.pipeline.v1.ExportPromptRequest
+	46,  // 82: penfold.pipeline.v1.PipelineService.GetSourceHistory:input_type -> penfold.pipeline.v1.GetSourceHistoryRequest
+	48,  // 83: penfold.pipeline.v1.PipelineService.ReprocessDryRun:input_type -> penfold.pipeline.v1.ReprocessDryRunRequest
+	51,  // 84: penfold.pipeline.v1.PipelineService.GetTimeoutConfig:input_type -> penfold.pipeline.v1.GetTimeoutConfigRequest
+	53,  // 85: penfold.pipeline.v1.PipelineService.UpdateTimeoutConfig:input_type -> penfold.pipeline.v1.UpdateTimeoutConfigRequest
+	55,  // 86: penfold.pipeline.v1.PipelineService.GetPipelineErrors:input_type -> penfold.pipeline.v1.GetPipelineErrorsRequest
+	60,  // 87: penfold.pipeline.v1.PipelineService.InspectStage:input_type -> penfold.pipeline.v1.InspectStageRequest
+	62,  // 88: penfold.pipeline.v1.PipelineService.DiffStageRuns:input_type -> penfold.pipeline.v1.DiffStageRunsRequest
+	64,  // 89: penfold.pipeline.v1.PipelineService.DiffPipelineRuns:input_type -> penfold.pipeline.v1.DiffPipelineRunsRequest
+	67,  // 90: penfold.pipeline.v1.PipelineService.GetConcurrencyConfig:input_type -> penfold.pipeline.v1.GetConcurrencyConfigRequest
+	69,  // 91: penfold.pipeline.v1.PipelineService.SetConcurrencyConfig:input_type -> penfold.pipeline.v1.SetConcurrencyConfigRequest
+	71,  // 92: penfold.pipeline.v1.PipelineService.GetOperationalConfig:input_type -> penfold.pipeline.v1.GetOperationalConfigRequest
+	73,  // 93: penfold.pipeline.v1.PipelineService.SetOperationalConfig:input_type -> penfold.pipeline.v1.SetOperationalConfigRequest
+	75,  // 94: penfold.pipeline.v1.PipelineService.ListPendingSources:input_type -> penfold.pipeline.v1.ListPendingSourcesRequest
+	78,  // 95: penfold.pipeline.v1.PipelineService.GetStageConfig:input_type -> penfold.pipeline.v1.GetStageConfigRequest
+	81,  // 96: penfold.pipeline.v1.PipelineService.StartBatchPipeline:input_type -> penfold.pipeline.v1.StartBatchPipelineRequest
+	83,  // 97: penfold.pipeline.v1.PipelineService.GetBatchStatus:input_type -> penfold.pipeline.v1.GetBatchStatusRequest
+	85,  // 98: penfold.pipeline.v1.PipelineService.ListBatches:input_type -> penfold.pipeline.v1.ListBatchesRequest
+	88,  // 99: penfold.pipeline.v1.PipelineService.CancelBatch:input_type -> penfold.pipeline.v1.CancelBatchRequest
+	91,  // 100: penfold.pipeline.v1.PipelineService.ListModels:input_type -> penfold.pipeline.v1.ListModelsRequest
+	95,  // 101: penfold.pipeline.v1.PipelineService.ListClassificationRules:input_type -> penfold.pipeline.v1.ListClassificationRulesRequest
+	97,  // 102: penfold.pipeline.v1.PipelineService.GetClassificationRule:input_type -> penfold.pipeline.v1.GetClassificationRuleRequest
+	99,  // 103: penfold.pipeline.v1.PipelineService.TestClassificationRule:input_type -> penfold.pipeline.v1.TestClassificationRuleRequest
+	101, // 104: penfold.pipeline.v1.PipelineService.CreateClassificationRule:input_type -> penfold.pipeline.v1.CreateClassificationRuleRequest
+	103, // 105: penfold.pipeline.v1.PipelineService.DeleteClassificationRule:input_type -> penfold.pipeline.v1.DeleteClassificationRuleRequest
+	106, // 106: penfold.pipeline.v1.PipelineService.ListPipelineRoutes:input_type -> penfold.pipeline.v1.ListPipelineRoutesRequest
+	108, // 107: penfold.pipeline.v1.PipelineService.TestPipelineRoute:input_type -> penfold.pipeline.v1.TestPipelineRouteRequest
+	113, // 108: penfold.pipeline.v1.PipelineService.ListPipelineDefinitions:input_type -> penfold.pipeline.v1.ListPipelineDefinitionsRequest
+	115, // 109: penfold.pipeline.v1.PipelineService.GetPipelineDefinition:input_type -> penfold.pipeline.v1.GetPipelineDefinitionRequest
+	117, // 110: penfold.pipeline.v1.PipelineService.UpdatePipelineStageConfig:input_type -> penfold.pipeline.v1.UpdatePipelineStageConfigRequest
+	119, // 111: penfold.pipeline.v1.PipelineService.CreatePipelineDefinition:input_type -> penfold.pipeline.v1.CreatePipelineDefinitionRequest
+	121, // 112: penfold.pipeline.v1.PipelineService.AuditPipelineCompleteness:input_type -> penfold.pipeline.v1.AuditPipelineCompletenessRequest
+	124, // 113: penfold.pipeline.v1.PipelineService.ComparePipelineRuns:input_type -> penfold.pipeline.v1.ComparePipelineRunsRequest
+	8,   // 114: penfold.pipeline.v1.PipelineService.GetStats:output_type -> penfold.pipeline.v1.GetStatsResponse
+	10,  // 115: penfold.pipeline.v1.PipelineService.GetJob:output_type -> penfold.pipeline.v1.GetJobResponse
+	12,  // 116: penfold.pipeline.v1.PipelineService.ListJobs:output_type -> penfold.pipeline.v1.ListJobsResponse
+	14,  // 117: penfold.pipeline.v1.PipelineService.KickProcessing:output_type -> penfold.pipeline.v1.KickProcessingResponse
+	16,  // 118: penfold.pipeline.v1.PipelineService.RetryFailed:output_type -> penfold.pipeline.v1.RetryFailedResponse
+	18,  // 119: penfold.pipeline.v1.PipelineService.GetQueueStatus:output_type -> penfold.pipeline.v1.GetQueueStatusResponse
+	21,  // 120: penfold.pipeline.v1.PipelineService.GetPipelineHealth:output_type -> penfold.pipeline.v1.GetPipelineHealthResponse
+	24,  // 121: penfold.pipeline.v1.PipelineService.GetContentTrace:output_type -> penfold.pipeline.v1.GetContentTraceResponse
+	27,  // 122: penfold.pipeline.v1.PipelineService.ListDeletedSources:output_type -> penfold.pipeline.v1.ListDeletedSourcesResponse
+	30,  // 123: penfold.pipeline.v1.PipelineService.UndeleteSource:output_type -> penfold.pipeline.v1.UndeleteSourceResponse
+	33,  // 124: penfold.pipeline.v1.PipelineService.DescribePipeline:output_type -> penfold.pipeline.v1.DescribePipelineResponse
+	36,  // 125: penfold.pipeline.v1.PipelineService.GetPrompt:output_type -> penfold.pipeline.v1.GetPromptResponse
+	38,  // 126: penfold.pipeline.v1.PipelineService.ListPromptVersions:output_type -> penfold.pipeline.v1.ListPromptVersionsResponse
+	40,  // 127: penfold.pipeline.v1.PipelineService.UpdatePrompt:output_type -> penfold.pipeline.v1.UpdatePromptResponse
+	42,  // 128: penfold.pipeline.v1.PipelineService.RollbackPrompt:output_type -> penfold.pipeline.v1.RollbackPromptResponse
+	44,  // 129: penfold.pipeline.v1.PipelineService.ExportPrompt:output_type -> penfold.pipeline.v1.ExportPromptResponse
+	47,  // 130: penfold.pipeline.v1.PipelineService.GetSourceHistory:output_type -> penfold.pipeline.v1.GetSourceHistoryResponse
+	49,  // 131: penfold.pipeline.v1.PipelineService.ReprocessDryRun:output_type -> penfold.pipeline.v1.ReprocessDryRunResponse
+	52,  // 132: penfold.pipeline.v1.PipelineService.GetTimeoutConfig:output_type -> penfold.pipeline.v1.GetTimeoutConfigResponse
+	54,  // 133: penfold.pipeline.v1.PipelineService.UpdateTimeoutConfig:output_type -> penfold.pipeline.v1.UpdateTimeoutConfigResponse
+	56,  // 134: penfold.pipeline.v1.PipelineService.GetPipelineErrors:output_type -> penfold.pipeline.v1.GetPipelineErrorsResponse
+	61,  // 135: penfold.pipeline.v1.PipelineService.InspectStage:output_type -> penfold.pipeline.v1.InspectStageResponse
+	63,  // 136: penfold.pipeline.v1.PipelineService.DiffStageRuns:output_type -> penfold.pipeline.v1.DiffStageRunsResponse
+	66,  // 137: penfold.pipeline.v1.PipelineService.DiffPipelineRuns:output_type -> penfold.pipeline.v1.DiffPipelineRunsResponse
+	68,  // 138: penfold.pipeline.v1.PipelineService.GetConcurrencyConfig:output_type -> penfold.pipeline.v1.GetConcurrencyConfigResponse
+	70,  // 139: penfold.pipeline.v1.PipelineService.SetConcurrencyConfig:output_type -> penfold.pipeline.v1.SetConcurrencyConfigResponse
+	72,  // 140: penfold.pipeline.v1.PipelineService.GetOperationalConfig:output_type -> penfold.pipeline.v1.GetOperationalConfigResponse
+	74,  // 141: penfold.pipeline.v1.PipelineService.SetOperationalConfig:output_type -> penfold.pipeline.v1.SetOperationalConfigResponse
+	77,  // 142: penfold.pipeline.v1.PipelineService.ListPendingSources:output_type -> penfold.pipeline.v1.ListPendingSourcesResponse
+	80,  // 143: penfold.pipeline.v1.PipelineService.GetStageConfig:output_type -> penfold.pipeline.v1.GetStageConfigResponse
+	82,  // 144: penfold.pipeline.v1.PipelineService.StartBatchPipeline:output_type -> penfold.pipeline.v1.StartBatchPipelineResponse
+	84,  // 145: penfold.pipeline.v1.PipelineService.GetBatchStatus:output_type -> penfold.pipeline.v1.GetBatchStatusResponse
+	86,  // 146: penfold.pipeline.v1.PipelineService.ListBatches:output_type -> penfold.pipeline.v1.ListBatchesResponse
+	89,  // 147: penfold.pipeline.v1.PipelineService.CancelBatch:output_type -> penfold.pipeline.v1.CancelBatchResponse
+	92,  // 148: penfold.pipeline.v1.PipelineService.ListModels:output_type -> penfold.pipeline.v1.ListModelsResponse
+	96,  // 149: penfold.pipeline.v1.PipelineService.ListClassificationRules:output_type -> penfold.pipeline.v1.ListClassificationRulesResponse
+	98,  // 150: penfold.pipeline.v1.PipelineService.GetClassificationRule:output_type -> penfold.pipeline.v1.GetClassificationRuleResponse
+	100, // 151: penfold.pipeline.v1.PipelineService.TestClassificationRule:output_type -> penfold.pipeline.v1.TestClassificationRuleResponse
+	102, // 152: penfold.pipeline.v1.PipelineService.CreateClassificationRule:output_type -> penfold.pipeline.v1.CreateClassificationRuleResponse
+	104, // 153: penfold.pipeline.v1.PipelineService.DeleteClassificationRule:output_type -> penfold.pipeline.v1.DeleteClassificationRuleResponse
+	107, // 154: penfold.pipeline.v1.PipelineService.ListPipelineRoutes:output_type -> penfold.pipeline.v1.ListPipelineRoutesResponse
+	110, // 155: penfold.pipeline.v1.PipelineService.TestPipelineRoute:output_type -> penfold.pipeline.v1.TestPipelineRouteResponse
+	114, // 156: penfold.pipeline.v1.PipelineService.ListPipelineDefinitions:output_type -> penfold.pipeline.v1.ListPipelineDefinitionsResponse
+	116, // 157: penfold.pipeline.v1.PipelineService.GetPipelineDefinition:output_type -> penfold.pipeline.v1.GetPipelineDefinitionResponse
+	118, // 158: penfold.pipeline.v1.PipelineService.UpdatePipelineStageConfig:output_type -> penfold.pipeline.v1.UpdatePipelineStageConfigResponse
+	120, // 159: penfold.pipeline.v1.PipelineService.CreatePipelineDefinition:output_type -> penfold.pipeline.v1.CreatePipelineDefinitionResponse
+	123, // 160: penfold.pipeline.v1.PipelineService.AuditPipelineCompleteness:output_type -> penfold.pipeline.v1.AuditPipelineCompletenessResponse
+	126, // 161: penfold.pipeline.v1.PipelineService.ComparePipelineRuns:output_type -> penfold.pipeline.v1.ComparePipelineRunsResponse
+	114, // [114:162] is the sub-list for method output_type
+	66,  // [66:114] is the sub-list for method input_type
+	66,  // [66:66] is the sub-list for extension type_name
+	66,  // [66:66] is the sub-list for extension extendee
+	0,   // [0:66] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_pipeline_v1_pipeline_proto_init() }
@@ -9128,15 +9414,15 @@ func file_api_proto_pipeline_v1_pipeline_proto_init() {
 	}
 	file_api_proto_pipeline_v1_pipeline_proto_msgTypes[62].OneofWrappers = []any{}
 	file_api_proto_pipeline_v1_pipeline_proto_msgTypes[77].OneofWrappers = []any{}
-	file_api_proto_pipeline_v1_pipeline_proto_msgTypes[105].OneofWrappers = []any{}
-	file_api_proto_pipeline_v1_pipeline_proto_msgTypes[111].OneofWrappers = []any{}
+	file_api_proto_pipeline_v1_pipeline_proto_msgTypes[109].OneofWrappers = []any{}
+	file_api_proto_pipeline_v1_pipeline_proto_msgTypes[115].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_pipeline_v1_pipeline_proto_rawDesc), len(file_api_proto_pipeline_v1_pipeline_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   123,
+			NumMessages:   127,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
