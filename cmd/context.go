@@ -172,6 +172,7 @@ func newContextTriggerCmd(deps *PipelineCommandDeps) *cobra.Command {
 		Short: "Manage trigger conditions for a context entry",
 	}
 	cmd.AddCommand(newContextTriggerAddCmd(deps))
+	cmd.AddCommand(newContextTriggerRemoveCmd(deps))
 	return cmd
 }
 
@@ -206,6 +207,29 @@ Examples:
 	_ = cmd.MarkFlagRequired("condition")
 
 	return cmd
+}
+
+func newContextTriggerRemoveCmd(deps *PipelineCommandDeps) *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <entry-id> <condition-id>",
+		Short: "Remove a trigger condition from a context entry",
+		Long: `Remove a trigger condition from a context entry.
+
+Examples:
+  penf context trigger remove 1 3`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			entryID, err := strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid entry id %q: %w", args[0], err)
+			}
+			condID, err := strconv.Atoi(args[1])
+			if err != nil {
+				return fmt.Errorf("invalid condition id %q: %w", args[1], err)
+			}
+			return runContextTriggerRemove(cmd.Context(), deps, int32(entryID), int32(condID))
+		},
+	}
 }
 
 // ===========================================================================
@@ -278,6 +302,8 @@ func runContextAdd(ctx context.Context, deps *PipelineCommandDeps, category, lab
 		for _, c := range entry.Conditions {
 			fmt.Printf("    %s:%s:%s\n", c.Field, c.MatchType, c.Value)
 		}
+	} else if !entry.AlwaysInject {
+		fmt.Println("  Warning: entry has no conditions and always_inject=false — it will never be injected")
 	}
 	return nil
 }
@@ -418,6 +444,15 @@ func runContextRemove(ctx context.Context, deps *PipelineCommandDeps, id int32) 
 		return fmt.Errorf("tenant ID required: set via 'penf config set tenant_id <id>'")
 	}
 
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf("Delete context entry %d? This will also remove all its trigger conditions. [y/N] ", id)
+	line, _ := reader.ReadString('\n')
+	line = strings.TrimSpace(strings.ToLower(line))
+	if line != "y" && line != "yes" {
+		fmt.Println("Cancelled.")
+		return nil
+	}
+
 	conn, err := connectPipelineToGateway(cfg)
 	if err != nil {
 		return err
@@ -475,6 +510,14 @@ func runContextTriggerAdd(ctx context.Context, deps *PipelineCommandDeps, entryI
 	c := resp.Condition
 	fmt.Printf("Added condition %d to entry %d: %s:%s:%s\n", c.Id, entryID, c.Field, c.MatchType, c.Value)
 	return nil
+}
+
+func runContextTriggerRemove(_ context.Context, _ *PipelineCommandDeps, entryID, condID int32) error {
+	// RemoveTenantContextCondition RPC is not yet in the proto.
+	// The condition can be removed by deleting and recreating the entry, or by waiting for backend support.
+	return fmt.Errorf("trigger remove is not yet supported by the backend (entry %d, condition %d): "+
+		"use 'penf context show %d' to view conditions, then remove and recreate the entry if needed",
+		entryID, condID, entryID)
 }
 
 // parseTenantContextCondition parses a "field:match_type:value" string.
