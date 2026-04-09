@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -188,9 +189,14 @@ func runRuleShow(ctx context.Context, deps *PipelineCommandDeps, name string) er
 
 	client := pipelinev1.NewPipelineServiceClient(conn)
 
+	ruleID, err := resolveRuleID(ctx, client, tenantID, name)
+	if err != nil {
+		return err
+	}
+
 	resp, err := client.GetAutomationRule(ctx, &pipelinev1.GetAutomationRuleRequest{
 		TenantId: tenantID,
-		Name:     name,
+		Name:     ruleID,
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -230,7 +236,7 @@ func runRuleShow(ctx context.Context, deps *PipelineCommandDeps, name string) er
 	// Show recent history.
 	histResp, err := client.ListAutomationRuleExecutions(ctx, &pipelinev1.ListAutomationRuleExecutionsRequest{
 		TenantId: tenantID,
-		Name:     name,
+		Name:     ruleID,
 		Limit:    5,
 	})
 	if err == nil && len(histResp.Executions) > 0 {
@@ -479,6 +485,12 @@ func runRuleUpdate(ctx context.Context, deps *PipelineCommandDeps, name string,
 
 	client := pipelinev1.NewPipelineServiceClient(conn)
 
+	ruleID, err := resolveRuleID(ctx, client, tenantID, name)
+	if err != nil {
+		return err
+	}
+	req.Name = ruleID
+
 	resp, err := client.UpdateAutomationRule(ctx, req)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -536,9 +548,14 @@ func runRuleSetEnabled(ctx context.Context, deps *PipelineCommandDeps, name stri
 
 	client := pipelinev1.NewPipelineServiceClient(conn)
 
+	ruleID, err := resolveRuleID(ctx, client, tenantID, name)
+	if err != nil {
+		return err
+	}
+
 	_, err = client.UpdateAutomationRule(ctx, &pipelinev1.UpdateAutomationRuleRequest{
 		TenantId:   tenantID,
-		Name:       name,
+		Name:       ruleID,
 		SetEnabled: true,
 		Enabled:    enabled,
 	})
@@ -607,9 +624,14 @@ func runRuleDelete(ctx context.Context, deps *PipelineCommandDeps, name string, 
 
 	client := pipelinev1.NewPipelineServiceClient(conn)
 
+	ruleID, err := resolveRuleID(ctx, client, tenantID, name)
+	if err != nil {
+		return err
+	}
+
 	_, err = client.DeleteAutomationRule(ctx, &pipelinev1.DeleteAutomationRuleRequest{
 		TenantId: tenantID,
-		Name:     name,
+		Name:     ruleID,
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -661,9 +683,14 @@ func runRuleRun(ctx context.Context, deps *PipelineCommandDeps, name string, dry
 
 	client := pipelinev1.NewPipelineServiceClient(conn)
 
+	ruleID, err := resolveRuleID(ctx, client, tenantID, name)
+	if err != nil {
+		return err
+	}
+
 	resp, err := client.RunAutomationRule(ctx, &pipelinev1.RunAutomationRuleRequest{
 		TenantId: tenantID,
-		Name:     name,
+		Name:     ruleID,
 		DryRun:   dryRun,
 	})
 	if err != nil {
@@ -725,9 +752,14 @@ func runRuleHistory(ctx context.Context, deps *PipelineCommandDeps, name string,
 
 	client := pipelinev1.NewPipelineServiceClient(conn)
 
+	ruleID, err := resolveRuleID(ctx, client, tenantID, name)
+	if err != nil {
+		return err
+	}
+
 	resp, err := client.ListAutomationRuleExecutions(ctx, &pipelinev1.ListAutomationRuleExecutionsRequest{
 		TenantId: tenantID,
-		Name:     name,
+		Name:     ruleID,
 		Limit:    limit,
 	})
 	if err != nil {
@@ -775,6 +807,27 @@ func runRuleHistory(ctx context.Context, deps *PipelineCommandDeps, name string,
 // ctx extracts the context from a cobra command.
 func ctx(cmd *cobra.Command) context.Context {
 	return cmd.Context()
+}
+
+// resolveRuleID resolves a name-or-UUID to the rule's UUID.
+// If nameOrID is already a valid UUID it is returned unchanged.
+// Otherwise, ListAutomationRules is called and the matching rule's ID is returned.
+func resolveRuleID(gctx context.Context, client pipelinev1.PipelineServiceClient, tenantID, nameOrID string) (string, error) {
+	if _, err := uuid.Parse(nameOrID); err == nil {
+		return nameOrID, nil
+	}
+	resp, err := client.ListAutomationRules(gctx, &pipelinev1.ListAutomationRulesRequest{
+		TenantId: tenantID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("listing rules to resolve name: %w", err)
+	}
+	for _, r := range resp.Rules {
+		if r.Name == nameOrID {
+			return r.Id, nil
+		}
+	}
+	return "", fmt.Errorf("rule not found: %s", nameOrID)
 }
 
 // buildTriggerConfig builds the trigger config JSON from convenience flags.
