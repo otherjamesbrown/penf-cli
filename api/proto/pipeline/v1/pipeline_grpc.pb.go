@@ -76,6 +76,13 @@ const (
 	PipelineService_DeleteTenantContext_FullMethodName          = "/penfold.pipeline.v1.PipelineService/DeleteTenantContext"
 	PipelineService_AddTenantContextCondition_FullMethodName    = "/penfold.pipeline.v1.PipelineService/AddTenantContextCondition"
 	PipelineService_SuggestTenantContextTriggers_FullMethodName = "/penfold.pipeline.v1.PipelineService/SuggestTenantContextTriggers"
+	PipelineService_CreateAutomationRule_FullMethodName         = "/penfold.pipeline.v1.PipelineService/CreateAutomationRule"
+	PipelineService_ListAutomationRules_FullMethodName          = "/penfold.pipeline.v1.PipelineService/ListAutomationRules"
+	PipelineService_GetAutomationRule_FullMethodName            = "/penfold.pipeline.v1.PipelineService/GetAutomationRule"
+	PipelineService_UpdateAutomationRule_FullMethodName         = "/penfold.pipeline.v1.PipelineService/UpdateAutomationRule"
+	PipelineService_DeleteAutomationRule_FullMethodName         = "/penfold.pipeline.v1.PipelineService/DeleteAutomationRule"
+	PipelineService_RunAutomationRule_FullMethodName            = "/penfold.pipeline.v1.PipelineService/RunAutomationRule"
+	PipelineService_ListAutomationRuleExecutions_FullMethodName = "/penfold.pipeline.v1.PipelineService/ListAutomationRuleExecutions"
 )
 
 // PipelineServiceClient is the client API for PipelineService service.
@@ -193,6 +200,20 @@ type PipelineServiceClient interface {
 	AddTenantContextCondition(ctx context.Context, in *AddTenantContextConditionRequest, opts ...grpc.CallOption) (*AddTenantContextConditionResponse, error)
 	// SuggestTenantContextTriggers uses an LLM to suggest trigger conditions for a context entry.
 	SuggestTenantContextTriggers(ctx context.Context, in *SuggestTenantContextTriggersRequest, opts ...grpc.CallOption) (*SuggestTenantContextTriggersResponse, error)
+	// CreateAutomationRule creates a new automation rule.
+	CreateAutomationRule(ctx context.Context, in *CreateAutomationRuleRequest, opts ...grpc.CallOption) (*CreateAutomationRuleResponse, error)
+	// ListAutomationRules lists all automation rules for a tenant.
+	ListAutomationRules(ctx context.Context, in *ListAutomationRulesRequest, opts ...grpc.CallOption) (*ListAutomationRulesResponse, error)
+	// GetAutomationRule retrieves a single automation rule by name.
+	GetAutomationRule(ctx context.Context, in *GetAutomationRuleRequest, opts ...grpc.CallOption) (*GetAutomationRuleResponse, error)
+	// UpdateAutomationRule updates fields on an existing automation rule.
+	UpdateAutomationRule(ctx context.Context, in *UpdateAutomationRuleRequest, opts ...grpc.CallOption) (*UpdateAutomationRuleResponse, error)
+	// DeleteAutomationRule deletes an automation rule.
+	DeleteAutomationRule(ctx context.Context, in *DeleteAutomationRuleRequest, opts ...grpc.CallOption) (*DeleteAutomationRuleResponse, error)
+	// RunAutomationRule triggers manual execution of an automation rule.
+	RunAutomationRule(ctx context.Context, in *RunAutomationRuleRequest, opts ...grpc.CallOption) (*RunAutomationRuleResponse, error)
+	// ListAutomationRuleExecutions returns execution history for a rule.
+	ListAutomationRuleExecutions(ctx context.Context, in *ListAutomationRuleExecutionsRequest, opts ...grpc.CallOption) (*ListAutomationRuleExecutionsResponse, error)
 }
 
 type pipelineServiceClient struct {
@@ -743,6 +764,76 @@ func (c *pipelineServiceClient) SuggestTenantContextTriggers(ctx context.Context
 	return out, nil
 }
 
+func (c *pipelineServiceClient) CreateAutomationRule(ctx context.Context, in *CreateAutomationRuleRequest, opts ...grpc.CallOption) (*CreateAutomationRuleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateAutomationRuleResponse)
+	err := c.cc.Invoke(ctx, PipelineService_CreateAutomationRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) ListAutomationRules(ctx context.Context, in *ListAutomationRulesRequest, opts ...grpc.CallOption) (*ListAutomationRulesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAutomationRulesResponse)
+	err := c.cc.Invoke(ctx, PipelineService_ListAutomationRules_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) GetAutomationRule(ctx context.Context, in *GetAutomationRuleRequest, opts ...grpc.CallOption) (*GetAutomationRuleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAutomationRuleResponse)
+	err := c.cc.Invoke(ctx, PipelineService_GetAutomationRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) UpdateAutomationRule(ctx context.Context, in *UpdateAutomationRuleRequest, opts ...grpc.CallOption) (*UpdateAutomationRuleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateAutomationRuleResponse)
+	err := c.cc.Invoke(ctx, PipelineService_UpdateAutomationRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) DeleteAutomationRule(ctx context.Context, in *DeleteAutomationRuleRequest, opts ...grpc.CallOption) (*DeleteAutomationRuleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteAutomationRuleResponse)
+	err := c.cc.Invoke(ctx, PipelineService_DeleteAutomationRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) RunAutomationRule(ctx context.Context, in *RunAutomationRuleRequest, opts ...grpc.CallOption) (*RunAutomationRuleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunAutomationRuleResponse)
+	err := c.cc.Invoke(ctx, PipelineService_RunAutomationRule_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) ListAutomationRuleExecutions(ctx context.Context, in *ListAutomationRuleExecutionsRequest, opts ...grpc.CallOption) (*ListAutomationRuleExecutionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAutomationRuleExecutionsResponse)
+	err := c.cc.Invoke(ctx, PipelineService_ListAutomationRuleExecutions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PipelineServiceServer is the server API for PipelineService service.
 // All implementations must embed UnimplementedPipelineServiceServer
 // for forward compatibility.
@@ -858,6 +949,20 @@ type PipelineServiceServer interface {
 	AddTenantContextCondition(context.Context, *AddTenantContextConditionRequest) (*AddTenantContextConditionResponse, error)
 	// SuggestTenantContextTriggers uses an LLM to suggest trigger conditions for a context entry.
 	SuggestTenantContextTriggers(context.Context, *SuggestTenantContextTriggersRequest) (*SuggestTenantContextTriggersResponse, error)
+	// CreateAutomationRule creates a new automation rule.
+	CreateAutomationRule(context.Context, *CreateAutomationRuleRequest) (*CreateAutomationRuleResponse, error)
+	// ListAutomationRules lists all automation rules for a tenant.
+	ListAutomationRules(context.Context, *ListAutomationRulesRequest) (*ListAutomationRulesResponse, error)
+	// GetAutomationRule retrieves a single automation rule by name.
+	GetAutomationRule(context.Context, *GetAutomationRuleRequest) (*GetAutomationRuleResponse, error)
+	// UpdateAutomationRule updates fields on an existing automation rule.
+	UpdateAutomationRule(context.Context, *UpdateAutomationRuleRequest) (*UpdateAutomationRuleResponse, error)
+	// DeleteAutomationRule deletes an automation rule.
+	DeleteAutomationRule(context.Context, *DeleteAutomationRuleRequest) (*DeleteAutomationRuleResponse, error)
+	// RunAutomationRule triggers manual execution of an automation rule.
+	RunAutomationRule(context.Context, *RunAutomationRuleRequest) (*RunAutomationRuleResponse, error)
+	// ListAutomationRuleExecutions returns execution history for a rule.
+	ListAutomationRuleExecutions(context.Context, *ListAutomationRuleExecutionsRequest) (*ListAutomationRuleExecutionsResponse, error)
 	mustEmbedUnimplementedPipelineServiceServer()
 }
 
@@ -1029,6 +1134,27 @@ func (UnimplementedPipelineServiceServer) AddTenantContextCondition(context.Cont
 }
 func (UnimplementedPipelineServiceServer) SuggestTenantContextTriggers(context.Context, *SuggestTenantContextTriggersRequest) (*SuggestTenantContextTriggersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SuggestTenantContextTriggers not implemented")
+}
+func (UnimplementedPipelineServiceServer) CreateAutomationRule(context.Context, *CreateAutomationRuleRequest) (*CreateAutomationRuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateAutomationRule not implemented")
+}
+func (UnimplementedPipelineServiceServer) ListAutomationRules(context.Context, *ListAutomationRulesRequest) (*ListAutomationRulesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAutomationRules not implemented")
+}
+func (UnimplementedPipelineServiceServer) GetAutomationRule(context.Context, *GetAutomationRuleRequest) (*GetAutomationRuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAutomationRule not implemented")
+}
+func (UnimplementedPipelineServiceServer) UpdateAutomationRule(context.Context, *UpdateAutomationRuleRequest) (*UpdateAutomationRuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAutomationRule not implemented")
+}
+func (UnimplementedPipelineServiceServer) DeleteAutomationRule(context.Context, *DeleteAutomationRuleRequest) (*DeleteAutomationRuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteAutomationRule not implemented")
+}
+func (UnimplementedPipelineServiceServer) RunAutomationRule(context.Context, *RunAutomationRuleRequest) (*RunAutomationRuleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RunAutomationRule not implemented")
+}
+func (UnimplementedPipelineServiceServer) ListAutomationRuleExecutions(context.Context, *ListAutomationRuleExecutionsRequest) (*ListAutomationRuleExecutionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListAutomationRuleExecutions not implemented")
 }
 func (UnimplementedPipelineServiceServer) mustEmbedUnimplementedPipelineServiceServer() {}
 func (UnimplementedPipelineServiceServer) testEmbeddedByValue()                         {}
@@ -2023,6 +2149,132 @@ func _PipelineService_SuggestTenantContextTriggers_Handler(srv interface{}, ctx 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PipelineService_CreateAutomationRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAutomationRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).CreateAutomationRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_CreateAutomationRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).CreateAutomationRule(ctx, req.(*CreateAutomationRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_ListAutomationRules_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAutomationRulesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).ListAutomationRules(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_ListAutomationRules_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).ListAutomationRules(ctx, req.(*ListAutomationRulesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_GetAutomationRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAutomationRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).GetAutomationRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_GetAutomationRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).GetAutomationRule(ctx, req.(*GetAutomationRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_UpdateAutomationRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateAutomationRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).UpdateAutomationRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_UpdateAutomationRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).UpdateAutomationRule(ctx, req.(*UpdateAutomationRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_DeleteAutomationRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteAutomationRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).DeleteAutomationRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_DeleteAutomationRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).DeleteAutomationRule(ctx, req.(*DeleteAutomationRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_RunAutomationRule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunAutomationRuleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).RunAutomationRule(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_RunAutomationRule_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).RunAutomationRule(ctx, req.(*RunAutomationRuleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_ListAutomationRuleExecutions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAutomationRuleExecutionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).ListAutomationRuleExecutions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_ListAutomationRuleExecutions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).ListAutomationRuleExecutions(ctx, req.(*ListAutomationRuleExecutionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PipelineService_ServiceDesc is the grpc.ServiceDesc for PipelineService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2245,6 +2497,34 @@ var PipelineService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SuggestTenantContextTriggers",
 			Handler:    _PipelineService_SuggestTenantContextTriggers_Handler,
+		},
+		{
+			MethodName: "CreateAutomationRule",
+			Handler:    _PipelineService_CreateAutomationRule_Handler,
+		},
+		{
+			MethodName: "ListAutomationRules",
+			Handler:    _PipelineService_ListAutomationRules_Handler,
+		},
+		{
+			MethodName: "GetAutomationRule",
+			Handler:    _PipelineService_GetAutomationRule_Handler,
+		},
+		{
+			MethodName: "UpdateAutomationRule",
+			Handler:    _PipelineService_UpdateAutomationRule_Handler,
+		},
+		{
+			MethodName: "DeleteAutomationRule",
+			Handler:    _PipelineService_DeleteAutomationRule_Handler,
+		},
+		{
+			MethodName: "RunAutomationRule",
+			Handler:    _PipelineService_RunAutomationRule_Handler,
+		},
+		{
+			MethodName: "ListAutomationRuleExecutions",
+			Handler:    _PipelineService_ListAutomationRuleExecutions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
