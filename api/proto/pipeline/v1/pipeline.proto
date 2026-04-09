@@ -1994,13 +1994,22 @@ message AddTenantContextConditionRequest {
   // Context entry ID.
   int32 context_id = 2;
 
-  // Condition to add.
-  TenantContextCondition condition = 3;
+  // Field to match: "content", "sender_email", "subject", "to_address".
+  string field = 3;
+
+  // Match type: "contains", "prefix", "suffix", "exact", "glob".
+  string match_type = 4;
+
+  // Value to match.
+  string value = 5;
+
+  // Whether matching is case-sensitive.
+  bool case_sensitive = 6;
 }
 
-// AddTenantContextConditionResponse returns the added condition with its ID.
+// AddTenantContextConditionResponse returns the updated context entry.
 message AddTenantContextConditionResponse {
-  TenantContextCondition condition = 1;
+  TenantContextEntry entry = 1;
 }
 
 // SuggestTenantContextTriggersRequest asks the AI to suggest trigger conditions.

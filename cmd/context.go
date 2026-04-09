@@ -501,14 +501,21 @@ func runContextTriggerAdd(ctx context.Context, deps *PipelineCommandDeps, entryI
 	resp, err := client.AddTenantContextCondition(ctx, &pipelinev1.AddTenantContextConditionRequest{
 		TenantId:  tenantID,
 		ContextId: entryID,
-		Condition: cond,
+		Field:     cond.Field,
+		MatchType: cond.MatchType,
+		Value:     cond.Value,
 	})
 	if err != nil {
 		return fmt.Errorf("adding condition to entry %d: %w", entryID, err)
 	}
 
-	c := resp.Condition
-	fmt.Printf("Added condition %d to entry %d: %s:%s:%s\n", c.Id, entryID, c.Field, c.MatchType, c.Value)
+	entry := resp.Entry
+	if entry != nil && len(entry.Conditions) > 0 {
+		added := entry.Conditions[len(entry.Conditions)-1]
+		fmt.Printf("Added condition %d to entry %d: %s:%s:%s\n", added.Id, entryID, added.Field, added.MatchType, added.Value)
+	} else {
+		fmt.Printf("Added condition to entry %d: %s:%s:%s\n", entryID, cond.Field, cond.MatchType, cond.Value)
+	}
 	return nil
 }
 
