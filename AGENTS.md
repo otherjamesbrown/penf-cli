@@ -1,16 +1,25 @@
-<!-- BEGIN COBUILD INTEGRATION v:1 hash:4b73160c -->
+<!-- BEGIN COBUILD INTEGRATION v:1 hash:69878b25 -->
 # CoBuild Pipeline Instructions
 
-This project uses CoBuild for pipeline automation. If you are an agent working on a task dispatched by CoBuild, follow these instructions.
+This project uses CoBuild for pipeline automation. If you are a dispatched CoBuild agent working on a task, follow these instructions.
+
+## Terminology
+
+Two roles show up throughout CoBuild's docs, skills, and commit messages. Use these terms consistently:
+
+- **orchestrator agent** — whoever invokes `cobuild dispatch`, `cobuild run`, or any other pipeline CLI. Stays lightweight and delegates work. Can be an interactive Claude/Codex session, the `cobuild poller` daemon, a cron job, or a human at a shell prompt.
+- **dispatched CoBuild agent** — the fresh Claude Code or Codex process CoBuild spawns in a tmux window inside a git worktree to execute a phase's skill. Does all the real reading, editing, and committing. Exits when the skill is done.
+
+If you see "M", "parent session", "calling agent", "fresh session", or "implementing agent" in older docs, they all map onto one of these two terms — prefer the canonical terms above.
 
 ## Project
 
 - **Name:** penfold
 - **Prefix:** pf-
 - **Workflows:**
-  - design: design → decompose → implement → review → done
-  - bug: investigate → implement → review → done
+  - bug: fix → review → done
   - bug-complex: investigate → implement → review → done
+  - design: design → decompose → implement → review → done
   - task: implement → review → done
 
 ## Commands
@@ -22,7 +31,7 @@ This project uses CoBuild for pipeline automation. If you are an agent working o
 | `cobuild init <id>` | Submit a design/bug/task to the pipeline |
 | `cobuild gate <id> <gate> --verdict pass\|fail` | Record a gate verdict |
 | `cobuild investigate <id> --verdict pass` | Record bug investigation verdict |
-| `cobuild dispatch <task-id>` | Dispatch a task to an implementing agent |
+| `cobuild dispatch <task-id>` | Dispatch a task to a dispatched CoBuild agent |
 | `cobuild dispatch-wave <design-id>` | Dispatch all ready tasks |
 | `cobuild wait <id> [id...]` | Wait for tasks to complete |
 | `cobuild complete <task-id>` | **Run as your LAST action** after implementing |
@@ -63,24 +72,24 @@ cobuild investigate <id> --verdict pass --body "<root cause>"           # record
 
 The gate command records the verdict and advances the phase. No dispatch needed.
 
-### Option B: Delegate to a separate agent (dispatch)
+### Option B: Delegate to a dispatched CoBuild agent
 
-If you want a fresh agent to handle a phase in its own context:
+If you want a dispatched CoBuild agent to handle a phase in its own context:
 
 ```bash
-cobuild dispatch <id>   # spawns agent in tmux for the current phase
-cobuild wait <id>       # blocks until the agent completes
+cobuild dispatch <id>   # spawns dispatched CoBuild agent in tmux for the current phase
+cobuild wait <id>       # blocks until the dispatched CoBuild agent completes
 ```
 
 `cobuild dispatch` is phase-aware — it generates the right prompt automatically.
-Use this for implementation (agents write code) and when you want a clean context.
+Use this for implementation (dispatched CoBuild agents write code) and when you want a clean context.
 
 ### Which to use?
 
 | Situation | Use |
 |-----------|-----|
 | You just reviewed the design with the developer | Option A — record the gate |
-| You need an agent to write code | Option B — dispatch |
+| You need a dispatched CoBuild agent to write code | Option B — dispatch |
 | You decomposed tasks in conversation | Option A — record the gate |
 | You want investigation in a clean context | Option B — dispatch |
 | Phase needs multiple file reads/edits | Option B — saves your context |
@@ -142,7 +151,7 @@ cobuild init <bug-id>                        # enters investigate phase
 cobuild dispatch <bug-id>                    # spawns investigation agent (READ-ONLY)
 cobuild wait <bug-id>                        # wait for investigation
 # Agent records investigation report + gate → creates fix task → advances to implement
-cobuild dispatch <fix-task-id>               # spawns implementing agent
+cobuild dispatch <fix-task-id>               # spawns dispatched CoBuild agent (implement skill)
 cobuild wait <fix-task-id>                   # wait for fix
 cobuild merge <fix-task-id>                  # merge the fix PR
 cobuild deploy <bug-id>                      # deploy if needed
@@ -152,7 +161,7 @@ cobuild deploy <bug-id>                      # deploy if needed
 
 ```bash
 cobuild init <task-id>                       # enters implement phase
-cobuild dispatch <task-id>                   # spawns implementing agent
+cobuild dispatch <task-id>                   # spawns dispatched CoBuild agent (implement skill)
 cobuild wait <task-id>                       # wait for completion
 cobuild merge <task-id>                      # merge PR
 ```
@@ -172,18 +181,15 @@ If it fails, run it manually as your last action.
 
 ## Orchestrator Protocol
 
-If you are the orchestrating agent (dispatching tasks, not implementing them),
+If you are the orchestrator agent (dispatching tasks, not executing them yourself),
 **follow through the full lifecycle. Do not stop after dispatch.**
 
 After dispatching tasks:
 
 1. **Monitor** — use `cobuild audit <id>` or `cobuild status` for instant checks (do NOT use `cobuild wait` as a background task — it's a 2-hour blocking command)
-2. **Wait for Gemini review** — check `gh api repos/<owner>/<repo>/pulls/<pr>/reviews` for at least 1 review. If 0 reviews, **wait** (trigger with `/gemini review` comment if needed). Do NOT treat 0 comments as "clean" — it means Gemini hasn't reviewed yet.
-3. **Address findings** — read inline comments via `gh api repos/<owner>/<repo>/pulls/<pr>/comments`. Send HIGH/CRITICAL findings back to the agent or fix directly. MEDIUM findings: use judgement.
-4. **Merge** — only after Gemini has reviewed and HIGH findings are addressed. `cobuild merge <task-id>` (or `gh pr merge <pr> --admin --squash` if cobuild merge fails)
-5. **Close** — update work item status to closed
-6. **Report** — tell the user what shipped, not "want me to review?"
-7. **Deploy** — do NOT deploy automatically. Run `cobuild deploy <id> --dry-run` to show which services would be affected, then **ask the user** for approval. On approval, run `cobuild deploy <id>` (triggers deploy commands from pipeline config with smoke tests and auto-rollback). Deploy touches production and is always a human decision.
+2. **Process reviews** — run `cobuild process-review <task-id>` for each needs-review task. This automatically: waits for Gemini review, classifies findings, merges clean PRs, or re-dispatches agents for fixes. If it says "Waiting" — Gemini hasn't reviewed yet, retry after a few minutes.
+3. **Report** — tell the user what shipped, not "want me to review?"
+4. **Deploy** — do NOT deploy automatically. Run `cobuild deploy <id> --dry-run` to show which services would be affected, then **ask the user** for approval. On approval, run `cobuild deploy <id>` (triggers deploy commands from pipeline config with smoke tests and auto-rollback). Deploy touches production and is always a human decision.
 
 Only pause for user input if there is an actual blocker: merge conflict, critical Gemini finding you can't resolve, a design decision, or deploy approval.
 
