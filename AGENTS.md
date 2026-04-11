@@ -1,7 +1,22 @@
-<!-- BEGIN COBUILD INTEGRATION v:1 hash:69878b25 -->
+<!-- BEGIN COBUILD INTEGRATION v:1 hash:df639b38 -->
 # CoBuild Pipeline Instructions
 
 This project uses CoBuild for pipeline automation. If you are a dispatched CoBuild agent working on a task, follow these instructions.
+
+## For orchestrators — the ONLY thing you need to know
+
+Every CoBuild command prints a `Next step:` line telling you exactly what to run next. **Follow it mechanically.** Do not reason about which phase needs which command — that's what the CLI is for.
+
+The loop:
+
+1. `cobuild init <id>` (if the pipeline doesn't exist yet)
+2. `cobuild dispatch <id>` — spawns a dispatched CoBuild agent for the current phase
+3. Read the `Next step:` line printed by the command — run that
+4. Repeat step 3 until phase = done
+
+If you are ever unsure what to run next, run `cobuild next <id>` — it prints the single concrete command for the current state.
+
+Do NOT execute phase work yourself (decompose, review, investigate, etc.) just because you could. **Every phase has a skill and a dispatched CoBuild agent runs it.** Your only job as orchestrator is to type the commands and follow the output.
 
 ## Terminology
 
@@ -29,20 +44,22 @@ If you see "M", "parent session", "calling agent", "fresh session", or "implemen
 | Command | When to use |
 |---------|------------|
 | `cobuild init <id>` | Submit a design/bug/task to the pipeline |
-| `cobuild gate <id> <gate> --verdict pass\|fail` | Record a gate verdict |
-| `cobuild investigate <id> --verdict pass` | Record bug investigation verdict |
-| `cobuild dispatch <task-id>` | Dispatch a task to a dispatched CoBuild agent |
-| `cobuild dispatch-wave <design-id>` | Dispatch all ready tasks |
-| `cobuild wait <id> [id...]` | Wait for tasks to complete |
-| `cobuild complete <task-id>` | **Run as your LAST action** after implementing |
-| `cobuild merge <task-id>` | Merge an approved PR |
+| `cobuild dispatch <task-id>` | Dispatch to a dispatched CoBuild agent (works for every phase) |
+| **`cobuild next <id>`** | **Print the single next command to run for a pipeline — use when confused** |
+| `cobuild dispatch-wave <design-id>` | Dispatch all ready tasks in a wave |
+| `cobuild process-review <task-id>` | Process Gemini review → merge or re-dispatch |
+| `cobuild merge <task-id>` | Merge an approved PR manually |
 | `cobuild merge-design <design-id>` | Smart merge all PRs (conflict detection) |
 | `cobuild deploy <design-id>` | Deploy affected services |
 | `cobuild retro <design-id>` | Run retrospective |
 | `cobuild status` | Show all active pipelines |
-| `cobuild audit <id>` | View gate history |
+| `cobuild audit <id>` | View gate history and timeline |
+| `cobuild show <id>` | Compact current state for one pipeline |
 | `cobuild scan` | Refresh project anatomy (file index for agents) |
-| `cobuild explain` | Show pipeline in human-readable form |
+| `cobuild wait <id> [id...]` | Block until tasks reach target status (2h max) |
+| `cobuild complete <task-id>` | **Run as your LAST action** if you ARE the dispatched agent |
+
+**Manual gate recording (Advanced — see below):** `cobuild review / decompose / investigate / gate` — use only when the gate work happened outside a dispatched agent session.
 
 ### Work Items
 
@@ -55,14 +72,36 @@ If you see "M", "parent session", "calling agent", "fresh session", or "implemen
 | `cobuild wi append <id> --body "..."` | Append content |
 | `cobuild wi create --type <type> --title "..."` | Create work item |
 
-## How to Run Pipelines
+## How to Run a Pipeline
 
-There are two ways to advance each phase:
+**Default and only flow: dispatch.** Every phase has a skill, and `cobuild dispatch` spawns a dispatched CoBuild agent that reads the skill and executes it. You never do the work yourself.
 
-### Option A: You already did the work (interactive session)
+```bash
+cobuild init <id>          # if the pipeline doesn't exist yet
+cobuild dispatch <id>      # start — spawns a dispatched CoBuild agent for the current phase
+# → follow the `Next step:` line it prints
+# → repeat until phase = done
+```
 
-If you've already reviewed the design, decomposed into tasks, or done investigation
-in the current session with the developer, just record the gate verdict:
+**`cobuild dispatch` is phase-aware.** It reads the current pipeline phase and generates the right prompt automatically — readiness review for design, decomposition for decompose, investigation for investigate, implementation for tasks, and so on. One command advances the entire pipeline.
+
+**If you are ever confused:** run `cobuild next <id>`. It prints the single concrete command for the current state. Do not try to infer it from the workflow table or your memory of which phase comes next — let the CLI tell you.
+
+**Do not own any phase yourself.** Even if you (the orchestrator agent) *could* do the work inline — read the design, break it into tasks, record the gate — **don't**. That pattern exists to be used in genuinely exceptional cases (see Advanced below), not as a default shortcut. The dispatched agent model keeps your context lean and produces a clean audit trail.
+
+### Bug workflow note
+
+**Most bugs** use the `fix` workflow — a single dispatched CoBuild agent investigates and fixes together in one session. **Complex bugs** (root cause unknown, multi-repo, data/security implications, non-obvious fix shape) should be labeled `needs-investigation` before `cobuild init` — this routes them to the `bug-complex` workflow with a read-only investigation phase first.
+
+```bash
+cobuild wi label add <bug-id> needs-investigation   # only if complex
+cobuild init <bug-id>
+cobuild dispatch <bug-id>    # follow the Next step: output from here
+```
+
+## Advanced: recording a gate without dispatching
+
+**This is an exceptional path, not the default.** Use it only when the gate work genuinely happened outside a dispatched CoBuild agent session — for example, a design that was reviewed live with the developer in a meeting, or an investigation that was done by a human. For anything the pipeline can do, prefer `cobuild dispatch`.
 
 ```bash
 cobuild review <id> --verdict pass --readiness 5 --body "<findings>"   # record design review
@@ -70,103 +109,7 @@ cobuild decompose <id> --verdict pass --body "<task summary>"          # record 
 cobuild investigate <id> --verdict pass --body "<root cause>"           # record investigation
 ```
 
-The gate command records the verdict and advances the phase. No dispatch needed.
-
-### Option B: Delegate to a dispatched CoBuild agent
-
-If you want a dispatched CoBuild agent to handle a phase in its own context:
-
-```bash
-cobuild dispatch <id>   # spawns dispatched CoBuild agent in tmux for the current phase
-cobuild wait <id>       # blocks until the dispatched CoBuild agent completes
-```
-
-`cobuild dispatch` is phase-aware — it generates the right prompt automatically.
-Use this for implementation (dispatched CoBuild agents write code) and when you want a clean context.
-
-### Which to use?
-
-| Situation | Use |
-|-----------|-----|
-| You just reviewed the design with the developer | Option A — record the gate |
-| You need a dispatched CoBuild agent to write code | Option B — dispatch |
-| You decomposed tasks in conversation | Option A — record the gate |
-| You want investigation in a clean context | Option B — dispatch |
-| Phase needs multiple file reads/edits | Option B — saves your context |
-
-### Design Workflow
-
-```bash
-cobuild init <design-id>                     # enters design phase
-cobuild dispatch <design-id>                 # spawns readiness review agent
-cobuild wait <design-id>                     # wait for review to complete
-# Agent records gate → advances to decompose
-cobuild dispatch <design-id>                 # spawns decomposition agent
-cobuild wait <design-id>                     # wait for decomposition
-# Agent creates tasks, records gate → advances to implement
-cobuild dispatch-wave <design-id>            # dispatch ready tasks
-cobuild wait <task-1> <task-2> ...           # wait for implementation
-# Repeat dispatch-wave/wait for each wave
-cobuild merge-design <design-id> --dry-run   # preview merge plan
-cobuild merge-design <design-id>             # merge all PRs
-cobuild deploy <design-id>                   # deploy affected services
-cobuild retro <design-id>                    # run retrospective
-```
-
-### Bug Workflow
-
-**Default (most bugs):** single `fix` session — agent investigates and fixes together.
-
-**Escalation path:** if the bug is complex, label it `needs-investigation` first — it routes to a read-only investigation phase that produces a fix spec before any code is changed.
-
-#### When to add `needs-investigation`
-
-Apply the label if **any** of these are true:
-
-1. Root cause unknown (symptom visible, mechanism unclear)
-2. Bug spans multiple services, modules, or repos
-3. Data or security implications — need blast radius assessment before fixing
-4. This area has broken before, or the fix might have unintended side effects
-5. Reproduces inconsistently — needs investigation to find the trigger
-6. Fix shape is non-obvious (can't describe it in 1-2 sentences)
-7. Investigation produces options that require a stakeholder decision
-
-If none apply → omit the label. The fix agent will investigate as it fixes.
-
-#### Default bug flow
-
-```bash
-cobuild init <bug-id>                        # enters fix phase
-cobuild dispatch <bug-id>                    # spawns fix agent (investigate + implement)
-cobuild wait <bug-id>                        # wait for fix
-cobuild merge <bug-id>                       # merge the fix PR
-cobuild deploy <bug-id>                      # deploy if needed
-```
-
-#### Complex bug flow (needs-investigation label)
-
-```bash
-cobuild wi label add <bug-id> needs-investigation
-cobuild init <bug-id>                        # enters investigate phase
-cobuild dispatch <bug-id>                    # spawns investigation agent (READ-ONLY)
-cobuild wait <bug-id>                        # wait for investigation
-# Agent records investigation report + gate → creates fix task → advances to implement
-cobuild dispatch <fix-task-id>               # spawns dispatched CoBuild agent (implement skill)
-cobuild wait <fix-task-id>                   # wait for fix
-cobuild merge <fix-task-id>                  # merge the fix PR
-cobuild deploy <bug-id>                      # deploy if needed
-```
-
-### Task Workflow
-
-```bash
-cobuild init <task-id>                       # enters implement phase
-cobuild dispatch <task-id>                   # spawns dispatched CoBuild agent (implement skill)
-cobuild wait <task-id>                       # wait for completion
-cobuild merge <task-id>                      # merge PR
-```
-
-**Key:** `cobuild dispatch` is phase-aware. It reads the current pipeline phase and generates the right prompt automatically — investigation prompt for bugs, readiness review for designs, implementation for tasks. You don't need different commands for different phases.
+These commands record the gate and advance the phase without dispatching. **If you find yourself reaching for them because you weren't sure whether decompose had a skill, stop and run `cobuild dispatch <id>` instead — every phase has one.**
 
 ## Task Completion Protocol
 
