@@ -42,17 +42,37 @@ func newIngestMeetingCommand(deps *IngestCommandDeps) *cobra.Command {
 		Long: `Ingest meeting transcripts, chat logs, and metadata into Penfold.
 
 Supports:
-  - WebVTT (.vtt) transcripts from Webex/Zoom
-  - Plain text transcripts (Transcript_*.txt)
+  - WebVTT (.vtt) transcripts from Webex/Zoom/MacWhisper
+  - Plain text transcripts (Transcript_*.txt, or any .txt with --platform macwhisper)
+  - MacWhisper speaker-label format ("SPEAKER: text" per turn)
   - Chat logs (Chat messages_*.txt)
   - Meeting directories with multiple related files
 
 Files are automatically grouped by meeting. Transcripts are parsed to extract
 participants and generate embeddings for semantic search.
 
+MacWhisper recipe (single-file, arbitrary filename):
+
+  penf ingest meeting "Voice Memo.txt" \
+    --platform macwhisper \
+    --source listening-tour \
+    --title "1:1 with Rob" \
+    --date 2026-04-30
+
+  MacWhisper plain-text format (one turn per line, blank line between turns):
+
+    JAMES: Hiya, how are you?
+
+    ROB: I'm good, thank you.
+
+  If --date is omitted, the file's modification time is used as a fallback.
+
 Examples:
-  # Ingest a single VTT transcript
+  # Ingest a single VTT transcript (Webex/Zoom)
   penf ingest meeting ./meeting.vtt --source "project-x"
+
+  # Ingest a MacWhisper plain-text transcript with arbitrary filename
+  penf ingest meeting "Voice Memo.txt" --platform macwhisper --source "listening-tour" --title "1:1 with X" --date 2026-04-30
 
   # Ingest a meeting directory (transcript + chat)
   penf ingest meeting ./MeetingFolder/ --source "weekly-sync"
@@ -70,7 +90,7 @@ Examples:
 
 	// Meeting-specific flags
 	cmd.Flags().StringVarP(&meetingSource, "source", "s", "", "Source tag identifier (required)")
-	cmd.Flags().StringVar(&meetingPlatform, "platform", "webex", "Meeting platform: webex, teams, zoom, google_meet")
+	cmd.Flags().StringVar(&meetingPlatform, "platform", "webex", "Meeting platform: webex, teams, zoom, google_meet, macwhisper, local")
 	cmd.Flags().BoolVar(&meetingDryRun, "dry-run", false, "Preview import without persisting")
 	cmd.Flags().StringVar(&meetingSeries, "series", "", "Meeting series name (auto-created if not exists)")
 	cmd.Flags().StringVar(&meetingTitle, "title", "", "Override detected meeting title")
@@ -166,7 +186,7 @@ func runIngestMeeting(ctx context.Context, deps *IngestCommandDeps, path string)
 
 	// Scan for meetings
 	fmt.Printf("Scanning for meetings...\n")
-	meetings, err := meeting.ScanMeetingFiles(path)
+	meetings, err := meeting.ScanMeetingFilesWithOptions(path, meeting.ScanOptions{Platform: meetingPlatform})
 	if err != nil {
 		return fmt.Errorf("scanning for meetings: %w", err)
 	}
@@ -174,6 +194,23 @@ func runIngestMeeting(ctx context.Context, deps *IngestCommandDeps, path string)
 	if len(meetings) == 0 {
 		fmt.Println("No meetings found.")
 		return nil
+	}
+
+	// Apply title / date overrides and mtime fallback for every discovered meeting.
+	for _, m := range meetings {
+		if meetingTitle != "" {
+			m.Title = meetingTitle
+		}
+		if meetingDate != "" {
+			if t, parseErr := time.Parse("2006-01-02", meetingDate); parseErr == nil {
+				m.Date = t
+			}
+		} else if m.Date.IsZero() {
+			// Fall back to the file's modification time when no date is available.
+			if stat, statErr := os.Stat(path); statErr == nil {
+				m.Date = stat.ModTime()
+			}
+		}
 	}
 
 	fmt.Printf("Found %d meeting(s)\n\n", len(meetings))
@@ -310,7 +347,7 @@ func platformToProto(platform string) ingestv1.Platform {
 		return ingestv1.Platform_PLATFORM_ZOOM
 	case "google_meet", "googlemeet", "meet":
 		return ingestv1.Platform_PLATFORM_GOOGLE_MEET
-	case "local":
+	case "macwhisper", "local":
 		return ingestv1.Platform_PLATFORM_LOCAL
 	default:
 		return ingestv1.Platform_PLATFORM_UNSPECIFIED
@@ -338,7 +375,8 @@ func processMeetingViaGRPC(ctx context.Context, client ingestv1.IngestServiceCli
 		if strings.HasSuffix(strings.ToLower(m.Files.TranscriptPath), ".vtt") {
 			transcriptResult, err = meeting.ParseVTT(f)
 		} else {
-			transcriptResult, err = meeting.ParseTXTTranscript(f)
+			// ParseTXTAuto detects Webex/Teams timestamped format vs MacWhisper speaker-label format.
+			transcriptResult, err = meeting.ParseTXTAuto(f)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("parsing transcript: %w", err)

@@ -101,7 +101,7 @@ func TestParseTXTTranscript_RealFile(t *testing.T) {
 
 	f, err := os.Open(testFile)
 	require.NoError(t, err)
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	result, err := ParseTXTTranscript(f)
 	require.NoError(t, err)
@@ -123,6 +123,91 @@ func TestParseTXTTranscript_RealFile(t *testing.T) {
 		len(result.Segments), len(result.Speakers), result.DurationSeconds)
 	t.Logf("First 3 speakers: %v", result.Speakers[:min(3, len(result.Speakers))])
 }
+
+// ---- MacWhisper / speaker-label format ----
+
+func TestParseMacWhisperTranscript_Basic(t *testing.T) {
+	content := `JAMES: Hiya, how are you?
+
+ROB: I'm good, thank you. Sorry I'm a minute late.
+
+JAMES: That's alright.
+`
+	result, err := ParseMacWhisperTranscript(strings.NewReader(content))
+	require.NoError(t, err)
+
+	assert.Len(t, result.Segments, 3)
+	assert.Len(t, result.Speakers, 2)
+	assert.Contains(t, result.Speakers, "JAMES")
+	assert.Contains(t, result.Speakers, "ROB")
+
+	assert.Equal(t, "JAMES", result.Segments[0].Speaker)
+	assert.Equal(t, "Hiya, how are you?", result.Segments[0].Text)
+
+	assert.Equal(t, "ROB", result.Segments[1].Speaker)
+	assert.Contains(t, result.Segments[1].Text, "good, thank you")
+}
+
+func TestParseMacWhisperTranscript_WithRole(t *testing.T) {
+	content := `James Brown (CEO): Good morning everyone.
+
+Sarah Smith (CTO): Morning. Let's start with the roadmap.
+
+James Brown (CEO): Sure, over to you.
+`
+	result, err := ParseMacWhisperTranscript(strings.NewReader(content))
+	require.NoError(t, err)
+
+	assert.Len(t, result.Segments, 3)
+	assert.Len(t, result.Speakers, 2)
+	assert.Contains(t, result.Speakers, "James Brown (CEO)")
+	assert.Contains(t, result.Speakers, "Sarah Smith (CTO)")
+}
+
+func TestParseMacWhisperTranscript_GeneratesFullText(t *testing.T) {
+	content := `ALICE: Hello everyone.
+
+BOB: Hi Alice, how are you?
+`
+	result, err := ParseMacWhisperTranscript(strings.NewReader(content))
+	require.NoError(t, err)
+
+	assert.Contains(t, result.FullText, "Hello everyone")
+	assert.Contains(t, result.FullText, "Hi Alice, how are you?")
+}
+
+func TestParseMacWhisperTranscript_EmptyInput(t *testing.T) {
+	result, err := ParseMacWhisperTranscript(strings.NewReader(""))
+	require.NoError(t, err)
+	assert.Len(t, result.Segments, 0)
+	assert.Len(t, result.Speakers, 0)
+}
+
+func TestParseTXTAuto_DispatchesWebex(t *testing.T) {
+	content := `0:11 : Sara Weisman : Hey.
+0:20 : Massiel Campos : Yes.
+`
+	result, err := ParseTXTAuto(strings.NewReader(content))
+	require.NoError(t, err)
+
+	assert.Equal(t, "txt", result.Format)
+	assert.Len(t, result.Segments, 2)
+	assert.Equal(t, "Sara Weisman", result.Segments[0].Speaker)
+}
+
+func TestParseTXTAuto_DispatchesMacWhisper(t *testing.T) {
+	content := `JAMES: Hello.
+
+ROB: Hi there.
+`
+	result, err := ParseTXTAuto(strings.NewReader(content))
+	require.NoError(t, err)
+
+	assert.Len(t, result.Segments, 2)
+	assert.Equal(t, "JAMES", result.Segments[0].Speaker)
+}
+
+// ---- end MacWhisper tests ----
 
 func TestParseTXTTranscript_EmptyInput(t *testing.T) {
 	result, err := ParseTXTTranscript(strings.NewReader(""))

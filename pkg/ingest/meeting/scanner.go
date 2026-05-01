@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+// ScanOptions controls the behaviour of ScanMeetingFilesWithOptions.
+type ScanOptions struct {
+	// Platform enables lenient single-file mode for "macwhisper" or "local":
+	// any .txt file is accepted as a transcript regardless of its filename.
+	Platform string
+}
+
 // File detection patterns
 var (
 	// VTT/MP4 filename pattern: Meeting Title-YYYYMMDD HHMM-1.ext
@@ -37,22 +44,42 @@ type MeetingInfo struct {
 
 // ScanMeetingFiles scans a path (file or directory) and returns discovered meetings.
 func ScanMeetingFiles(path string) ([]*Meeting, error) {
+	return ScanMeetingFilesWithOptions(path, ScanOptions{})
+}
+
+// ScanMeetingFilesWithOptions scans a path using the given options.
+// When opts.Platform is "macwhisper" or "local", any .txt file is accepted as a
+// transcript regardless of filename, enabling ingest of arbitrarily-named files.
+func ScanMeetingFilesWithOptions(path string, opts ScanOptions) ([]*Meeting, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
 
+	lenient := isLenientPlatform(opts.Platform)
+
 	if !info.IsDir() {
 		// Single file
-		meeting := createMeetingFromFile(path)
-		if meeting != nil {
-			return []*Meeting{meeting}, nil
+		m := createMeetingFromFileWithMode(path, lenient)
+		if m != nil {
+			return []*Meeting{m}, nil
 		}
+		// When lenient mode is on and we got nil it means the file extension is
+		// truly unsupported (e.g. .pdf) — surface a clear empty result.
 		return []*Meeting{}, nil
 	}
 
-	// Directory - scan for meetings
+	// Directory — use existing strict logic regardless of platform.
 	return scanDirectory(path)
+}
+
+// isLenientPlatform reports whether a platform name enables loose filename matching.
+func isLenientPlatform(platform string) bool {
+	switch strings.ToLower(platform) {
+	case "macwhisper", "local":
+		return true
+	}
+	return false
 }
 
 // scanDirectory scans a directory for meeting files and groups them.
@@ -227,10 +254,21 @@ func scanMeetingDirectory(dirPath string) ([]*Meeting, error) {
 	return []*Meeting{meeting}, nil
 }
 
-// createMeetingFromFile creates a meeting from a single file.
+// createMeetingFromFile creates a meeting from a single file using strict filename matching.
 func createMeetingFromFile(filePath string) *Meeting {
+	return createMeetingFromFileWithMode(filePath, false)
+}
+
+// createMeetingFromFileWithMode creates a meeting from a single file.
+// When lenient is true any .txt file is treated as a transcript.
+func createMeetingFromFileWithMode(filePath string, lenient bool) *Meeting {
 	filename := filepath.Base(filePath)
-	fileType := DetectFileType(filename)
+	var fileType string
+	if lenient {
+		fileType = detectFileTypeLenient(filename)
+	} else {
+		fileType = DetectFileType(filename)
+	}
 
 	if fileType == "unknown" {
 		return nil
@@ -238,7 +276,7 @@ func createMeetingFromFile(filePath string) *Meeting {
 
 	meetingInfo := ExtractMeetingInfo(filename)
 
-	meeting := &Meeting{
+	m := &Meeting{
 		Title:    meetingInfo.Title,
 		Date:     meetingInfo.Date,
 		Platform: "webex",
@@ -247,16 +285,32 @@ func createMeetingFromFile(filePath string) *Meeting {
 
 	switch fileType {
 	case "vtt", "transcript":
-		meeting.Files.TranscriptPath = filePath
+		m.Files.TranscriptPath = filePath
 	case "chat":
-		meeting.Files.ChatPath = filePath
+		m.Files.ChatPath = filePath
 	case "video":
-		meeting.Files.VideoPath = filePath
+		m.Files.VideoPath = filePath
 	case "audio":
-		meeting.Files.AudioPath = filePath
+		m.Files.AudioPath = filePath
 	}
 
-	return meeting
+	return m
+}
+
+// detectFileTypeLenient is like DetectFileType but accepts any .txt file as a transcript.
+func detectFileTypeLenient(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".vtt":
+		return "vtt"
+	case ".mp4", ".webm", ".mov", ".avi":
+		return "video"
+	case ".m4a", ".mp3", ".wav":
+		return "audio"
+	case ".txt":
+		return "transcript"
+	}
+	return "unknown"
 }
 
 // DetectFileType determines the type of a meeting-related file.

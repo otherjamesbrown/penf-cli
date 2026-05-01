@@ -178,6 +178,35 @@ func TestScanMeetingFiles_RealTestData(t *testing.T) {
 	}
 }
 
+func TestScanMeetingFilesWithOptions_MacWhisper(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "Voice Memo.txt")
+	err := os.WriteFile(filePath, []byte("JAMES: Hello.\n\nROB: Hi.\n"), 0644)
+	require.NoError(t, err)
+
+	// Strict scan should find nothing — filename doesn't match any pattern.
+	meetings, err := ScanMeetingFiles(filePath)
+	require.NoError(t, err)
+	assert.Len(t, meetings, 0, "strict scan must not pick up arbitrary .txt files")
+
+	// Lenient (macwhisper) scan should return one meeting.
+	meetings, err = ScanMeetingFilesWithOptions(filePath, ScanOptions{Platform: "macwhisper"})
+	require.NoError(t, err)
+	assert.Len(t, meetings, 1)
+	assert.Equal(t, filePath, meetings[0].Files.TranscriptPath)
+}
+
+func TestScanMeetingFilesWithOptions_LocalPlatform(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "random notes.txt")
+	err := os.WriteFile(filePath, []byte("ALICE: Hello.\n"), 0644)
+	require.NoError(t, err)
+
+	meetings, err := ScanMeetingFilesWithOptions(filePath, ScanOptions{Platform: "local"})
+	require.NoError(t, err)
+	assert.Len(t, meetings, 1)
+}
+
 func TestDetectFileType(t *testing.T) {
 	tests := []struct {
 		filename string
