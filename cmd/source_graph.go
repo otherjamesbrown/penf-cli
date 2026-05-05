@@ -29,10 +29,23 @@ Getting started:
   penf source graph sync      Trigger a manual sync`,
 	}
 
+	cmd.AddCommand(newSourceGraphInitCommand(deps))
 	cmd.AddCommand(newSourceGraphStatusCommand(deps))
 	cmd.AddCommand(newSourceGraphSyncCommand(deps))
 	cmd.AddCommand(newSourceGraphChannelsCommand(deps))
 	cmd.AddCommand(newSourceGraphAuthCommand(deps))
+
+	// Update the long description to mention init.
+	cmd.Long = `Connect Penfold to your Microsoft 365 account via the Graph API.
+
+Syncs your Outlook email, Teams messages, meeting transcripts, and org directory
+into Penfold's knowledge base. Uses delegated auth — reads your data only.
+
+Getting started:
+  penf source graph init --client-id <id> --azure-tenant-id <id>
+  penf source graph auth      Sign in with your Microsoft account (one-time)
+  penf source graph status    Check connection and sync health
+  penf source graph sync      Trigger a manual sync`
 
 	return cmd
 }
@@ -87,6 +100,37 @@ token securely and uses it for all future syncs.`,
 			return runGraphAuth(cmd.Context(), deps)
 		},
 	}
+}
+
+// newSourceGraphInitCommand creates `penf source graph init`.
+func newSourceGraphInitCommand(deps *SourceCommandDeps) *cobra.Command {
+	var clientID, azureTenantID, name string
+	var force bool
+
+	cmd := &cobra.Command{
+		Use:   "init",
+		Short: "Bootstrap the microsoft_graph integration row for a tenant",
+		Long: `Create the microsoft_graph tenant_integrations row required before auth can proceed.
+
+Run this once per tenant before 'penf source graph auth'. Fails if a row already
+exists unless --force is supplied.
+
+Examples:
+  penf source graph init --tenant myco --client-id <azure-app-id> --azure-tenant-id <azure-dir-id>
+  penf source graph init --tenant myco --client-id <id> --azure-tenant-id <id> --force`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runGraphInit(cmd.Context(), deps, clientID, azureTenantID, name, force)
+		},
+	}
+
+	cmd.Flags().StringVar(&clientID, "client-id", "", "Azure application (client) ID (required)")
+	cmd.Flags().StringVar(&azureTenantID, "azure-tenant-id", "", "Azure directory (tenant) ID (required)")
+	cmd.Flags().StringVar(&name, "name", "default", "Integration record name")
+	cmd.Flags().BoolVar(&force, "force", false, "Overwrite an existing integration row")
+	_ = cmd.MarkFlagRequired("client-id")
+	_ = cmd.MarkFlagRequired("azure-tenant-id")
+
+	return cmd
 }
 
 // ==================== Runners ====================
@@ -274,6 +318,41 @@ func runGraphAuth(ctx context.Context, deps *SourceCommandDeps) error {
 		fmt.Printf("Code expires in %d minutes.\n", resp.ExpiresIn/60)
 	}
 	fmt.Println("After signing in, run 'penf source graph status' to confirm connection.")
+	return nil
+}
+
+func runGraphInit(ctx context.Context, deps *SourceCommandDeps, clientID, azureTenantID, name string, force bool) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := graphpb.NewGraphConnectorServiceClient(conn)
+	resp, err := client.InitGraphIntegration(ctx, &graphpb.InitGraphIntegrationRequest{
+		TenantId:      getTenantIDForSource(deps),
+		ClientId:      clientID,
+		AzureTenantId: azureTenantID,
+		Name:          name,
+		Force:         force,
+	})
+	if err != nil {
+		return fmt.Errorf("initialising integration: %w", err)
+	}
+
+	if sourceOutput == "json" {
+		return json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
+			"message": resp.Message,
+		})
+	}
+
+	fmt.Println(resp.Message)
 	return nil
 }
 
