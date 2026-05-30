@@ -196,7 +196,7 @@ func runRuleShow(ctx context.Context, deps *PipelineCommandDeps, name string) er
 
 	resp, err := client.GetAutomationRule(ctx, &pipelinev1.GetAutomationRuleRequest{
 		TenantId: tenantID,
-		Name:     ruleID,
+		Id:       ruleID,
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -236,7 +236,7 @@ func runRuleShow(ctx context.Context, deps *PipelineCommandDeps, name string) er
 	// Show recent history.
 	histResp, err := client.ListAutomationRuleExecutions(ctx, &pipelinev1.ListAutomationRuleExecutionsRequest{
 		TenantId: tenantID,
-		Name:     ruleID,
+		RuleId:   ruleID,
 		Limit:    5,
 	})
 	if err == nil && len(histResp.Executions) > 0 {
@@ -470,10 +470,8 @@ func runRuleUpdate(ctx context.Context, deps *PipelineCommandDeps, name string,
 	}
 
 	if enable {
-		req.SetEnabled = true
 		req.Enabled = true
 	} else if disable {
-		req.SetEnabled = true
 		req.Enabled = false
 	}
 
@@ -489,7 +487,7 @@ func runRuleUpdate(ctx context.Context, deps *PipelineCommandDeps, name string,
 	if err != nil {
 		return err
 	}
-	req.Name = ruleID
+	req.Id = ruleID
 
 	resp, err := client.UpdateAutomationRule(ctx, req)
 	if err != nil {
@@ -554,10 +552,9 @@ func runRuleSetEnabled(ctx context.Context, deps *PipelineCommandDeps, name stri
 	}
 
 	_, err = client.UpdateAutomationRule(ctx, &pipelinev1.UpdateAutomationRuleRequest{
-		TenantId:   tenantID,
-		Name:       ruleID,
-		SetEnabled: true,
-		Enabled:    enabled,
+		TenantId: tenantID,
+		Id:       ruleID,
+		Enabled:  enabled,
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -631,7 +628,7 @@ func runRuleDelete(ctx context.Context, deps *PipelineCommandDeps, name string, 
 
 	_, err = client.DeleteAutomationRule(ctx, &pipelinev1.DeleteAutomationRuleRequest{
 		TenantId: tenantID,
-		Name:     ruleID,
+		Id:       ruleID,
 	})
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -690,7 +687,7 @@ func runRuleRun(ctx context.Context, deps *PipelineCommandDeps, name string, dry
 
 	resp, err := client.RunAutomationRule(ctx, &pipelinev1.RunAutomationRuleRequest{
 		TenantId: tenantID,
-		Name:     ruleID,
+		Id:       ruleID,
 		DryRun:   dryRun,
 	})
 	if err != nil {
@@ -700,15 +697,14 @@ func runRuleRun(ctx context.Context, deps *PipelineCommandDeps, name string, dry
 		return fmt.Errorf("running automation rule: %w", err)
 	}
 
-	if resp.DryRun {
+	if dryRun {
 		fmt.Printf("Dry run for rule: %s\n\n", name)
-		if resp.DryRunSummary != "" {
-			fmt.Println(resp.DryRunSummary)
-		} else {
-			fmt.Println("(no dry-run summary returned)")
+		fmt.Printf("  Items selected: %d\n", resp.DryRunItemsSelected)
+		if resp.DryRunRenderedSkill != "" {
+			fmt.Printf("  Rendered skill:\n%s\n", resp.DryRunRenderedSkill)
 		}
 	} else {
-		fmt.Printf("Rule %s started (workflow: %s)\n", name, resp.WorkflowId)
+		fmt.Printf("Rule %s started (execution: %s)\n", name, resp.ExecutionId)
 	}
 	return nil
 }
@@ -759,7 +755,7 @@ func runRuleHistory(ctx context.Context, deps *PipelineCommandDeps, name string,
 
 	resp, err := client.ListAutomationRuleExecutions(ctx, &pipelinev1.ListAutomationRuleExecutionsRequest{
 		TenantId: tenantID,
-		Name:     ruleID,
+		RuleId:   ruleID,
 		Limit:    limit,
 	})
 	if err != nil {
