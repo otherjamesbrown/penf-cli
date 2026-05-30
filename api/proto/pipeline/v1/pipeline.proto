@@ -2039,34 +2039,34 @@ message SuggestTenantContextTriggersResponse {
 
 // AutomationRule represents a composable trigger → selector → skill → output rule.
 message AutomationRule {
-  // Rule ID (UUID).
+  // Unique rule ID.
   string id = 1;
 
   // Tenant ID.
   string tenant_id = 2;
 
-  // Rule name (unique within tenant).
+  // Human-readable rule name.
   string name = 3;
 
-  // Human-readable description.
+  // Optional description.
   string description = 4;
 
-  // Whether this rule is enabled.
+  // Whether this rule is active.
   bool enabled = 5;
 
-  // Trigger type: cron, event, manual.
+  // Trigger type: cron, event, or manual.
   string trigger_type = 6;
 
-  // Trigger configuration as a JSON string.
+  // Trigger configuration as a JSON string (type-specific).
   string trigger_config = 7;
 
-  // Selector configuration as a JSON string.
+  // Selector configuration as a JSON string (what data to gather).
   string selector_config = 8;
 
-  // Skill name (references skills/<name>.md in repo).
+  // Skill name referencing a skills/<name>.md file in the repo.
   string skill_name = 9;
 
-  // Output configuration as a JSON string.
+  // Output configuration as a JSON string (delivery channels and chaining).
   string output_config = 10;
 
   // When the rule was created.
@@ -2079,42 +2079,42 @@ message AutomationRule {
   string created_by = 13;
 }
 
-// AutomationRuleExecution represents a single execution of an automation rule.
+// AutomationRuleExecution records a single execution of an automation rule.
 message AutomationRuleExecution {
-  // Execution ID (UUID).
+  // Unique execution ID.
   string id = 1;
 
-  // Rule ID.
+  // ID of the rule that was executed.
   string rule_id = 2;
 
-  // Trigger type for this execution.
+  // Trigger type that caused this execution: cron, event, or manual.
   string trigger_type = 3;
 
-  // Trigger source (source_id for events, 'cron' for scheduled, 'manual' for CLI).
+  // Source of the trigger (content ID for events, 'cron', 'manual').
   string trigger_source = 4;
 
-  // When execution started.
+  // When the execution started.
   google.protobuf.Timestamp started_at = 5;
 
-  // When execution completed.
+  // When the execution completed (nil if still running).
   google.protobuf.Timestamp completed_at = 6;
 
-  // Status: running, completed, failed.
+  // Execution status: running, completed, or failed.
   string status = 7;
 
-  // Number of items selected by the selector.
+  // Number of content items selected by the selector.
   int32 items_selected = 8;
 
-  // Number of tokens used by the skill LLM call.
+  // Number of tokens consumed by the skill LLM call.
   int32 skill_tokens_used = 9;
 
   // Per-channel delivery status as a JSON string.
   string delivery_status = 10;
 
-  // Results of chained rules as a JSON string.
+  // Results of any chained rule executions as a JSON string.
   string chain_executions = 11;
 
-  // Error message if execution failed.
+  // Error message if the execution failed.
   string error = 12;
 }
 
@@ -2123,106 +2123,119 @@ message CreateAutomationRuleRequest {
   // Tenant ID.
   string tenant_id = 1;
 
-  // Rule name (must be unique within tenant).
+  // Human-readable rule name (must be unique within tenant).
   string name = 2;
 
-  // Human-readable description.
+  // Optional description.
   string description = 3;
 
-  // Trigger type: cron, event, manual.
-  string trigger_type = 4;
+  // Whether this rule is active.
+  bool enabled = 4;
+
+  // Trigger type: cron, event, or manual.
+  string trigger_type = 5;
 
   // Trigger configuration as a JSON string.
-  string trigger_config = 5;
+  string trigger_config = 6;
 
   // Selector configuration as a JSON string.
-  string selector_config = 6;
+  string selector_config = 7;
 
-  // Skill name.
-  string skill_name = 7;
+  // Skill name referencing a skills/<name>.md file in the repo.
+  string skill_name = 8;
 
   // Output configuration as a JSON string.
-  string output_config = 8;
+  string output_config = 9;
 
-  // Whether this rule is enabled (default true).
-  bool enabled = 9;
+  // Who is creating this rule.
+  string created_by = 10;
 }
 
 // CreateAutomationRuleResponse returns the created rule.
 message CreateAutomationRuleResponse {
+  // The created automation rule.
   AutomationRule rule = 1;
 }
 
-// ListAutomationRulesRequest lists all automation rules for a tenant.
+// ListAutomationRulesRequest lists automation rules for a tenant.
 message ListAutomationRulesRequest {
   // Tenant ID.
   string tenant_id = 1;
 
-  // Optional filter: only return enabled rules.
-  bool enabled_only = 2;
+  // Optional filter: only return rules with this trigger type.
+  string trigger_type = 2;
+
+  // Optional filter: only return enabled or disabled rules (omit for all).
+  bool enabled_only = 3;
 }
 
-// ListAutomationRulesResponse contains all automation rules.
+// ListAutomationRulesResponse returns matching automation rules.
 message ListAutomationRulesResponse {
+  // Matching automation rules.
   repeated AutomationRule rules = 1;
 }
 
-// GetAutomationRuleRequest retrieves a single rule by name.
+// GetAutomationRuleRequest retrieves a single automation rule by ID.
 message GetAutomationRuleRequest {
   // Tenant ID.
   string tenant_id = 1;
 
-  // Rule name.
-  string name = 2;
+  // Rule ID.
+  string id = 2;
 }
 
-// GetAutomationRuleResponse contains the requested rule.
+// GetAutomationRuleResponse returns the requested rule.
 message GetAutomationRuleResponse {
+  // The automation rule.
   AutomationRule rule = 1;
 }
 
-// UpdateAutomationRuleRequest updates fields on an existing rule.
+// UpdateAutomationRuleRequest updates an existing automation rule.
 message UpdateAutomationRuleRequest {
   // Tenant ID.
   string tenant_id = 1;
 
-  // Rule name to update.
-  string name = 2;
+  // Rule ID to update.
+  string id = 2;
 
-  // New description (empty = no change).
-  string description = 3;
+  // Updated human-readable name.
+  string name = 3;
 
-  // New trigger config JSON (empty = no change).
-  string trigger_config = 4;
+  // Updated description.
+  string description = 4;
 
-  // New selector config JSON (empty = no change).
-  string selector_config = 5;
+  // Updated enabled state.
+  bool enabled = 5;
 
-  // New skill name (empty = no change).
-  string skill_name = 6;
+  // Updated trigger type.
+  string trigger_type = 6;
 
-  // New output config JSON (empty = no change).
-  string output_config = 7;
+  // Updated trigger configuration as a JSON string.
+  string trigger_config = 7;
 
-  // If set, update the enabled state.
-  bool set_enabled = 8;
+  // Updated selector configuration as a JSON string.
+  string selector_config = 8;
 
-  // The new enabled value (only used if set_enabled is true).
-  bool enabled = 9;
+  // Updated skill name.
+  string skill_name = 9;
+
+  // Updated output configuration as a JSON string.
+  string output_config = 10;
 }
 
 // UpdateAutomationRuleResponse returns the updated rule.
 message UpdateAutomationRuleResponse {
+  // The updated automation rule.
   AutomationRule rule = 1;
 }
 
-// DeleteAutomationRuleRequest deletes a rule by name.
+// DeleteAutomationRuleRequest deletes an automation rule by ID.
 message DeleteAutomationRuleRequest {
   // Tenant ID.
   string tenant_id = 1;
 
-  // Rule name to delete.
-  string name = 2;
+  // Rule ID to delete.
+  string id = 2;
 }
 
 // DeleteAutomationRuleResponse confirms deletion.
@@ -2231,43 +2244,44 @@ message DeleteAutomationRuleResponse {
   int32 deleted_count = 1;
 }
 
-// RunAutomationRuleRequest triggers manual execution of a rule.
+// RunAutomationRuleRequest manually triggers an automation rule.
 message RunAutomationRuleRequest {
   // Tenant ID.
   string tenant_id = 1;
 
-  // Rule name to run.
-  string name = 2;
+  // Rule ID to run.
+  string id = 2;
 
-  // If true, show what would be selected without executing.
+  // If true, show what would be selected and the rendered skill without executing.
   bool dry_run = 3;
 }
 
-// RunAutomationRuleResponse returns the execution result.
+// RunAutomationRuleResponse returns the execution ID and dry-run details.
 message RunAutomationRuleResponse {
-  // Workflow ID started (empty for dry runs).
-  string workflow_id = 1;
+  // Execution ID (empty for dry-run).
+  string execution_id = 1;
 
-  // For dry runs: description of what would be selected.
-  string dry_run_summary = 2;
+  // For dry-run: number of items the selector would return.
+  int32 dry_run_items_selected = 2;
 
-  // Whether this was a dry run.
-  bool dry_run = 3;
+  // For dry-run: the rendered skill prompt.
+  string dry_run_rendered_skill = 3;
 }
 
-// ListAutomationRuleExecutionsRequest returns history for a rule.
+// ListAutomationRuleExecutionsRequest lists execution history for a rule.
 message ListAutomationRuleExecutionsRequest {
   // Tenant ID.
   string tenant_id = 1;
 
-  // Rule name.
-  string name = 2;
+  // Rule ID to list executions for.
+  string rule_id = 2;
 
-  // Maximum number of results (default 10).
+  // Maximum number of executions to return.
   int32 limit = 3;
 }
 
-// ListAutomationRuleExecutionsResponse contains execution history.
+// ListAutomationRuleExecutionsResponse returns execution history.
 message ListAutomationRuleExecutionsResponse {
+  // Execution records, newest first.
   repeated AutomationRuleExecution executions = 1;
 }
