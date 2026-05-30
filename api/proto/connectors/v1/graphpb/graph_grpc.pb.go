@@ -44,8 +44,7 @@ type GraphConnectorServiceClient interface {
 	ListGraphChannels(ctx context.Context, in *ListGraphChannelsRequest, opts ...grpc.CallOption) (*ListGraphChannelsResponse, error)
 	// InitiateGraphAuth starts the Microsoft device code authorization flow.
 	InitiateGraphAuth(ctx context.Context, in *InitiateGraphAuthRequest, opts ...grpc.CallOption) (*InitiateGraphAuthResponse, error)
-	// InitGraphIntegration creates the microsoft_graph tenant_integrations row
-	// required before auth can proceed. Idempotent when force is true.
+	// InitGraphIntegration bootstraps a microsoft_graph integration row for a tenant.
 	InitGraphIntegration(ctx context.Context, in *InitGraphIntegrationRequest, opts ...grpc.CallOption) (*InitGraphIntegrationResponse, error)
 }
 
@@ -122,8 +121,7 @@ type GraphConnectorServiceServer interface {
 	ListGraphChannels(context.Context, *ListGraphChannelsRequest) (*ListGraphChannelsResponse, error)
 	// InitiateGraphAuth starts the Microsoft device code authorization flow.
 	InitiateGraphAuth(context.Context, *InitiateGraphAuthRequest) (*InitiateGraphAuthResponse, error)
-	// InitGraphIntegration creates the microsoft_graph tenant_integrations row
-	// required before auth can proceed. Idempotent when force is true.
+	// InitGraphIntegration bootstraps a microsoft_graph integration row for a tenant.
 	InitGraphIntegration(context.Context, *InitGraphIntegrationRequest) (*InitGraphIntegrationResponse, error)
 	mustEmbedUnimplementedGraphConnectorServiceServer()
 }
