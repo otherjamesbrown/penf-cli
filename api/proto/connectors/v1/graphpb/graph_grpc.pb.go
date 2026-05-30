@@ -22,10 +22,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	GraphConnectorService_GetGraphStatus_FullMethodName    = "/penfold.connectors.graph.v1.GraphConnectorService/GetGraphStatus"
-	GraphConnectorService_TriggerGraphSync_FullMethodName  = "/penfold.connectors.graph.v1.GraphConnectorService/TriggerGraphSync"
-	GraphConnectorService_ListGraphChannels_FullMethodName = "/penfold.connectors.graph.v1.GraphConnectorService/ListGraphChannels"
-	GraphConnectorService_InitiateGraphAuth_FullMethodName = "/penfold.connectors.graph.v1.GraphConnectorService/InitiateGraphAuth"
+	GraphConnectorService_GetGraphStatus_FullMethodName       = "/penfold.connectors.graph.v1.GraphConnectorService/GetGraphStatus"
+	GraphConnectorService_TriggerGraphSync_FullMethodName     = "/penfold.connectors.graph.v1.GraphConnectorService/TriggerGraphSync"
+	GraphConnectorService_ListGraphChannels_FullMethodName    = "/penfold.connectors.graph.v1.GraphConnectorService/ListGraphChannels"
+	GraphConnectorService_InitiateGraphAuth_FullMethodName    = "/penfold.connectors.graph.v1.GraphConnectorService/InitiateGraphAuth"
+	GraphConnectorService_InitGraphIntegration_FullMethodName = "/penfold.connectors.graph.v1.GraphConnectorService/InitGraphIntegration"
 )
 
 // GraphConnectorServiceClient is the client API for GraphConnectorService service.
@@ -43,6 +44,9 @@ type GraphConnectorServiceClient interface {
 	ListGraphChannels(ctx context.Context, in *ListGraphChannelsRequest, opts ...grpc.CallOption) (*ListGraphChannelsResponse, error)
 	// InitiateGraphAuth starts the Microsoft device code authorization flow.
 	InitiateGraphAuth(ctx context.Context, in *InitiateGraphAuthRequest, opts ...grpc.CallOption) (*InitiateGraphAuthResponse, error)
+	// InitGraphIntegration creates the microsoft_graph tenant_integrations row
+	// required before auth can proceed. Idempotent when force is true.
+	InitGraphIntegration(ctx context.Context, in *InitGraphIntegrationRequest, opts ...grpc.CallOption) (*InitGraphIntegrationResponse, error)
 }
 
 type graphConnectorServiceClient struct {
@@ -93,6 +97,16 @@ func (c *graphConnectorServiceClient) InitiateGraphAuth(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *graphConnectorServiceClient) InitGraphIntegration(ctx context.Context, in *InitGraphIntegrationRequest, opts ...grpc.CallOption) (*InitGraphIntegrationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InitGraphIntegrationResponse)
+	err := c.cc.Invoke(ctx, GraphConnectorService_InitGraphIntegration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GraphConnectorServiceServer is the server API for GraphConnectorService service.
 // All implementations must embed UnimplementedGraphConnectorServiceServer
 // for forward compatibility.
@@ -108,6 +122,9 @@ type GraphConnectorServiceServer interface {
 	ListGraphChannels(context.Context, *ListGraphChannelsRequest) (*ListGraphChannelsResponse, error)
 	// InitiateGraphAuth starts the Microsoft device code authorization flow.
 	InitiateGraphAuth(context.Context, *InitiateGraphAuthRequest) (*InitiateGraphAuthResponse, error)
+	// InitGraphIntegration creates the microsoft_graph tenant_integrations row
+	// required before auth can proceed. Idempotent when force is true.
+	InitGraphIntegration(context.Context, *InitGraphIntegrationRequest) (*InitGraphIntegrationResponse, error)
 	mustEmbedUnimplementedGraphConnectorServiceServer()
 }
 
@@ -129,6 +146,9 @@ func (UnimplementedGraphConnectorServiceServer) ListGraphChannels(context.Contex
 }
 func (UnimplementedGraphConnectorServiceServer) InitiateGraphAuth(context.Context, *InitiateGraphAuthRequest) (*InitiateGraphAuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitiateGraphAuth not implemented")
+}
+func (UnimplementedGraphConnectorServiceServer) InitGraphIntegration(context.Context, *InitGraphIntegrationRequest) (*InitGraphIntegrationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitGraphIntegration not implemented")
 }
 func (UnimplementedGraphConnectorServiceServer) mustEmbedUnimplementedGraphConnectorServiceServer() {}
 func (UnimplementedGraphConnectorServiceServer) testEmbeddedByValue()                               {}
@@ -223,6 +243,24 @@ func _GraphConnectorService_InitiateGraphAuth_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GraphConnectorService_InitGraphIntegration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitGraphIntegrationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GraphConnectorServiceServer).InitGraphIntegration(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GraphConnectorService_InitGraphIntegration_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GraphConnectorServiceServer).InitGraphIntegration(ctx, req.(*InitGraphIntegrationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GraphConnectorService_ServiceDesc is the grpc.ServiceDesc for GraphConnectorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -245,6 +283,10 @@ var GraphConnectorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InitiateGraphAuth",
 			Handler:    _GraphConnectorService_InitiateGraphAuth_Handler,
+		},
+		{
+			MethodName: "InitGraphIntegration",
+			Handler:    _GraphConnectorService_InitGraphIntegration_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

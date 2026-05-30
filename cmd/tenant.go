@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -64,6 +65,7 @@ type TenantCommandDeps struct {
 	GetTenant        func(ctx context.Context, c *client.TenantClient, id string, slug string) (*client.Tenant, error)
 	SetCurrentTenant func(ctx context.Context, c *client.TenantClient, tenantRef string) (*client.Tenant, bool, string, error)
 	CreateTenant     func(ctx context.Context, c *client.TenantClient, req *client.CreateTenantRequest) (*client.Tenant, error)
+	DeleteTenant     func(ctx context.Context, c *client.TenantClient, id string, reason string) (bool, error)
 }
 
 // DefaultDeps returns the default dependencies for production use.
@@ -109,6 +111,9 @@ func DefaultDeps() *TenantCommandDeps {
 		CreateTenant: func(ctx context.Context, c *client.TenantClient, req *client.CreateTenantRequest) (*client.Tenant, error) {
 			return c.CreateTenant(ctx, req)
 		},
+		DeleteTenant: func(ctx context.Context, c *client.TenantClient, id string, reason string) (bool, error) {
+			return c.DeleteTenant(ctx, id, reason)
+		},
 	}
 }
 
@@ -148,6 +153,7 @@ Most commands accept --tenant to override the active tenant for a single operati
 	cmd.AddCommand(newTenantCurrentCommand(deps))
 	cmd.AddCommand(newTenantShowCommand(deps))
 	cmd.AddCommand(newTenantCreateCommand(deps))
+	cmd.AddCommand(newTenantDeleteCommand(deps))
 
 	return cmd
 }
@@ -776,6 +782,91 @@ func runTenantCreate(ctx context.Context, deps *TenantCommandDeps, name, slug, d
 		fmt.Printf("  Description: %s\n", tenant.Description)
 	}
 
+	return nil
+}
+
+// newTenantDeleteCommand creates the 'tenant delete' subcommand.
+func newTenantDeleteCommand(deps *TenantCommandDeps) *cobra.Command {
+	var reason string
+	var yes bool
+
+	cmd := &cobra.Command{
+		Use:   "delete <tenant-id-or-slug>",
+		Short: "Soft-delete a tenant",
+		Long: `Soft-delete a tenant by ID or slug.
+
+This calls the DeleteTenant RPC, which marks the tenant inactive on the server.
+Prompts for confirmation unless --yes is provided.
+
+Examples:
+  penf tenant delete entity-test-tenant-abc1234 --yes
+  penf tenant delete acme-corp --reason "duplicate fixture"`,
+		Aliases: []string{"rm"},
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTenantDelete(cmd.Context(), deps, args[0], reason, yes, getInsecureFlag(cmd))
+		},
+	}
+
+	cmd.Flags().StringVar(&reason, "reason", "", "Reason recorded with the soft-delete")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
+
+	return cmd
+}
+
+// runTenantDelete executes the tenant delete command.
+func runTenantDelete(ctx context.Context, deps *TenantCommandDeps, tenantRef, reason string, yes, insecureFlag bool) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	if insecureFlag {
+		cfg.Insecure = true
+	}
+	deps.Config = cfg
+
+	tenantID := resolveTenantAlias(cfg, tenantRef)
+
+	tenantClient, err := deps.InitTenantClient(cfg)
+	if err != nil {
+		return err
+	}
+	defer tenantClient.Close()
+
+	// Resolve slug → tenant (need UUID for DeleteTenant).
+	var tenant *client.Tenant
+	if deps.GetTenant != nil {
+		tenant, err = deps.GetTenant(ctx, tenantClient, "", tenantID)
+	} else {
+		tenant, err = tenantClient.GetTenant(ctx, "", tenantID)
+	}
+	if err != nil {
+		return fmt.Errorf("looking up tenant %q: %w", tenantRef, err)
+	}
+
+	if !yes {
+		fmt.Fprintf(os.Stderr, "About to soft-delete tenant: %s (%s, uuid=%s)\nType 'yes' to confirm: ", tenant.Slug, tenant.Name, tenant.ID)
+		reader := bufio.NewReader(os.Stdin)
+		line, _ := reader.ReadString('\n')
+		if strings.TrimSpace(line) != "yes" {
+			return fmt.Errorf("aborted")
+		}
+	}
+
+	var deleted bool
+	if deps.DeleteTenant != nil {
+		deleted, err = deps.DeleteTenant(ctx, tenantClient, tenant.ID, reason)
+	} else {
+		deleted, err = tenantClient.DeleteTenant(ctx, tenant.ID, reason)
+	}
+	if err != nil {
+		return fmt.Errorf("deleting tenant: %w", err)
+	}
+	if !deleted {
+		return fmt.Errorf("server reported tenant not deleted")
+	}
+
+	fmt.Printf("Deleted tenant: %s (uuid=%s)\n", tenant.Slug, tenant.ID)
 	return nil
 }
 

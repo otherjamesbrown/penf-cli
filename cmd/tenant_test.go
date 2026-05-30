@@ -215,7 +215,7 @@ func TestNewTenantCommand(t *testing.T) {
 
 	// Check subcommands exist.
 	subcommands := cmd.Commands()
-	expectedSubcmds := []string{"list", "switch", "current", "show"}
+	expectedSubcmds := []string{"list", "switch", "current", "show", "delete"}
 
 	for _, expected := range expectedSubcmds {
 		found := false
