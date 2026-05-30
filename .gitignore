@@ -26,4 +26,6 @@ Thumbs.db
 
 # Build artifacts
 dist/
-.cobuild/last-prompt.md
+
+# CoBuild (retired) — local pipeline scratch, never committed
+.cobuild/
