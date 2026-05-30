@@ -6,6 +6,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,6 +84,10 @@ const (
 	DefaultInitialBackoff    = 100 * time.Millisecond
 	DefaultMaxBackoff        = 5 * time.Second
 	DefaultBackoffMultiplier = 2.0
+
+	// diagnosticProbeTimeout bounds each active probe used by diagnoseDialError
+	// so a failed connection never hangs the diagnosis longer than the dial.
+	diagnosticProbeTimeout = 3 * time.Second
 )
 
 // GRPCClient manages the connection to the Penfold API Gateway.
@@ -185,7 +192,10 @@ func (c *GRPCClient) Connect(ctx context.Context) error {
 	// Establish connection.
 	conn, err := grpc.DialContext(connectCtx, c.serverAddr, dialOpts...)
 	if err != nil {
-		return fmt.Errorf("connecting to %s: %w", c.serverAddr, err)
+		// grpc.WithBlock collapses every transport failure (plaintext/TLS
+		// mismatch, hostname mismatch, bad CA, server down) into the same
+		// "context deadline exceeded". Actively probe to report the real cause.
+		return c.diagnoseDialError(err)
 	}
 
 	c.conn = conn
@@ -220,12 +230,113 @@ func (c *GRPCClient) buildDialOptions() []grpc.DialOption {
 		creds := credentials.NewTLS(c.options.TLSConfig)
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
-		// Fallback to insecure if no TLS config provided.
-		// This maintains backward compatibility but should log a warning.
+		// No TLS config and not explicitly insecure. We fall back to plaintext
+		// for backward compatibility, but this is the exact silent-plaintext
+		// misconfiguration that looks like a network hang against a TLS gateway
+		// (PEN-32): config has no `tls:` block, so the client dials plaintext
+		// and the TLS gateway never completes the handshake. Warn loudly.
+		fmt.Fprintln(os.Stderr,
+			"warning: no TLS configured and --insecure not set — connecting in plaintext. "+
+				"If the gateway requires TLS, add a `tls:` block to your penf config.")
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	return opts
+}
+
+// diagnoseDialError turns an opaque dial failure (typically "context deadline
+// exceeded" produced by grpc.WithBlock) into an actionable transport-level
+// diagnosis. It actively probes the server to distinguish the misconfigurations
+// that otherwise all look identical at the gRPC layer — the failure modes that
+// took an hour each to diagnose in PEN-32.
+func (c *GRPCClient) diagnoseDialError(origErr error) error {
+	base := fmt.Errorf("connecting to %s: %w", c.serverAddr, origErr)
+
+	// 1. Is anything accepting TCP at all?
+	tcpConn, tcpErr := net.DialTimeout("tcp", c.serverAddr, diagnosticProbeTimeout)
+	if tcpErr != nil {
+		return fmt.Errorf("%w\n  → TCP connect failed: %v\n  → Is the gateway running and is `server_address` correct?", base, tcpErr)
+	}
+	_ = tcpConn.Close()
+
+	// 2. TCP works. Compare what the client used vs what the server speaks.
+	clientPlaintext := c.options.Insecure || c.options.TLSConfig == nil
+	serverTLS := serverSpeaksTLS(c.serverAddr)
+
+	switch {
+	case serverTLS && clientPlaintext:
+		hint := "Add a `tls:` block to your penf config (enabled: true, plus ca_cert/client_cert/cert_dir)"
+		if c.options.Insecure {
+			hint = "Remove --insecure — the server requires TLS"
+		}
+		return fmt.Errorf("%w\n  → The server requires TLS but this client connected in plaintext.\n  → %s.", base, hint)
+	case !serverTLS && !clientPlaintext:
+		return fmt.Errorf("%w\n  → This client is configured for TLS but the server is plaintext.\n  → Remove the `tls:` block from your penf config, or pass --insecure.", base)
+	case serverTLS && !clientPlaintext:
+		if verr := verifyServerTLS(c.serverAddr, c.options.TLSConfig); verr != nil {
+			return fmt.Errorf("%w\n  → TLS verification failed: %v\n  → %s", base, verr, tlsHint(verr))
+		}
+		return fmt.Errorf("%w\n  → TLS verifies, but the gRPC connection never became ready (wrong port, or gateway not serving gRPC?).", base)
+	default:
+		return base
+	}
+}
+
+// serverSpeaksTLS reports whether a TLS handshake can be initiated with the
+// server. The certificate is not verified — we only care whether the peer
+// speaks TLS at all (to distinguish a TLS server from a plaintext one).
+func serverSpeaksTLS(addr string) bool {
+	d := &net.Dialer{Timeout: diagnosticProbeTimeout}
+	conn, err := tls.DialWithDialer(d, "tcp", addr, &tls.Config{InsecureSkipVerify: true}) //nolint:gosec // probe only; no data is exchanged
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+// verifyServerTLS performs a fully verifying TLS handshake using the client's
+// configured roots and the hostname derived from addr, returning the
+// verification error (hostname mismatch, unknown CA, expired, …) or nil.
+func verifyServerTLS(addr string, base *tls.Config) error {
+	cfg := &tls.Config{ServerName: hostFromAddr(addr)}
+	if base != nil {
+		cfg.RootCAs = base.RootCAs
+		cfg.Certificates = base.Certificates
+		if base.ServerName != "" {
+			cfg.ServerName = base.ServerName
+		}
+	}
+	d := &net.Dialer{Timeout: diagnosticProbeTimeout}
+	conn, err := tls.DialWithDialer(d, "tcp", addr, cfg)
+	if err != nil {
+		return err
+	}
+	_ = conn.Close()
+	return nil
+}
+
+// hostFromAddr strips the port from a host:port address.
+func hostFromAddr(addr string) string {
+	if host, _, err := net.SplitHostPort(addr); err == nil {
+		return host
+	}
+	return addr
+}
+
+// tlsHint maps a TLS verification error to an actionable, specific fix.
+func tlsHint(err error) string {
+	s := err.Error()
+	switch {
+	case strings.Contains(s, "certificate is valid for"):
+		return "Hostname mismatch — `server_address` must match a name in the gateway cert SAN (e.g. dev02.brown.chat or dev02), not an IP or a different domain such as .home.lan."
+	case strings.Contains(s, "unknown authority"), strings.Contains(s, "signed by unknown"):
+		return "The server cert isn't signed by your configured CA — your `ca.crt` is wrong or stale; sync the correct one."
+	case strings.Contains(s, "expired"), strings.Contains(s, "not yet valid"):
+		return "The server certificate is expired or not yet valid — check system clocks and reissue the cert."
+	default:
+		return "Check `ca_cert` and that `server_address` matches a name in the cert SAN."
+	}
 }
 
 // Close closes the connection to the API Gateway.
