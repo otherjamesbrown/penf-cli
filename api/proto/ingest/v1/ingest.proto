@@ -24,6 +24,10 @@ service IngestService {
   // IngestMeeting ingests a full meeting with transcript and chat sources.
   rpc IngestMeeting(IngestMeetingRequest) returns (IngestMeetingResponse);
 
+  // IngestDocument ingests a single standalone document (markdown, text, PDF,
+  // etc.), persisting it as a source and enqueueing it for pipeline processing.
+  rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentResponse);
+
   // CreateIngestJob creates a batch ingestion job record.
   rpc CreateIngestJob(CreateIngestJobRequest) returns (CreateIngestJobResponse);
 
@@ -252,6 +256,57 @@ message IngestEmailResponse {
 
   // Content ID echoed back to confirm what was processed.
   string content_id = 6;
+}
+
+// IngestDocumentRequest carries a single standalone document to ingest.
+message IngestDocumentRequest {
+  // Tenant ID or slug for multi-tenant support.
+  string tenant_id = 1;
+
+  // Original filename (used for the source external ID and metadata).
+  string filename = 2;
+
+  // MIME type of the content (e.g. "text/markdown", "text/plain", "text/html").
+  // If empty, the server defaults to "text/plain".
+  string content_type = 3;
+
+  // Document content. Must be UTF-8 text — the pipeline passes it through without
+  // extraction, so binary formats (PDF, DOCX, images) are rejected until
+  // server-side text extraction exists.
+  bytes content = 4;
+
+  // Optional category label applied to the ingested content.
+  string category = 5;
+
+  // Optional tags applied to the ingested content.
+  repeated string tags = 6;
+
+  // Optional origin URI (local file path or URL) recorded in metadata.
+  string source_uri = 7;
+
+  // Optional timestamp to associate with the document. Defaults to now.
+  google.protobuf.Timestamp source_timestamp = 8;
+}
+
+// IngestDocumentResponse reports the persisted source and processing status.
+message IngestDocumentResponse {
+  // Internal source ID assigned to this document.
+  string source_id = 1;
+
+  // Content ID assigned to this document.
+  string content_id = 2;
+
+  // Whether this was detected as a duplicate of an existing source.
+  bool was_duplicate = 3;
+
+  // ID of the existing source if duplicate.
+  string existing_source_id = 4;
+
+  // Processing status (PENDING once enqueued).
+  ProcessingStatus status = 5;
+
+  // Workflow/job ID for tracing the processing pipeline.
+  string job_id = 6;
 }
 
 // =============================================================================

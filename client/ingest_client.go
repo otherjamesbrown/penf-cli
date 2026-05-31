@@ -62,6 +62,22 @@ func (c *GRPCClient) CreateIngestJob(ctx context.Context, req *ingestv1.CreateIn
 	return resp.Job, nil
 }
 
+// IngestDocument ingests a single standalone document, persisting it as a source
+// and enqueueing it for pipeline processing. Returns the server response.
+func (c *GRPCClient) IngestDocument(ctx context.Context, req *ingestv1.IngestDocumentRequest) (*ingestv1.IngestDocumentResponse, error) {
+	client, err := c.IngestServiceClient()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.IngestDocument(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("IngestDocument RPC failed: %w", err)
+	}
+
+	return resp, nil
+}
+
 // CompleteIngestJob marks a job as completed.
 func (c *GRPCClient) CompleteIngestJob(ctx context.Context, jobID string, success bool, errorMessage string) (*ingestv1.IngestJob, error) {
 	client, err := c.IngestServiceClient()
