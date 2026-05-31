@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -1355,13 +1356,20 @@ func documentContentType(filename string) string {
 	return "text/plain"
 }
 
+// maxURLDocumentSize bounds how much of a remote document we download, to avoid
+// unbounded memory use on very large or malicious URLs.
+const maxURLDocumentSize = 50 * 1024 * 1024 // 50MB
+
 // fetchURLContent downloads the body at url and returns its bytes and content type.
 func fetchURLContent(ctx context.Context, rawURL string) ([]byte, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, "", err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	// Use a bounded client rather than http.DefaultClient so an unresponsive server
+	// cannot hang the CLI indefinitely.
+	httpClient := &http.Client{Timeout: 60 * time.Second}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1371,7 +1379,7 @@ func fetchURLContent(ctx context.Context, rawURL string) ([]byte, string, error)
 		return nil, "", fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxURLDocumentSize))
 	if err != nil {
 		return nil, "", err
 	}
@@ -1389,7 +1397,9 @@ func fetchURLContent(ctx context.Context, rawURL string) ([]byte, string, error)
 // urlFilename derives a reasonable filename from a URL.
 func urlFilename(rawURL string) string {
 	if u, err := url.Parse(rawURL); err == nil {
-		if base := filepath.Base(u.Path); base != "" && base != "/" && base != "." {
+		// URL paths always use forward slashes, so use path.Base (not filepath.Base,
+		// which is platform-dependent).
+		if base := path.Base(u.Path); base != "" && base != "/" && base != "." {
 			return base
 		}
 		if u.Host != "" {
@@ -1403,6 +1413,9 @@ func urlFilename(rawURL string) string {
 // it polls for real pipeline completion; with --async it returns once the document is
 // persisted and enqueued. It never reports success the document did not actually achieve.
 func reportDocumentIngest(ctx context.Context, grpcClient *client.GRPCClient, format config.OutputFormat, jobType, source, tenantID string, resp *ingestv1.IngestDocumentResponse) error {
+	if resp == nil {
+		return fmt.Errorf("received nil response from ingest service")
+	}
 	job := IngestJob{
 		ID:         resp.JobId,
 		Type:       jobType,
@@ -1484,13 +1497,16 @@ func waitForDocumentProcessing(ctx context.Context, grpcClient *client.GRPCClien
 				return IngestJobStatusSkipped, "skipped by pipeline"
 			}
 		}
-		if ctx.Err() != nil {
-			return IngestJobStatusProcessing, "still processing (interrupted); check 'penf content show " + contentID + "'"
-		}
 		if time.Now().After(deadline) {
 			return IngestJobStatusProcessing, "still processing (timed out waiting); check 'penf content show " + contentID + "'"
 		}
-		time.Sleep(pollInterval)
+		// Sleep between polls but return immediately if the context is cancelled
+		// (e.g. the user interrupts with Ctrl+C).
+		select {
+		case <-ctx.Done():
+			return IngestJobStatusProcessing, "still processing (interrupted); check 'penf content show " + contentID + "'"
+		case <-time.After(pollInterval):
+		}
 	}
 }
 

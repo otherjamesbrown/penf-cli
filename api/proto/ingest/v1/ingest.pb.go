@@ -807,10 +807,12 @@ type IngestDocumentRequest struct {
 	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	// Original filename (used for the source external ID and metadata).
 	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
-	// MIME type of the content (e.g. "text/markdown", "application/pdf").
+	// MIME type of the content (e.g. "text/markdown", "text/plain", "text/html").
 	// If empty, the server defaults to "text/plain".
 	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	// Raw document content.
+	// Document content. Must be UTF-8 text — the pipeline passes it through without
+	// extraction, so binary formats (PDF, DOCX, images) are rejected until
+	// server-side text extraction exists.
 	Content []byte `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	// Optional category label applied to the ingested content.
 	Category string `protobuf:"bytes,5,opt,name=category,proto3" json:"category,omitempty"`

@@ -266,11 +266,13 @@ message IngestDocumentRequest {
   // Original filename (used for the source external ID and metadata).
   string filename = 2;
 
-  // MIME type of the content (e.g. "text/markdown", "application/pdf").
+  // MIME type of the content (e.g. "text/markdown", "text/plain", "text/html").
   // If empty, the server defaults to "text/plain".
   string content_type = 3;
 
-  // Raw document content.
+  // Document content. Must be UTF-8 text — the pipeline passes it through without
+  // extraction, so binary formats (PDF, DOCX, images) are rejected until
+  // server-side text extraction exists.
   bytes content = 4;
 
   // Optional category label applied to the ingested content.
