@@ -498,10 +498,17 @@ func runIngestFile(ctx context.Context, deps *IngestCommandDeps, filePath string
 	}
 	deps.Config = cfg
 
-	// Validate file exists and is readable.
+	// Validate file exists, is a regular file, and is within the size limit.
 	info, statErr := os.Stat(filePath)
-	if statErr != nil || info.IsDir() {
+	if statErr != nil {
 		return fmt.Errorf("file not found: %s", filePath)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("path is a directory, not a file: %s", filePath)
+	}
+	const maxFileDocumentSize = 50 * 1024 * 1024 // 50MB
+	if info.Size() > maxFileDocumentSize {
+		return fmt.Errorf("file size %d bytes exceeds the %d MB limit", info.Size(), maxFileDocumentSize/(1024*1024))
 	}
 
 	// Determine output format.
@@ -1379,9 +1386,14 @@ func fetchURLContent(ctx context.Context, rawURL string) ([]byte, string, error)
 		return nil, "", fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxURLDocumentSize))
+	// Read one extra byte so we can detect (and reject) content over the limit
+	// rather than silently truncating it.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxURLDocumentSize+1))
 	if err != nil {
 		return nil, "", err
+	}
+	if len(body) > maxURLDocumentSize {
+		return nil, "", fmt.Errorf("document exceeds %d MB limit", maxURLDocumentSize/(1024*1024))
 	}
 
 	contentType := resp.Header.Get("Content-Type")
