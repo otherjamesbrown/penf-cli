@@ -25,6 +25,7 @@ const (
 	IngestService_IngestEmail_FullMethodName        = "/penfold.ingest.v1.IngestService/IngestEmail"
 	IngestService_IngestAttachment_FullMethodName   = "/penfold.ingest.v1.IngestService/IngestAttachment"
 	IngestService_IngestMeeting_FullMethodName      = "/penfold.ingest.v1.IngestService/IngestMeeting"
+	IngestService_IngestDocument_FullMethodName     = "/penfold.ingest.v1.IngestService/IngestDocument"
 	IngestService_CreateIngestJob_FullMethodName    = "/penfold.ingest.v1.IngestService/CreateIngestJob"
 	IngestService_UpdateJobProgress_FullMethodName  = "/penfold.ingest.v1.IngestService/UpdateJobProgress"
 	IngestService_CompleteIngestJob_FullMethodName  = "/penfold.ingest.v1.IngestService/CompleteIngestJob"
@@ -55,6 +56,9 @@ type IngestServiceClient interface {
 	IngestAttachment(ctx context.Context, in *IngestAttachmentRequest, opts ...grpc.CallOption) (*IngestAttachmentResponse, error)
 	// IngestMeeting ingests a full meeting with transcript and chat sources.
 	IngestMeeting(ctx context.Context, in *IngestMeetingRequest, opts ...grpc.CallOption) (*IngestMeetingResponse, error)
+	// IngestDocument ingests a single standalone document (markdown, text, PDF,
+	// etc.), persisting it as a source and enqueueing it for pipeline processing.
+	IngestDocument(ctx context.Context, in *IngestDocumentRequest, opts ...grpc.CallOption) (*IngestDocumentResponse, error)
 	// CreateIngestJob creates a batch ingestion job record.
 	CreateIngestJob(ctx context.Context, in *CreateIngestJobRequest, opts ...grpc.CallOption) (*CreateIngestJobResponse, error)
 	// UpdateJobProgress updates job progress counts.
@@ -121,6 +125,16 @@ func (c *ingestServiceClient) IngestMeeting(ctx context.Context, in *IngestMeeti
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(IngestMeetingResponse)
 	err := c.cc.Invoke(ctx, IngestService_IngestMeeting_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ingestServiceClient) IngestDocument(ctx context.Context, in *IngestDocumentRequest, opts ...grpc.CallOption) (*IngestDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IngestDocumentResponse)
+	err := c.cc.Invoke(ctx, IngestService_IngestDocument_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -299,6 +313,9 @@ type IngestServiceServer interface {
 	IngestAttachment(context.Context, *IngestAttachmentRequest) (*IngestAttachmentResponse, error)
 	// IngestMeeting ingests a full meeting with transcript and chat sources.
 	IngestMeeting(context.Context, *IngestMeetingRequest) (*IngestMeetingResponse, error)
+	// IngestDocument ingests a single standalone document (markdown, text, PDF,
+	// etc.), persisting it as a source and enqueueing it for pipeline processing.
+	IngestDocument(context.Context, *IngestDocumentRequest) (*IngestDocumentResponse, error)
 	// CreateIngestJob creates a batch ingestion job record.
 	CreateIngestJob(context.Context, *CreateIngestJobRequest) (*CreateIngestJobResponse, error)
 	// UpdateJobProgress updates job progress counts.
@@ -349,6 +366,9 @@ func (UnimplementedIngestServiceServer) IngestAttachment(context.Context, *Inges
 }
 func (UnimplementedIngestServiceServer) IngestMeeting(context.Context, *IngestMeetingRequest) (*IngestMeetingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IngestMeeting not implemented")
+}
+func (UnimplementedIngestServiceServer) IngestDocument(context.Context, *IngestDocumentRequest) (*IngestDocumentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IngestDocument not implemented")
 }
 func (UnimplementedIngestServiceServer) CreateIngestJob(context.Context, *CreateIngestJobRequest) (*CreateIngestJobResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateIngestJob not implemented")
@@ -469,6 +489,24 @@ func _IngestService_IngestMeeting_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IngestServiceServer).IngestMeeting(ctx, req.(*IngestMeetingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IngestService_IngestDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IngestDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestServiceServer).IngestDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IngestService_IngestDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestServiceServer).IngestDocument(ctx, req.(*IngestDocumentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -779,6 +817,10 @@ var IngestService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IngestMeeting",
 			Handler:    _IngestService_IngestMeeting_Handler,
+		},
+		{
+			MethodName: "IngestDocument",
+			Handler:    _IngestService_IngestDocument_Handler,
 		},
 		{
 			MethodName: "CreateIngestJob",

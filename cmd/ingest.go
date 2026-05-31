@@ -6,15 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	contentv1 "github.com/otherjamesbrown/penf-cli/api/proto/content/v1"
 	gmailv1 "github.com/otherjamesbrown/penf-cli/api/proto/gmail/v1"
 	ingestv1 "github.com/otherjamesbrown/penf-cli/api/proto/ingest/v1"
 	"github.com/otherjamesbrown/penf-cli/client"
@@ -33,6 +36,8 @@ const (
 	IngestJobStatusCompleted IngestJobStatus = "completed"
 	// IngestJobStatusFailed indicates the job failed.
 	IngestJobStatusFailed IngestJobStatus = "failed"
+	// IngestJobStatusSkipped indicates the item was skipped (e.g. duplicate).
+	IngestJobStatusSkipped IngestJobStatus = "skipped"
 )
 
 // IngestJobPriority represents job priority levels.
@@ -492,8 +497,9 @@ func runIngestFile(ctx context.Context, deps *IngestCommandDeps, filePath string
 	}
 	deps.Config = cfg
 
-	// Validate file exists.
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	// Validate file exists and is readable.
+	info, statErr := os.Stat(filePath)
+	if statErr != nil || info.IsDir() {
 		return fmt.Errorf("file not found: %s", filePath)
 	}
 
@@ -514,25 +520,38 @@ func runIngestFile(ctx context.Context, deps *IngestCommandDeps, filePath string
 		tenantID = "default"
 	}
 
-	// Create job via gRPC.
-	job, err := createIngestJobViaGRPC(ctx, deps, cfg, tenantID, "file", filePath)
+	// Read the file content client-side and ship it to the gateway for real
+	// persistence + pipeline processing.
+	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return fmt.Errorf("creating ingest job: %w", err)
+		return fmt.Errorf("reading file: %w", err)
+	}
+	if len(content) == 0 {
+		return fmt.Errorf("file is empty: %s", filePath)
 	}
 
-	if ingestAsync {
-		fmt.Printf("Ingestion job queued: %s\n", job.ID)
-		fmt.Printf("  File: %s\n", filePath)
-		fmt.Printf("  Priority: %s\n", job.Priority)
-		fmt.Println("\nUse 'penf ingest status " + job.ID + "' to check progress.")
-		return nil
+	filename := filepath.Base(filePath)
+
+	grpcClient, err := deps.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("connecting to gateway: %w", err)
+	}
+	defer grpcClient.Close()
+
+	resp, err := grpcClient.IngestDocument(ctx, &ingestv1.IngestDocumentRequest{
+		TenantId:    tenantID,
+		Filename:    filename,
+		ContentType: documentContentType(filename),
+		Content:     content,
+		Category:    ingestCategory,
+		Tags:        ingestTags,
+		SourceUri:   filePath,
+	})
+	if err != nil {
+		return fmt.Errorf("ingesting document: %w", err)
 	}
 
-	// Simulate synchronous processing with progress.
-	fmt.Printf("Ingesting file: %s\n", filePath)
-	job = simulateIngestProgress(job, format)
-
-	return outputIngestJob(format, job)
+	return reportDocumentIngest(ctx, grpcClient, format, "file", filePath, tenantID, resp)
 }
 
 // runIngestURL executes the URL ingestion command.
@@ -565,25 +584,38 @@ func runIngestURL(ctx context.Context, deps *IngestCommandDeps, url string) erro
 		tenantID = "default"
 	}
 
-	// Create job via gRPC.
-	job, err := createIngestJobViaGRPC(ctx, deps, cfg, tenantID, "url", url)
+	// Fetch the URL content client-side, then ship it to the gateway for real
+	// persistence + pipeline processing.
+	content, contentType, err := fetchURLContent(ctx, url)
 	if err != nil {
-		return fmt.Errorf("creating ingest job: %w", err)
+		return fmt.Errorf("fetching URL: %w", err)
+	}
+	if len(content) == 0 {
+		return fmt.Errorf("URL returned no content: %s", url)
 	}
 
-	if ingestAsync {
-		fmt.Printf("Ingestion job queued: %s\n", job.ID)
-		fmt.Printf("  URL: %s\n", url)
-		fmt.Printf("  Priority: %s\n", job.Priority)
-		fmt.Println("\nUse 'penf ingest status " + job.ID + "' to check progress.")
-		return nil
+	filename := urlFilename(url)
+
+	grpcClient, err := deps.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("connecting to gateway: %w", err)
+	}
+	defer grpcClient.Close()
+
+	resp, err := grpcClient.IngestDocument(ctx, &ingestv1.IngestDocumentRequest{
+		TenantId:    tenantID,
+		Filename:    filename,
+		ContentType: contentType,
+		Content:     content,
+		Category:    ingestCategory,
+		Tags:        ingestTags,
+		SourceUri:   url,
+	})
+	if err != nil {
+		return fmt.Errorf("ingesting document: %w", err)
 	}
 
-	// Simulate synchronous processing.
-	fmt.Printf("Ingesting URL: %s\n", url)
-	job = simulateIngestProgress(job, format)
-
-	return outputIngestJob(format, job)
+	return reportDocumentIngest(ctx, grpcClient, format, "url", url, tenantID, resp)
 }
 
 // runIngestBatch executes the batch ingestion command.
@@ -1298,38 +1330,168 @@ func createIngestJobViaGRPC(ctx context.Context, deps *IngestCommandDeps, cfg *c
 	return job, nil
 }
 
-// simulateIngestProgress simulates ingestion progress for synchronous operations.
-func simulateIngestProgress(job IngestJob, format config.OutputFormat) IngestJob {
-	stages := []struct {
-		progress int
-		message  string
-	}{
-		{10, "Reading content..."},
-		{30, "Extracting text..."},
-		{50, "Generating embeddings..."},
-		{70, "Extracting entities..."},
-		{90, "Indexing content..."},
-		{100, "Complete"},
+// documentContentType guesses a MIME type from a filename's extension,
+// defaulting to text/plain when unknown.
+func documentContentType(filename string) string {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".md", ".markdown":
+		return "text/markdown"
+	case ".txt", ".text", "":
+		return "text/plain"
+	case ".html", ".htm":
+		return "text/html"
+	case ".pdf":
+		return "application/pdf"
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".csv":
+		return "text/csv"
+	case ".json":
+		return "application/json"
+	}
+	if t := mime.TypeByExtension(filepath.Ext(filename)); t != "" {
+		return t
+	}
+	return "text/plain"
+}
+
+// fetchURLContent downloads the body at url and returns its bytes and content type.
+func fetchURLContent(ctx context.Context, rawURL string) ([]byte, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if i := strings.IndexByte(contentType, ';'); i >= 0 {
+		contentType = strings.TrimSpace(contentType[:i])
+	}
+	if contentType == "" {
+		contentType = "text/html"
+	}
+	return body, contentType, nil
+}
+
+// urlFilename derives a reasonable filename from a URL.
+func urlFilename(rawURL string) string {
+	if u, err := url.Parse(rawURL); err == nil {
+		if base := filepath.Base(u.Path); base != "" && base != "/" && base != "." {
+			return base
+		}
+		if u.Host != "" {
+			return u.Host
+		}
+	}
+	return "document"
+}
+
+// reportDocumentIngest renders the result of a document ingest. In synchronous mode
+// it polls for real pipeline completion; with --async it returns once the document is
+// persisted and enqueued. It never reports success the document did not actually achieve.
+func reportDocumentIngest(ctx context.Context, grpcClient *client.GRPCClient, format config.OutputFormat, jobType, source, tenantID string, resp *ingestv1.IngestDocumentResponse) error {
+	job := IngestJob{
+		ID:         resp.JobId,
+		Type:       jobType,
+		Source:     source,
+		Priority:   ingestPriority,
+		Tags:       ingestTags,
+		Category:   ingestCategory,
+		TenantID:   tenantID,
+		ItemsTotal: 1,
+		CreatedAt:  time.Now(),
+	}
+	if job.ID == "" {
+		job.ID = resp.SourceId
+	}
+
+	if resp.WasDuplicate {
+		job.Status = IngestJobStatusSkipped
+		job.Message = fmt.Sprintf("duplicate of existing source %s", resp.ExistingSourceId)
+		return outputIngestJob(format, job)
+	}
+
+	if ingestAsync {
+		job.Status = IngestJobStatusPending
+		job.Message = fmt.Sprintf("persisted as source %s (content %s); queued for processing", resp.SourceId, resp.ContentId)
+		if format == config.OutputFormatText {
+			fmt.Printf("Ingestion queued: source %s (content %s)\n", resp.SourceId, resp.ContentId)
+			fmt.Printf("  Use 'penf content show %s' to check progress.\n", resp.ContentId)
+			return nil
+		}
+		return outputIngestJob(format, job)
+	}
+
+	if format == config.OutputFormatText {
+		fmt.Printf("Ingesting %s: %s\n", jobType, source)
+		fmt.Printf("  Persisted as source %s (content %s); processing...\n", resp.SourceId, resp.ContentId)
 	}
 
 	now := time.Now()
 	job.StartedAt = &now
-	job.Status = IngestJobStatusProcessing
-
-	for _, stage := range stages {
-		if format == config.OutputFormatText {
-			fmt.Printf("  [%d%%] %s\n", stage.progress, stage.message)
+	status, message := waitForDocumentProcessing(ctx, grpcClient, resp.ContentId, resp.JobId)
+	job.Status = status
+	job.Message = message
+	switch status {
+	case IngestJobStatusCompleted:
+		job.Progress = 100
+		completedAt := time.Now()
+		job.CompletedAt = &completedAt
+	case IngestJobStatusFailed:
+		// Surface failure as a non-zero exit so callers/scripts notice.
+		if outErr := outputIngestJob(format, job); outErr != nil {
+			return outErr
 		}
-		job.Progress = stage.progress
-		job.Message = stage.message
-		time.Sleep(100 * time.Millisecond)
+		return fmt.Errorf("document processing failed (source %s): %s", resp.SourceId, message)
 	}
 
-	completedAt := time.Now()
-	job.CompletedAt = &completedAt
-	job.Status = IngestJobStatusCompleted
+	return outputIngestJob(format, job)
+}
 
-	return job
+// waitForDocumentProcessing polls the processing status until the pipeline reaches a
+// terminal state or a bounded timeout elapses. On timeout it reports that processing
+// is still in progress rather than claiming completion.
+func waitForDocumentProcessing(ctx context.Context, grpcClient *client.GRPCClient, contentID, jobID string) (IngestJobStatus, string) {
+	const (
+		pollInterval = 2 * time.Second
+		pollTimeout  = 120 * time.Second
+	)
+	deadline := time.Now().Add(pollTimeout)
+	for {
+		st, err := grpcClient.GetProcessingStatus(ctx, contentID, jobID)
+		if err == nil && st != nil {
+			switch st.State {
+			case contentv1.ProcessingState_PROCESSING_STATE_COMPLETED:
+				return IngestJobStatusCompleted, "Complete"
+			case contentv1.ProcessingState_PROCESSING_STATE_FAILED,
+				contentv1.ProcessingState_PROCESSING_STATE_REJECTED,
+				contentv1.ProcessingState_PROCESSING_STATE_CANCELLED:
+				return IngestJobStatusFailed, "processing ended in state " + st.State.String()
+			case contentv1.ProcessingState_PROCESSING_STATE_SKIPPED:
+				return IngestJobStatusSkipped, "skipped by pipeline"
+			}
+		}
+		if ctx.Err() != nil {
+			return IngestJobStatusProcessing, "still processing (interrupted); check 'penf content show " + contentID + "'"
+		}
+		if time.Now().After(deadline) {
+			return IngestJobStatusProcessing, "still processing (timed out waiting); check 'penf content show " + contentID + "'"
+		}
+		time.Sleep(pollInterval)
+	}
 }
 
 // Output functions.
