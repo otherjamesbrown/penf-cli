@@ -31,6 +31,17 @@ var (
 	productStatus      string
 	productDescription string
 	productKeywords    []string
+
+	// Update-specific flags (separate vars so update defaults to "" rather than
+	// inheriting the add command's non-empty defaults like "product"/"active").
+	productUpdateNewName     string
+	productUpdateDescription string
+	productUpdateType        string
+	productUpdateStatus      string
+	productUpdateParent      string
+
+	// Delete-specific flags.
+	productForceDelete bool
 )
 
 // ProductCommandDeps holds the dependencies for product commands.
@@ -191,6 +202,8 @@ Product and entity model details are in Context Palace knowledge shards.`,
 	cmd.AddCommand(newProductListCommand(deps))
 	cmd.AddCommand(newProductAddCommand(deps))
 	cmd.AddCommand(newProductShowCommand(deps))
+	cmd.AddCommand(newProductUpdateCommand(deps))
+	cmd.AddCommand(newProductDeleteCommand(deps))
 	cmd.AddCommand(newProductHierarchyCommand(deps))
 	cmd.AddCommand(newProductAliasCommand(deps))
 
@@ -306,6 +319,73 @@ Examples:
 			return runProductShow(cmd.Context(), deps, args[0])
 		},
 	}
+}
+
+// newProductUpdateCommand creates the 'product update' subcommand.
+func newProductUpdateCommand(deps *ProductCommandDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update <name-or-id>",
+		Short: "Update an existing product",
+		Long: `Update an existing product's properties.
+
+Resolves the product by name, alias, or ID, then applies only the flags
+you explicitly pass. Unset flags are left unchanged (partial update).
+
+Examples:
+  # Rename a product
+  penf product update "Cyber Manager" --name "Cyber Manager Platform"
+
+  # Change type and status
+  penf product update "Cyber Manager" --type sub_product --status deprecated
+
+  # Update description
+  penf product update "Cyber Manager" --description "New description"
+
+  # Reparent a product
+  penf product update "Cyber Manager" --parent "Security Suite"`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProductUpdate(cmd, deps, args[0])
+		},
+	}
+
+	// Use dedicated vars so defaults are "" — the add command defaults type to
+	// "product" and status to "active"; for update those must be unset.
+	cmd.Flags().StringVar(&productUpdateNewName, "name", "", "New product name")
+	cmd.Flags().StringVar(&productUpdateDescription, "description", "", "New product description")
+	cmd.Flags().StringVar(&productUpdateType, "type", "", "New product type: product, sub_product, feature")
+	cmd.Flags().StringVar(&productUpdateStatus, "status", "", "New status: active, beta, sunset, deprecated")
+	cmd.Flags().StringVar(&productUpdateParent, "parent", "", "New parent product name or identifier")
+
+	return cmd
+}
+
+// newProductDeleteCommand creates the 'product delete' subcommand.
+func newProductDeleteCommand(deps *ProductCommandDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete <name-or-id>",
+		Short: "Delete (soft-delete) a product",
+		Long: `Mark a product as deleted (soft-delete).
+
+The product record is retained in the database with its status set to
+'deleted'. This is a reversible operation — the product can be restored
+via direct database access if needed.
+
+Examples:
+  # Delete with confirmation prompt
+  penf product delete "Cyber Manager"
+
+  # Delete without prompt (for scripting)
+  penf product delete "Cyber Manager" --force`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProductDelete(cmd, deps, args[0])
+		},
+	}
+
+	cmd.Flags().BoolVar(&productForceDelete, "force", false, "Skip confirmation prompt")
+
+	return cmd
 }
 
 // newProductHierarchyCommand creates the 'product hierarchy' subcommand.
@@ -561,6 +641,130 @@ func runProductShow(ctx context.Context, deps *ProductCommandDeps, name string) 
 	}
 
 	return outputProductDetail(cfg, resp.Product)
+}
+
+// runProductUpdate executes the product update command.
+func runProductUpdate(cmd *cobra.Command, deps *ProductCommandDeps, nameOrID string) error {
+	// Guard: require at least one flag to be set.
+	changed := false
+	for _, flag := range []string{"name", "description", "type", "status", "parent"} {
+		if cmd.Flags().Changed(flag) {
+			changed = true
+			break
+		}
+	}
+	if !changed {
+		return fmt.Errorf("nothing to update: pass at least one of --name/--description/--type/--status/--parent")
+	}
+
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectProductToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	svcClient := productv1.NewProductServiceClient(conn)
+	tenantID := getTenantIDForProduct(deps)
+
+	// Resolve name-or-id to a canonical product to obtain its numeric ID.
+	getResp, err := svcClient.GetProduct(cmd.Context(), &productv1.GetProductRequest{
+		TenantId:   tenantID,
+		Identifier: nameOrID,
+	})
+	if err != nil {
+		return fmt.Errorf("product not found: %s", nameOrID)
+	}
+	product := getResp.Product
+
+	// Build ProductInput with only the changed fields set.
+	input := &productv1.ProductInput{}
+	if cmd.Flags().Changed("name") {
+		input.Name = productUpdateNewName
+	}
+	if cmd.Flags().Changed("description") {
+		input.Description = productUpdateDescription
+	}
+	if cmd.Flags().Changed("type") {
+		input.ProductType = productTypeToProto(productUpdateType)
+	}
+	if cmd.Flags().Changed("status") {
+		input.Status = productStatusToProto(productUpdateStatus)
+	}
+	if cmd.Flags().Changed("parent") {
+		input.Parent = productUpdateParent
+	}
+
+	updateResp, err := svcClient.UpdateProduct(cmd.Context(), &productv1.UpdateProductRequest{
+		Id:    product.Id,
+		Input: input,
+	})
+	if err != nil {
+		return fmt.Errorf("updating product: %w", err)
+	}
+
+	updated := updateResp.Product
+	fmt.Printf("\033[32m✓ Updated product:\033[0m %s (ID: %d)\n", updated.Name, updated.Id)
+	return nil
+}
+
+// runProductDelete executes the product delete command.
+func runProductDelete(cmd *cobra.Command, deps *ProductCommandDeps, nameOrID string) error {
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectProductToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	svcClient := productv1.NewProductServiceClient(conn)
+	tenantID := getTenantIDForProduct(deps)
+
+	// Resolve name-or-id to get the product's numeric ID and canonical name.
+	getResp, err := svcClient.GetProduct(cmd.Context(), &productv1.GetProductRequest{
+		TenantId:   tenantID,
+		Identifier: nameOrID,
+	})
+	if err != nil {
+		return fmt.Errorf("product not found: %s", nameOrID)
+	}
+	product := getResp.Product
+
+	// Confirm unless --force.
+	if !productForceDelete {
+		fmt.Printf("Delete product '%s'? [y/N]: ", product.Name)
+		var response string
+		fmt.Scanln(&response) //nolint:errcheck
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Deletion cancelled.")
+			return nil
+		}
+	}
+
+	deleteResp, err := svcClient.DeleteProduct(cmd.Context(), &productv1.DeleteProductRequest{
+		Id: product.Id,
+	})
+	if err != nil {
+		return fmt.Errorf("deleting product: %w", err)
+	}
+
+	if !deleteResp.Success {
+		return fmt.Errorf("server reported deletion unsuccessful for product '%s'", product.Name)
+	}
+
+	fmt.Printf("\033[32m✓ Deleted product:\033[0m %s (status set to deleted)\n", product.Name)
+	return nil
 }
 
 // runProductHierarchy executes the product hierarchy command.
