@@ -1482,19 +1482,31 @@ func waitForDocumentProcessing(ctx context.Context, grpcClient *client.GRPCClien
 		pollInterval = 2 * time.Second
 		pollTimeout  = 120 * time.Second
 	)
+	const maxConsecutiveErrors = 5
 	deadline := time.Now().Add(pollTimeout)
+	var consecutiveErrors int
 	for {
 		st, err := grpcClient.GetProcessingStatus(ctx, contentID, jobID)
-		if err == nil && st != nil {
-			switch st.State {
-			case contentv1.ProcessingState_PROCESSING_STATE_COMPLETED:
-				return IngestJobStatusCompleted, "Complete"
-			case contentv1.ProcessingState_PROCESSING_STATE_FAILED,
-				contentv1.ProcessingState_PROCESSING_STATE_REJECTED,
-				contentv1.ProcessingState_PROCESSING_STATE_CANCELLED:
-				return IngestJobStatusFailed, "processing ended in state " + st.State.String()
-			case contentv1.ProcessingState_PROCESSING_STATE_SKIPPED:
-				return IngestJobStatusSkipped, "skipped by pipeline"
+		if err != nil {
+			// Fail fast on a persistent connection/auth problem rather than polling
+			// silently until the timeout.
+			consecutiveErrors++
+			if consecutiveErrors >= maxConsecutiveErrors {
+				return IngestJobStatusFailed, fmt.Sprintf("failed to get processing status: %v", err)
+			}
+		} else {
+			consecutiveErrors = 0
+			if st != nil {
+				switch st.State {
+				case contentv1.ProcessingState_PROCESSING_STATE_COMPLETED:
+					return IngestJobStatusCompleted, "Complete"
+				case contentv1.ProcessingState_PROCESSING_STATE_FAILED,
+					contentv1.ProcessingState_PROCESSING_STATE_REJECTED,
+					contentv1.ProcessingState_PROCESSING_STATE_CANCELLED:
+					return IngestJobStatusFailed, "processing ended in state " + st.State.String()
+				case contentv1.ProcessingState_PROCESSING_STATE_SKIPPED:
+					return IngestJobStatusSkipped, "skipped by pipeline"
+				}
 			}
 		}
 		if time.Now().After(deadline) {
