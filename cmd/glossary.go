@@ -103,6 +103,7 @@ Glossary and acronym workflow details are in Context Palace knowledge shards.`,
 	cmd.AddCommand(newGlossaryLinkCommand(deps))
 	cmd.AddCommand(newGlossaryUnlinkCommand(deps))
 	cmd.AddCommand(newGlossaryLinkedCommand(deps))
+	cmd.AddCommand(newGlossaryUpdateCommand(deps))
 
 	return cmd
 }
@@ -822,6 +823,144 @@ func runGlossaryLinked(ctx context.Context, deps *GlossaryCommandDeps) error {
 	}
 
 	return outputLinkedTerms(format, resp.Terms, resp.TotalCount)
+}
+
+// newGlossaryUpdateCommand creates the 'glossary update' subcommand.
+func newGlossaryUpdateCommand(deps *GlossaryCommandDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update <term>",
+		Short: "Update fields on an existing glossary term",
+		Long: `Update one or more fields on an existing glossary term without replacing other fields.
+
+Only the flags you explicitly pass are modified — unspecified fields are left unchanged.
+This is the safe way to backfill missing data (e.g. adding a definition to a term that
+already has an expansion, aliases, and context seeded from another source).
+
+Use 'penf glossary add' to create a new term.
+Use 'penf glossary alias' to add a single alias without affecting other fields.
+
+Examples:
+  # Backfill a definition on an existing term
+  penf glossary update CSIP --definition "Cyber Security Improvement Programme"
+
+  # Update expansion and context together
+  penf glossary update TER \
+    --expansion "Technical Execution Review" \
+    --context "engineering,meetings"
+
+  # Enable query expansion for a term that had it disabled
+  penf glossary update FOO --expand-in-search
+
+  # Replace aliases (replaces all existing aliases)
+  penf glossary update MTC --aliases "TikTok Project,TT Contract"`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runGlossaryUpdate(cmd, args, deps)
+		},
+	}
+
+	cmd.Flags().String("expansion", "", "New expansion (full form of the term)")
+	cmd.Flags().String("definition", "", "New definition or description")
+	cmd.Flags().StringSlice("context", nil, "New context tags (comma-separated, replaces existing)")
+	cmd.Flags().StringSlice("aliases", nil, "New aliases (comma-separated, replaces existing)")
+	cmd.Flags().Bool("expand-in-search", false, "Whether to use this term for query expansion")
+
+	return cmd
+}
+
+func runGlossaryUpdate(cmd *cobra.Command, args []string, deps *GlossaryCommandDeps) error {
+	termStr := args[0]
+
+	// Guard: require at least one update flag.
+	updateFlags := []string{"expansion", "definition", "context", "aliases", "expand-in-search"}
+	anyChanged := false
+	for _, f := range updateFlags {
+		if cmd.Flags().Changed(f) {
+			anyChanged = true
+			break
+		}
+	}
+	if !anyChanged {
+		return fmt.Errorf("nothing to update: pass at least one of --expansion/--definition/--context/--aliases/--expand-in-search")
+	}
+
+	cfg, err := deps.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+	deps.Config = cfg
+
+	conn, err := connectToGateway(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := glossaryv1.NewGlossaryServiceClient(conn)
+	tenantID := getTenantIDForGlossary(deps)
+	ctx := cmd.Context()
+
+	// Fetch the existing term to get its ID; UpdateTermRequest requires ID not term name.
+	termResp, err := client.GetTerm(ctx, &glossaryv1.GetTermRequest{
+		TenantId: tenantID,
+		Term:     termStr,
+	})
+	if err != nil {
+		return fmt.Errorf("looking up term %q: %w", termStr, err)
+	}
+	if termResp.Term == nil {
+		return fmt.Errorf("term %q not found — use 'penf glossary add' to create it", termStr)
+	}
+
+	// Build the request; only set optional fields when the flag was explicitly provided.
+	// Expansion, Definition, and ExpandInSearch are proto optional (*string/*bool) so nil
+	// means "leave unchanged" — no need to fetch-then-preserve the current value.
+	req := &glossaryv1.UpdateTermRequest{
+		TenantId: tenantID,
+		Id:       termResp.Term.Id,
+	}
+
+	if cmd.Flags().Changed("expansion") {
+		v, _ := cmd.Flags().GetString("expansion")
+		req.Expansion = &v
+	}
+	if cmd.Flags().Changed("definition") {
+		v, _ := cmd.Flags().GetString("definition")
+		req.Definition = &v
+	}
+	if cmd.Flags().Changed("context") {
+		v, _ := cmd.Flags().GetStringSlice("context")
+		req.Context = v
+	}
+	if cmd.Flags().Changed("aliases") {
+		v, _ := cmd.Flags().GetStringSlice("aliases")
+		req.Aliases = v
+	}
+	if cmd.Flags().Changed("expand-in-search") {
+		v, _ := cmd.Flags().GetBool("expand-in-search")
+		req.ExpandInSearch = &v
+	}
+
+	updateResp, err := client.UpdateTerm(ctx, req)
+	if err != nil {
+		return fmt.Errorf("updating term: %w", err)
+	}
+
+	updated := updateResp.Term
+	fmt.Printf("\033[32m✓ Updated glossary term:\033[0m %s\n", updated.Term)
+	fmt.Printf("  Expansion:  %s\n", updated.Expansion)
+	if updated.Definition != "" {
+		fmt.Printf("  Definition: %s\n", updated.Definition)
+	}
+	if len(updated.Context) > 0 {
+		fmt.Printf("  Context:    %s\n", strings.Join(updated.Context, ", "))
+	}
+	if len(updated.Aliases) > 0 {
+		fmt.Printf("  Aliases:    %s\n", strings.Join(updated.Aliases, ", "))
+	}
+	fmt.Printf("  Expand:     %v\n", updated.ExpandInSearch)
+
+	return nil
 }
 
 // Output functions for proto types
